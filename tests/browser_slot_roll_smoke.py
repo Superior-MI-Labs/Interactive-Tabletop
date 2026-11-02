@@ -61,6 +61,14 @@ with sync_playwright() as pw:
  assert page.evaluate('pendingRoll?.expression')=='2d6+2'
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('lastAttackOutcome') is None
+ # A *normal* natural 20 must also auto-stage doubled damage dice, not only advantage.
+ page.locator('#dice-widget > summary').click()
+ page.locator('#d20-mode').select_option('normal')
+ page.locator('#dice-widget > summary').click()
+ page.locator('.attack-list [data-action=attack]').first.click()
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>20;for(const d of dice.filter(x=>activeRoll.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
+ assert page.evaluate('lastResult.outcome')=='CRITICAL HIT'
+ assert page.evaluate('pendingRoll.expression')=='2d6+2'
  assert not errors,errors
  print('Browser legacy slots, single pool, cast, advantage, critical damage, no JS errors PASS')
  browser.close()

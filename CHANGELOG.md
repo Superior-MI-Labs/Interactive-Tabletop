@@ -1,12 +1,10 @@
-## v0.29.0 — Safe effects, configurable combat economy and staged reactions
+## v0.29.0 — Safe effects and configurable combat economy
 
 - Reuse the existing effect end path for long-rest cleanup; preserve manual conditions, stable concentration-check IDs, resolved-check damage-undo safety, and Empty Body condition ownership.
 - Add DM-configurable 1–3-unit action/bonus/reaction pools, 1–4 attacks per Attack action, scoped extra-action grants, and optional automatic or manual action spending; preserve legacy turn flags and saves.
 - Consume a weapon Attack action only when physical dice launch. Extra Attack extends the same Attack action, unrestricted Action Surge-style grants enable another action, and Haste-style grants permit only one additional attack. Never infer features from PDF prose.
 - Extend explicit custom ability records with action-pool cost, prior-attack prerequisite, custom resource grant, and scoped extra-action permission. Validate all resource mutations atomically; support resource pool creation and turn-reset policy from the UI.
-- Remove character-name-specific Shield Stance and Empty Body shortcuts from Action Economy. Provide opt-in, editable ability templates within the Abilities section, preserving manual condition ownership.
-- Add three combat assistance modes: Auto (known AC resolution and immediate damage-dice handoff), Guided (DM confirms hit/miss before damage dice), and Manual (player controls the sequence). Charged actions and prerequisite-gated abilities use one shared planner.
-- Introduce a declarative staged reaction contract for a verified 2014 Deflect Missiles template: reaction first, physical reduction roll against entered damage, optional 1 Ki return attack only after reduction to zero and explicit catch/free-hand confirmation. No second reaction; no attack or HP auto-applied. Existing imported abilities may be explicitly converted without duplicating identities or executing prose.
+- Route Sky's existing Shield Stance and Empty Body activation through the shared action planner, preserve their previous data, and retain manual condition ownership.
 - Add comprehensive Node and Chromium tests, preserving the single Python/Node/browser CI gate. Pathfinder-style pool arithmetic is available as a **configurable primitive**, not a qualified Pathfinder ruleset.
 
 ## v0.28.0 — Qualified browser deployment and strict rule provenance

@@ -872,11 +872,14 @@ function attackFollowup(result,group,knownHit){
  const match=/^attack-(\d+)$/.exec(source);
  if(!match)return;
  const index=Number(match[1]),targetId=group.effect.targetId;
+ // Normal d20 uses the primary physical face; advantage/disadvantage expose
+ // the selected natural explicitly. Both must preserve natural-20 damage.
+ const natural=Number.isInteger(result.natural)?result.natural:result.parts?.[0];
  const mode=Action.combat(character).economy.mode;
  if(mode==='manual')return;
  const applyHit=()=>{
-  lastAttackOutcome={targetId,sourceId:source,critical:result.natural===20,hit:true};
-  if(prepareAttackDamage(index,targetId,result.natural===20))lastAttackOutcome=null;
+  lastAttackOutcome={targetId,sourceId:source,critical:natural===20,hit:true};
+  if(prepareAttackDamage(index,targetId,natural===20))lastAttackOutcome=null;
   else toast('Hit confirmed. Use the Damage button when the tabletop is free.');
  };
  if(mode==='guided'||knownHit===null){

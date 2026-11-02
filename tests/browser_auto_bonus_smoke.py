@@ -47,7 +47,10 @@ with sync_playwright() as pw:
    dice.sort((a,b)=>a.y-b.y);
  }''')
  # Same effect is reserved while first physical group is still rolling.
- skill.focus();page.keyboard.press('Enter')
+ # This assertion tests bonus reservation, not keyboard focus. Trigger the control
+ # directly so an in-flight dice animation cannot steal browser focus.
+ skill.evaluate('(element)=>element.click()')
+ page.wait_for_function('pendingRoll !== null')
  assert page.evaluate('pendingRoll.bonuses.length')==0
  page.evaluate('''()=>{beginThrow();for(const d of dice)if(!d.held)d.sleeping=true;finishRollIfSettled();}''')
  outcome=page.evaluate('''()=>history.find(r=>r.bonuses?.some(b=>b.name==='Guidance'))''')
