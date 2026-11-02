@@ -44,6 +44,7 @@ with sync_playwright() as pw:
  page.get_by_role('tab',name='Actions').click()
  page.locator('#dice-widget > summary').click() if page.locator('#dice-widget').get_attribute('open') is None else None
  page.locator('#d20-mode').select_option('advantage')
+ page.locator('#dice-widget > summary').click() # Close floating controls before hitting the sheet
  page.locator('.attack-list [data-action=attack]').first.click()
  assert page.evaluate('pendingRoll.count')==2
  assert page.evaluate('pendingRoll.d20Mode')=='advantage'
@@ -55,8 +56,8 @@ with sync_playwright() as pw:
  }''')
  assert page.evaluate('lastResult.total')==24
  assert page.evaluate('lastResult.outcome')=='CRITICAL HIT'
- assert page.evaluate('lastAttackOutcome.critical') is True
- page.evaluate("handleAction('damage','0')")
+ assert page.evaluate('lastAttackOutcome') is None
+ # Auto mode prepares damage dice immediately after a confirmed critical hit.
  assert page.evaluate('pendingRoll?.expression')=='2d6+2'
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('lastAttackOutcome') is None

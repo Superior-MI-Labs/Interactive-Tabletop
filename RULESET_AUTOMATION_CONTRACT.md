@@ -49,3 +49,20 @@ Regression gates: standalone d12 pickup; mixed d20+d4 cursor release; a short cl
 
 - The D&D 2014 effect planner requires `character.system_edition === 'dnd-2014'` for **every** automated profile, whether enabled by the character-level selection or an explicit per-spell override. Unspecified and 2024 editions cannot execute 2014 profiles. Manual spell planning always remains available. A rejected automated plan must not consume a slot, effect or turn resource.
 - The catalog lookup and UI controls are advisory presentation; the planner enforces the final edition boundary independently of callers.
+
+## Effect lifetime and damage undo (v0.29)
+
+- Long-rest ending is a lifecycle operation, not raw array replacement. Call `DndAction.endAllEffects` so conditions introduced by effects, concentration queues, and derived modifiers are removed through their owner. Manually applied conditions persist until the player/DM clears them.
+- Each pending concentration check has a per-character, persistent identity, independent of clock resolution and queue ordering. A completed check must never be recreated or selected by a later damage event.
+- Damage undo is rejected once its associated concentration check has been resolved, interrupted, or removed. Restore HP/temp HP plus discard the pending check only when the check is still unresolved; otherwise the character's authoritative decision history wins.
+- Legacy Empty Body invisibility is owned only when the ability actually introduced that condition. End/expiry does not delete independently present Invisibility.
+
+## Player-configured action pools (v0.29)
+
+`combat_profile` owns user-configured pool limits and attacks-per-Attack-action. `effects.combat.economy` owns current turn spending, attack sequences, manual/automatic selection, and scoped one-turn extra action grants. Ordinary expendable and custom homebrew points remain in the existing `character.resources`, with optional `reset: turn` policy. Any consuming action must pass the existing action planner, and custom abilities must declare exact costs/prerequisites/resource grants before use. Untyped dice throws are not combat actions; a configured weapon Attack action is charged when the physical dice launch, not when prepared. Confirmed spells and configured abilities charge on commit.
+
+Do not equate an action-unit grant with an attack allowance. A Haste-style attack-only grant allows one additional attack; Action Surge-style unrestricted grants allow one new action. Monk-style bonus actions and homebrew abilities require a configured feature record and explicit resource costs; no edition or class-feature prose parsing is authorized. The optional manual-accounting switch leaves resource costs intact but disables automatic action-pool enforcement. Configurable three-point action pools are only a **foundation** for Pathfinder 2e; the Pathfinder rules profile and multiple-attack penalty model are not yet shipped.
+
+## Conditional reaction contracts (v0.29)
+
+Validated staged abilities keep a single parent action context. Deflect Missiles (2014 SRD) requires a verified reaction to a ranged-weapon hit, reduces incoming damage with a physical d10 roll plus configured bonuses, and exposes the optional 1-Ki counterattack only after a zero-damage remainder and explicit catchable-missile/free-hand confirmation. Declining never spends Ki; choosing the option does not consume another reaction. All stages are recorded in the vault's existing combat state. Unverified imports and 2024 entries cannot auto-install the 2014 template. Player-configured homebrew must opt in explicitly and provide a validated operation schema.

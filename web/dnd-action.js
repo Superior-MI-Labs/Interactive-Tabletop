@@ -24,6 +24,25 @@ function combat(character){
  if(!state.spellcasting||typeof state.spellcasting!=='object')state.spellcasting={};
  state.spellcasting.bonus=state.spellcasting.bonus===true;
  state.spellcasting.restricted=state.spellcasting.restricted===true;
+ // Turn pools are authoritative. Legacy `used` remains a read-only compatible
+ // projection, never a second spending ledger.
+ if(!state.economy||typeof state.economy!=='object'){
+  state.economy={auto:true,spent:Object.fromEntries(['action','bonus','reaction'].map(k=>[k,state.used[k]?1:0])),
+   attacks:{made:0,remaining:0},grants:[]};
+ }
+ const e=state.economy;
+ // Canonical combat assistance is one mode, not separate auto/guided flags.
+ // Old saves with economy.auto are migrated in place without changing their ledger.
+ if(!['auto','guided','manual'].includes(e.mode))e.mode=e.auto===false?'manual':'auto';
+ e.auto=e.mode!=='manual'; // compatibility projection for old tests/exports
+ if(!e.spent||typeof e.spent!=='object')e.spent={};
+ for(const k of ['action','bonus','reaction']){
+  if(!Number.isSafeInteger(e.spent[k])||e.spent[k]<0)e.spent[k]=state.used[k]?1:0;
+  state.used[k]=e.spent[k]>0;
+ }
+ if(!e.attacks||typeof e.attacks!=='object')e.attacks={made:0,remaining:0};
+ for(const k of ['made','remaining'])if(!Number.isSafeInteger(e.attacks[k])||e.attacks[k]<0)e.attacks[k]=0;
+ if(!Array.isArray(e.grants))e.grants=[];
  return state;
 }
 function activationCost(raw){
@@ -38,15 +57,115 @@ function activationCost(raw){
 // Evaluate committed plans rather than parsing prose or individual spell names.
 function follows2014(character){return character.system_edition==='dnd-2014';}
 function actionCantrip(plan){return plan.kind==='spell'&&plan.slotLevel===0&&activationCost(plan.activation)==='action';}
+// The configured pool quantities are explicit player/DM settings. Never derive
+// actions, attacks or feature costs from untrusted imported feature prose.
+const POOL_NAMES=['action','bonus','reaction'];
+function poolLimits(character){
+ const specified=character.combat_profile?.action_pools||{},limits={};
+ for(const key of POOL_NAMES){
+  const v=specified[key]??1;
+  if(!Number.isSafeInteger(v)||v<1||v>3)throw Error('Configure '+key+' pool as 1–3 actions.');
+  limits[key]=v;
+ }
+ return limits;
+}
+function attacksPerAction(character){
+ const count=character.combat_profile?.attacks_per_action??1;
+ if(!Number.isSafeInteger(count)||count<1||count>4)throw Error('Configure attacks per Attack action as 1–4.');
+ return count;
+}
+function economyAvailable(character,type,units=1,scope='any'){
+ const state=combat(character),e=state.economy,limits=poolLimits(character);
+ if(!POOL_NAMES.includes(type)||!Number.isSafeInteger(units)||units<1||units>3)throw Error('Invalid action pool expense.');
+ const base=Math.max(0,limits[type]-e.spent[type]);
+ const extra=type==='action'?e.grants.filter(g=>!g.used&&(g.scope==='any'||scope==='attack')).length:0;
+ return base+extra>=units;
+}
+function spendEconomy(character,type,units=1,scope='any'){
+ if(!economyAvailable(character,type,units,scope))throw Error('Your '+type+' is already used or its pool is exhausted this turn.');
+ const state=combat(character),e=state.economy,limits=poolLimits(character);
+ let rest=units,grants=[];
+ const base=Math.min(rest,Math.max(0,limits[type]-e.spent[type]));rest-=base;
+ if(rest){grants=e.grants.filter(g=>!g.used&&(g.scope==='any'||scope==='attack')).slice(0,rest);}
+ e.spent[type]+=base;
+ for(const g of grants)g.used=true;
+ state.used[type]=e.spent[type]>0;
+ delete state.undo_turn;
+ return {base,grants:grants.map(g=>g.scope)};
+}
+function verifyAttack(character){
+ const state=combat(character);
+ if(!state.active||!state.economy.auto)return true;
+ attacksPerAction(character);
+ if(state.economy.attacks.remaining>0)return true;
+ if(!economyAvailable(character,'action',1,'attack'))throw Error('No Attack action or extra attack grant remains this turn.');
+ return true;
+}
+function commitAttack(character){
+ verifyAttack(character);
+ const state=combat(character);
+ if(!state.active||!state.economy.auto)return false;
+ const sequence=state.economy.attacks;
+ if(sequence.remaining>0)sequence.remaining--;
+ else{
+  const charge=spendEconomy(character,'action',1,'attack');
+  // A restricted Haste-style action grants exactly one attack, never Extra Attack.
+  sequence.remaining=charge.grants.includes('attack')?0:attacksPerAction(character)-1;
+ }
+ sequence.made++;
+ delete state.undo_turn;
+ return true;
+}
+function addResourcePool(character,name,max,reset='manual'){
+ if(typeof name!=='string'||!name.trim()||name.length>70||/[\x00-\x1f]/.test(name))throw Error('Name the new resource pool (1–70 characters).');
+ const key=name.trim();
+ if(!Number.isSafeInteger(max)||max<1||max>9999)throw Error('Resource maximum must be 1–9999.');
+ if(!['manual','turn','short rest','long rest'].includes(reset))throw Error('Unknown resource reset schedule.');
+ if(!character.resources||typeof character.resources!=='object')character.resources={};
+ if(Object.keys(character.resources).some(existing=>existing.toLowerCase()===key.toLowerCase()))throw Error('Resource pool already exists.');
+ character.resources[key]={current:max,max,reset};
+ return character.resources[key];
+}
+function configureEconomy(character,key,value){
+ if(!['action','bonus','reaction','attacks_per_action'].includes(key))throw Error('Unknown economy setting.');
+ if(!Number.isSafeInteger(value)||value<1||value>(key==='attacks_per_action'?4:3))throw Error('Economy setting is outside allowed range.');
+ const state=combat(character),previous=character.combat_profile;
+ const profile={...(previous||{}),action_pools:{...(previous?.action_pools||{})}};
+ if(key==='attacks_per_action')profile.attacks_per_action=value;
+ else{
+  if(state.active&&state.economy.spent[key]>value)throw Error('Cannot reduce the pool below actions already used this turn.');
+  profile.action_pools[key]=value;
+ }
+ character.combat_profile=profile;delete state.undo_turn;
+ return profile;
+}
+function setCombatMode(character,mode){
+ if(!['auto','guided','manual'].includes(mode))throw Error('Unknown combat assistance mode.');
+ const state=combat(character);
+ state.economy.mode=mode;state.economy.auto=mode!=='manual';delete state.undo_turn;
+ return mode;
+}
+function setAutoEconomy(character,enabled){
+ return setCombatMode(character,enabled?'auto':'manual')!=='manual';
+}
+function grantEconomyAction(character,scope='any',source='manual'){
+ if(!['any','attack'].includes(scope))throw Error('Only unrestricted or attack-only action grants are supported.');
+ const state=combat(character),e=state.economy;
+ if(!state.active)throw Error('Start encounter tracking before granting an action.');
+ if(e.grants.filter(g=>!g.used).length>=3)throw Error('Maximum three unspent grants per turn.');
+ if(source!=='manual'&&e.grants.some(g=>g.source===source))throw Error('Feature already granted its action this turn.');
+ e.grants.push({scope,source,used:false});delete state.undo_turn;
+ return e.grants.length;
+}
 function verifyEconomy(character,validated){
- const state=combat(character),type=activationCost(validated.activation);
- if(!state.active)return type; // Encounter accounting is strictly opt-in.
- if(type&&state.used[type])throw Error('Your '+type+' is already used this turn. Advance the turn or ask your DM to reset it.');
+ const state=combat(character),type=activationCost(validated.activation),units=validated.economyUnits??1;
+ if(!state.active||!state.economy.auto)return type;
+ if(type&&!economyAvailable(character,type,units))throw Error('Your '+type+' is already used or its pool is exhausted this turn.');
+ if(validated.requiresAttack&&state.economy.attacks.made<1)throw Error('This feature requires an Attack action first this turn.');
+ if(validated.grantEconomy&&state.economy.grants.some(g=>g.source===validated.sourceId))throw Error('Feature already granted its action this turn.');
  if(follows2014(character)&&validated.kind==='spell'){
-  if(state.spellcasting.bonus&&!actionCantrip(validated))
-   throw Error('2014 bonus-action spell rule: only a 1-action cantrip may follow a bonus-action spell this turn.');
-  if(type==='bonus'&&state.spellcasting.restricted)
-   throw Error('2014 bonus-action spell rule: another spell this turn prevents casting a bonus-action spell.');
+  if(state.spellcasting.bonus&&!actionCantrip(validated))throw Error('2014 bonus-action spell rule: only a 1-action cantrip may follow a bonus-action spell this turn.');
+  if(type==='bonus'&&state.spellcasting.restricted)throw Error('2014 bonus-action spell rule: another spell this turn prevents casting a bonus-action spell.');
  }
  return type;
 }
@@ -54,12 +173,17 @@ function commitUsage(character,validated){
  if(!character||!validated||!Number.isSafeInteger(validated.cost)||validated.cost<0)throw Error('Invalid ability plan.');
  const type=verifyEconomy(character,validated);
  const pool=validated.cost?character.resources?.[validated.resource]:null;
- if(validated.cost&&(!pool||!Number.isFinite(Number(pool.current))||Number(pool.current)<validated.cost))throw Error('Not enough '+validated.resource+'.');
- // All guards are complete before either the resource or turn state changes.
+ if(validated.cost&&(!pool||!Number.isSafeInteger(Number(pool.current))||Number(pool.current)<validated.cost))throw Error('Not enough '+validated.resource+'.');
+ const grant=validated.grantResource?character.resources?.[validated.grantResource]:null;
+ if(validated.grantResource&&(!grant||!Number.isSafeInteger(Number(grant.current))||!Number.isSafeInteger(Number(grant.max))||Number(grant.current)<0||Number(grant.current)>Number(grant.max)||Number(grant.max)<0))throw Error('Invalid resource grant pool: '+validated.grantResource);
+ const state=combat(character),e=state.economy;
+ if(state.active&&e.auto&&validated.grantEconomy&&e.grants.filter(g=>!g.used).length>=3)throw Error('No room for another action grant.');
+ // All costs and requirements were validated before modifying any resource.
  if(validated.cost)pool.current=Number(pool.current)-validated.cost;
- const state=combat(character);
- if(state.active){
-  if(type)state.used[type]=true;
+ if(grant)grant.current=Math.min(Number(grant.max),Number(grant.current)+validated.grantAmount);
+ if(state.active&&e.auto){
+  if(type)spendEconomy(character,type,validated.economyUnits??1);
+  if(validated.grantEconomy)grantEconomyAction(character,validated.grantEconomy,validated.sourceId);
   if(follows2014(character)&&validated.kind==='spell'){
    if(type==='bonus')state.spellcasting.bonus=true;
    else if(!actionCantrip(validated))state.spellcasting.restricted=true;
@@ -69,15 +193,16 @@ function commitUsage(character,validated){
  return type;
 }
 function markAction(character,type){
- if(!['action','bonus','reaction'].includes(type))throw Error('Unknown action category.');
+ if(!POOL_NAMES.includes(type))throw Error('Unknown action category.');
  const state=combat(character);
  if(!state.active)throw Error('Start encounter tracking before marking actions.');
- if(state.used[type])throw Error('That '+type+' is already spent.');
- state.used[type]=true;delete state.undo_turn;
+ if(!economyAvailable(character,type,1))throw Error('That '+type+' is already spent.');
+ spendEconomy(character,type,1);
 }
 function setEncounter(character,enabled){
- const state=combat(character);
- state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};delete state.undo_turn;
+ const state=combat(character),mode=state.economy.mode;
+ state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
+ state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},grants:[]};delete state.pending_workflow;delete state.undo_turn;
  return state;
 }
 
@@ -204,6 +329,33 @@ function plan(character,action){
   if(!pool||!Number.isFinite(Number(pool.current)))throw Error('Resource not found: '+resource);
   if(Number(pool.current)<cost)throw Error('Not enough '+resource+' ('+pool.current+'/'+cost+').');
  }
+ const grantResource=String(action.grant_resource||'').trim(),grantAmount=Number(action.grant_amount||0);
+ if(grantResource&&(!Number.isSafeInteger(grantAmount)||grantAmount<1||grantAmount>999))throw Error('Resource grant must be 1–999.');
+ if(!grantResource&&grantAmount)throw Error('Choose a resource to grant.');
+ const grantEconomy=String(action.grant_economy||'');
+ if(grantEconomy&&!['any','attack'].includes(grantEconomy))throw Error('Unsupported extra action permission.');
+ const economyUnits=Number(action.economy_units??1);
+ if(!Number.isSafeInteger(economyUnits)||economyUnits<1||economyUnits>3)throw Error('Action pool expense must be 1–3.');
+ if(!activationCost(action.activation)&&economyUnits!==1)throw Error('Special activities need a DM-defined activation.');
+ // A staged ability is declarative: the same planner owns the initial action,
+ // the physical reduction roll, and a separately approved follow-up charge.
+ if(action.ruleset_profile&&action.ruleset_profile!==character.system_edition)throw Error('Ability profile requires '+action.ruleset_profile+' character edition.');
+ const workflow=action.workflow;
+ let staged=null;
+ if(workflow!==undefined&&workflow!==null){
+  if(typeof workflow!=='object'||Array.isArray(workflow)||workflow.kind!=='damage-reduction')throw Error('Unsupported staged ability workflow.');
+  if(activationCost(action.activation)!=='reaction'||cost!==0||grantResource||grantEconomy)throw Error('Damage-reduction workflow must begin with a cost-free reaction.');
+  if(action.effect_kind&&action.effect_kind!=='none')throw Error('Staged ability cannot apply unrelated automatic effects.');
+  const reduction=dice(action.roll||'');
+  if(!reduction||reduction.sides!==10)throw Error('Configure the physical d10 reduction roll first.');
+  const next=workflow.followup;
+  if(!next||typeof next!=='object'||Array.isArray(next))throw Error('Staged ability requires a qualified optional follow-up.');
+  const nextResource=String(next.resource||'').trim(),nextCost=Number(next.cost),nextRoll=dice(next.roll||'');
+  if(!nextResource||!Number.isSafeInteger(nextCost)||nextCost<1||nextCost>9999||!nextRoll||nextRoll.sides!==20)throw Error('Configure a resource cost and a d20 follow-up roll.');
+  if(next.requires_catchable!==true||next.requires_free_hand!==true)throw Error('Counterattack requires explicit catchable-missile and free-hand confirmation.');
+  staged={kind:'damage-reduction',followup:{label:String(next.label||'Counterattack'),resource:nextResource,cost:nextCost,roll:nextRoll.expression,
+   requires_catchable:true,requires_free_hand:true}};
+ }
  const effect=action.effect_kind||'none';
  if(!['none','heal','condition','damage'].includes(effect))throw Error('Unsupported ability effect.');
  const roll=dice(action.roll||'');
@@ -215,7 +367,50 @@ function plan(character,action){
  if(effect==='condition'&&!CONDITIONS.has(condition))throw Error('Choose a supported self-condition.');
  if(action.damage)dice(action.damage); // Validate all configured dice before mutation.
  return Object.freeze({kind:'ability',name:String(action.name||'Ability'),sourceId:String(action.id||action.name||'ability'),resource,cost,roll,effect,
-   concentration:action.concentration===true,durationRounds:duration(action.duration_rounds),activation:String(action.activation||'special'),condition,damageType});
+   concentration:action.concentration===true,durationRounds:duration(action.duration_rounds),activation:String(action.activation||'special'),condition,damageType,
+   economyUnits,requiresAttack:action.requires_attack===true,grantResource,grantAmount,grantEconomy,workflow:staged});
+}
+// One pending sequence per character. The continuation is not a second
+// reaction: it is an optional child of the already committed parent action.
+function pendingWorkflow(character){return combat(character).pending_workflow||null;}
+function beginWorkflow(character,validated,incoming){
+ if(validated?.workflow?.kind!=='damage-reduction')throw Error('Not a supported staged action.');
+ if(!Number.isSafeInteger(incoming)||incoming<1||incoming>999999)throw Error('Enter confirmed incoming weapon damage (1–999999).');
+ if(pendingWorkflow(character))throw Error('Resolve or decline the existing staged ability first.');
+ const state=combat(character),nextId=(state.sequence_counter||0)+1;
+ if(!Number.isSafeInteger(nextId))throw Error('Ability sequence identity exhausted.');
+ // Do not debit anything until identity, all stages and prerequisites validate.
+ verifyEconomy(character,validated);
+ commitUsage(character,validated);
+ state.sequence_counter=nextId;
+ state.pending_workflow={id:'sequence-'+nextId,sourceId:validated.sourceId,name:validated.name,status:'await-roll',
+  incoming,roll:validated.roll.expression,followup:deepcopy(validated.workflow.followup)};
+ return deepcopy(state.pending_workflow);
+}
+function resolveWorkflow(character,id,reduction){
+ const state=combat(character),entry=state.pending_workflow;
+ if(!entry||entry.id!==id||entry.status!=='await-roll')throw Error('No matching unresolved reduction roll.');
+ if(!Number.isSafeInteger(reduction)||reduction<0)throw Error('Invalid reduction result.');
+ const remaining=Math.max(0,entry.incoming-reduction);
+ if(remaining){delete state.pending_workflow;return {remaining,eligible:false};}
+ entry.status='optional-followup';entry.remaining=0;
+ return {remaining:0,eligible:true};
+}
+function finishWorkflow(character,id,{catchable=false,freeHand=false}={}){
+ const state=combat(character),entry=state.pending_workflow;
+ if(!entry||entry.id!==id||entry.status!=='optional-followup')throw Error('The follow-up is unavailable or already resolved.');
+ if(!catchable||!freeHand)throw Error('Confirm the missile can be caught and a hand is free.');
+ const {resource,cost,roll}=entry.followup,pool=character.resources?.[resource];
+ if(!pool||!Number.isSafeInteger(Number(pool.current))||Number(pool.current)<cost)throw Error('Not enough '+resource+' for optional counterattack.');
+ // This step is part of the initial reaction; never spend another action.
+ pool.current=Number(pool.current)-cost;
+ delete state.pending_workflow;
+ return {label:entry.followup.label,roll,sourceId:entry.sourceId};
+}
+function declineWorkflow(character,id){
+ const state=combat(character),entry=state.pending_workflow;
+ if(!entry||entry.id!==id)throw Error('No matching staged ability.');
+ delete state.pending_workflow;return true;
 }
 // Deprecated invocation remains for the existing tests and callers: one commit path.
 function commit(character,validated){return commitUsage(character,validated);}
@@ -237,6 +432,16 @@ function endEffect(character,id){
   else if(Array.isArray(character.conditions))character.conditions=character.conditions.filter(c=>c!==effect.condition);
  }
  return true;
+}
+// Use the same end path for recasting, expiry and resting. Never clear the raw
+// effect array: that skips condition ownership and concentration cleanup.
+function endAllEffects(character){
+ const ids=[...new Set(activeEffects(character).map(e=>e.id))];
+ for(const id of ids)endEffect(character,id);
+ // Old vaults may contain checks for effects that no longer exist.
+ character.effects.pending_concentration=[];
+ delete combat(character).pending_workflow; // A rest also closes an unresolved reaction sequence.
+ return ids.length;
 }
 function startEffect(character,validated){
  if(!validated||(!validated.concentration&&!validated.durationRounds&&!validated.condition&&!validated.acBonus&&!validated.charges&&!validated.bonusDice))return null;
@@ -349,7 +554,13 @@ function queueConcentrationCheck(character,damage){
  if(!e)return null;
  const effects=character.effects;
  if(!Array.isArray(effects.pending_concentration))effects.pending_concentration=[];
- const check={id:`con-${Date.now()}-${effects.pending_concentration.length}`,effect_id:e.id,dc};
+ // Per-character monotonic IDs survive vault persistence and never depend on
+ // clock resolution or queue length (checks can resolve out of order).
+ let seq=Number.isSafeInteger(effects.concentration_sequence)&&effects.concentration_sequence>=0?effects.concentration_sequence:0;
+ let id;do{if(++seq>Number.MAX_SAFE_INTEGER)throw Error('Concentration check sequence exhausted.');id=`con-${seq}`;}
+ while(effects.pending_concentration.some(check=>check.id===id));
+ effects.concentration_sequence=seq;
+ const check={id,effect_id:e.id,dc};
  effects.pending_concentration.push(check);
  return check;
 }
@@ -377,16 +588,18 @@ function advanceEffects(character){
 }
 function advanceTurn(character){
  const state=combat(character);
- const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),
+ const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),
   effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
-  empty_body_rounds:character.effects.empty_body_rounds||0,
-  shield_points:character.resources?.['Shield Stance Points']?.current};
- if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};}
+  empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
+  turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
+ if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
+  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},grants:[]};delete state.pending_workflow;}
  const expired=advanceEffects(character);
- if(character.resources?.['Shield Stance Points'])character.resources['Shield Stance Points'].current=0;
+ for(const [name,resource] of Object.entries(character.resources||{}))
+  if(resource?.reset==='turn'||(name==='Shield Stance Points'&&resource?.reset===undefined))resource.current=0; // legacy character import compatibility
  if(character.effects.empty_body_rounds>0){
   character.effects.empty_body_rounds--;
-  if(character.effects.empty_body_rounds===0)character.conditions=character.conditions.filter(x=>x!=='Invisible');
+  if(character.effects.empty_body_rounds===0)endEmptyBody(character);
  }
  state.undo_turn=snapshot;
  return expired;
@@ -394,12 +607,22 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy;
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
- if(before.shield_points!==undefined&&character.resources?.['Shield Stance Points'])character.resources['Shield Stance Points'].current=before.shield_points;
+ if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;
+ for(const [key,current] of Object.entries(before.turn_resources||{}))if(character.resources?.[key])character.resources[key].current=current;
  delete state.undo_turn;
  return true;
+}
+// The existing Empty Body ability is a legacy timed feature. Track whether it
+// actually introduced Invisibility; never remove a manually present condition.
+function endEmptyBody(character){
+ const effects=character.effects||{};
+ if(effects.empty_body_owned&&!activeEffects(character).some(e=>e.condition==='Invisible')){
+  character.conditions=(character.conditions||[]).filter(x=>x!=='Invisible');
+ }
+ effects.empty_body_rounds=0;delete effects.empty_body_owned;
 }
 function applyHealing(character,amount){
  if(!Number.isSafeInteger(amount)||amount<0)throw Error('Invalid healing amount.');
@@ -508,6 +731,11 @@ function undoLastDamage(character){
  if(!undo)return false;
  const target=targetById(character,undo.targetId);
  if(!target||target.hp.current!==undo.after.current||(target.hp.temp||0)!==undo.after.temp){delete state.last_damage_undo;throw Error('Target HP changed since damage. Undo is no longer safe.');}
+ // Undo cannot resurrect an effect or bypass a completed concentration save.
+ // Only an outstanding check created by this exact damage event is reversible.
+ if(undo.check_id&&!character.effects?.pending_concentration?.some(c=>c.id===undo.check_id)){
+  delete state.last_damage_undo;throw Error('Concentration was already resolved or ended. Damage undo is no longer safe.');
+ }
  target.hp.current=undo.before.current;target.hp.temp=undo.before.temp;
  if(undo.check_id&&Array.isArray(character.effects.pending_concentration))
   character.effects.pending_concentration=character.effects.pending_concentration.filter(c=>c.id!==undo.check_id);
@@ -569,6 +797,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

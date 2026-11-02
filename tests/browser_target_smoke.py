@@ -44,6 +44,8 @@ with sync_playwright() as playwright:
  page.locator('[data-target-trait="resistances"]').fill('fire')
  page.locator('[data-target-trait="resistances"]').dispatch_event('change')
  assert page.evaluate('Action.targetTraits(character,"target-1").resistances[0]')=='fire'
+ # This scenario explicitly exercises manual attack→damage handling.
+ page.evaluate("Action.setCombatMode(character, 'manual')")
  # Hit evaluation uses an actual completed simulated roll; it never modifies HP.
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')

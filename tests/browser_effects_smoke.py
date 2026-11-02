@@ -98,6 +98,16 @@ with sync_playwright() as p:
  assert page.evaluate('character.effects.pending_concentration.length')==1
  page.locator('.buff-check').get_by_role('button',name='Roll CON save').click()
  assert page.evaluate('pendingRoll.expression')=='1d20+5'
+ # Long rest uses the same end-effect path, preserving manually tracked conditions.
+ page.evaluate("()=>{character.conditions.push('Poisoned');Action.startEffect(character,{kind:'ability',sourceId:'rest-qa',name:'QA Condition',condition:'Invisible',durationRounds:2});}")
+ assert page.evaluate("character.conditions.includes('Invisible')")
+ page.keyboard.press('Escape')  # release cursor-follow capture before clicking sheet controls
+ page.get_by_role('button',name='Long rest').click()
+ page.locator('#dlg-yes').click()
+ assert page.evaluate('character.effects.active.length')==0
+ assert page.evaluate('character.effects.pending_concentration.length')==0
+ assert page.evaluate("!character.conditions.includes('Invisible') && character.conditions.includes('Poisoned')")
+ assert page.evaluate('character.hp.current')==35
  assert not errors,errors
  page.set_viewport_size({'width':390,'height':844})
  page.wait_for_timeout(100)

@@ -44,7 +44,7 @@ function reconcile(old,fresh){
  if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot reconcile invalid characters.');
  const next=copy(fresh);next.resources=SlotPools.normalize(next.resources);
  const before=copy(old);before.resources=SlotPools.normalize(before.resources);
- const merged={...next,system_id:'dnd5e',system_edition:old.system_edition||'unspecified',rules_profile:old.rules_profile||'manual'};
+ const merged={...next,system_id:'dnd5e',system_edition:old.system_edition||'unspecified',rules_profile:old.rules_profile||'manual',combat_profile:before.combat_profile||next.combat_profile};
  // Latest PDF owns published maximums, stats and attacks; gameplay state stays live.
  merged.hp.current=Math.max(0,Math.min(next.hp.max,Number(before.hp.current)||0));
  merged.hp.temp=Math.max(0,Number(before.hp.temp)||0);

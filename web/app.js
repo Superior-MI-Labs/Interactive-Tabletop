@@ -177,9 +177,20 @@ function resourcePips(name,v){
  }
  return `<div class="resource-pips"><div class="resource-info"><strong>${esc(name)}</strong><span class="resource-count">${current}<span>/${max}</span></span><small title="Refreshes on ${esc(v.reset)}">↻ ${esc(v.reset)}</small></div><div class="pip-track" role="group" aria-label="${esc(name)}: ${current} of ${max}">${rows.join('')}${max>100?`<label class="large-resource">Set value <input type="number" class="input sm" data-resource-edit="${esc(name)}" min="0" max="${max}" value="${current}"></label>`:''}</div></div>`;
 }
+function unavailableReason(plan,resourceCharacter=character){
+ // Same engine as commit, no UI-maintained list of combat rules.
+ try{Action.verifyEconomy(resourceCharacter,plan);return '';}
+ catch(error){return error.message;}
+}
+function attackUnavailable(){
+ if(!Action.combat(character).active||!Action.combat(character).economy.auto)return '';
+ try{Action.verifyAttack(character);return '';}
+ catch(error){return error.message;}
+}
 function attackRows(mode='compact'){
  return (character.attacks||[]).map((a,i)=>{
-  const controls=`${button('Attack','attack',String(i),'button mini')}${button('Damage','damage',String(i),'button mini subtle')}`;
+  const reason=attackUnavailable(),disabled=reason?' disabled aria-disabled="true"':'';
+  const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${button('Damage','damage',String(i),'button mini subtle')}`;
   if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)}</small></div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
   return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)}"><span class="attack-name">${esc(a.name)}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
@@ -206,13 +217,23 @@ function buffBar(){
 }
 function combatActions(){
  const state=Action.combat(character);
- const tracker=state.active?`<div class="turn-tracker" aria-label="D&D turn resources"><strong>Turn ${state.turn}</strong>
- ${character.system_edition==='dnd-2014'&&state.spellcasting.bonus?'<small class="spell-turn-hint" title="2014 rule: only a 1-action cantrip can also be cast this turn">Bonus spell: cantrips only</small>':''}${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button class="turn-chip ${state.used[key]?'spent':''}" type="button" data-action="mark-turn-action" data-arg="${key}" aria-pressed="${state.used[key]}" data-tip="${state.used[key]?'Used':'Available'}: ${label}; mark manually for basic attacks or DM rulings">${label} ${state.used[key]?'×':'✓'}</button>`).join('')}</div>`:'<span class="combat-notice">Turn tracking off</span>';
- const sky=String(character.name).toLowerCase()==='sky blue eyes'&&/monk/i.test(character.class_level||'');
- return `<section class="combat-actions" aria-label="Combat actions"><strong>Actions</strong> ${tracker}
+ const limits=Action.poolLimits(character),economy=state.economy;
+ const tracker=state.active?`<div class="turn-tracker" aria-label="Combat action pools"><strong>Turn ${state.turn}</strong>
+ ${character.system_edition==='dnd-2014'&&state.spellcasting.bonus?'<small class="spell-turn-hint" title="2014 rule: only a 1-action cantrip can also be cast this turn">Bonus spell: cantrips only</small>':''}
+ ${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button class="turn-chip ${economy.spent[key]>=limits[key]?'spent':''}" type="button" data-action="mark-turn-action" data-arg="${key}" title="Spend 1 ${label.toLowerCase()} manually; all pools are character-configured">${label} ${Math.max(0,limits[key]-economy.spent[key])}/${limits[key]}</button>`).join('')}
+ <small>Attacks: ${economy.attacks.made} made, ${economy.attacks.remaining} remaining in sequence · Extra action grants: ${economy.grants.filter(g=>!g.used).length}</small></div>`:'<span class="combat-notice">Turn tracking off</span>';
+ return `<section class="combat-actions" aria-label="Action economy tracker"><strong>Action economy</strong> ${tracker}
  ${button(state.active?'End encounter':'Start encounter','toggle-encounter','','button mini subtle')}
- ${sky?button('Shield stance · Action','stance','','button mini subtle'):''}
- ${sky?button(character.effects?.empty_body_rounds>0?`Empty Body · ${character.effects.empty_body_rounds} rounds`:'Empty Body · 4 Ki','empty-body','','button mini subtle'):''}
+ <label class="field economy-auto"><span>Combat assistance</span><select class="input" id="combat-mode" aria-label="Combat assistance mode">${[['auto','Auto'],['guided','Guided'],['manual','Manual']].map(([mode,label])=>`<option value="${mode}" ${economy.mode===mode?'selected':''}>${label}</option>`).join('')}</select></label>
+ <details class="economy-config"><summary>Turn economy settings (DM approved)</summary>
+ <div class="entry-pair">${[['action','Actions'],['bonus','Bonus actions'],['reaction','Reactions']].map(([key,label])=>`<label class="field">${label} per turn<input class="input sm" type="number" min="1" max="3" data-economy-config="${key}" value="${limits[key]}"></label>`).join('')}
+ <label class="field">Attacks per Attack action<input class="input sm" type="number" min="1" max="4" data-economy-config="attacks_per_action" value="${Action.attacksPerAction(character)}"></label></div>
+ <div class="controls-row">${button('Grant action (DM)','grant-economy','any','button mini subtle')}${button('Grant attack-only action','grant-economy','attack','button mini subtle')}</div>
+ <div class="entry-pair"><label class="field">New resource pool<input class="input" id="economy-new-resource" maxlength="70" placeholder="e.g. Defensive Points"></label>
+ <label class="field">Maximum<input class="input sm" id="economy-new-resource-max" type="number" min="1" max="9999" value="4"></label>
+ <label class="field">Reset<select class="input" id="economy-new-resource-reset"><option value="manual">Manual</option><option value="turn">End of turn (zero)</option><option value="short rest">Short rest</option><option value="long rest">Long rest</option></select></label>
+ ${button('Create pool','economy-add-resource','','button mini subtle')}</div>
+ <small>Extra Attack adds attacks within one Attack action. Haste-style grants allow one additional attack, not another full Attack action. Pathfinder-style pools can be configured here; Pathfinder rules are not automated.</small></details>
  ${button('Next turn ↗','advance-turn','','button mini subtle')} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}</section>`;
 }
 // The sheet is the complete combat screen. Details are never duplicated in another tab.
@@ -273,30 +294,53 @@ function encounterTargets(){
  <p class="target-note">Only manually supplied creature statistics are used. Saving throws report success/failure; no damage or condition is applied until you approve it. For 2014 rules, configure resistances and vulnerabilities explicitly.</p>
  </details>`;
 }
+// Presets are explicit player-installed action records. No class/name heuristics
+// grant hidden abilities, and the runtime uses the shared planner unchanged.
+const ABILITY_TEMPLATES={
+ shield_stance:{name:'Shield Stance',activation:'1 action',grant_resource:'Shield Stance Points',grant_amount:4,effect_kind:'none',description:'Player/DM-approved stance; spend one action to recharge your defensive-point pool.'},
+ empty_body:{name:'Empty Body',activation:'1 action',resource:'Ki',cost:4,effect_kind:'condition',effect_condition:'Invisible',duration_rounds:10,description:'Configure this feature according to your edition/DM ruling. Grants a tracked Invisibility condition for ten rounds.'},
+ deflect_missiles_2014:{name:'Deflect Missiles (2014)',ruleset_profile:'dnd-2014',activation:'1 reaction',roll:'1d10+0',cost:0,effect_kind:'none',
+  workflow:{kind:'damage-reduction',followup:{label:'Return caught missile',resource:'Ki',cost:1,roll:'1d20+0',requires_catchable:true,requires_free_hand:true}},
+  description:'2014 SRD: on a confirmed ranged weapon hit, spend one reaction and reduce incoming damage by 1d10 + DEX modifier + Monk level. Configure the flat bonus in this dice expression. If damage reaches zero, and the missile is small/catchable and one hand is free, optionally spend 1 Ki for a return ranged attack within 20/60 ft as part of the SAME reaction. Confirm level and attack bonus with the DM.'}
+};
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
  const specialFilter=actionFilter==='all'||actionFilter==='action';
  const entries=(character.actions||[]).map((a,i)=>({...a,index:i})).filter(a=>!a.archived);
- return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
+ const templates=Object.keys(ABILITY_TEMPLATES).filter(key=>!character.actions.some(a=>a.preset_id===key));
+ const sequence=Action.pendingWorkflow(character);
+ const staged=sequence?`<div class="pending-resolution" aria-label="Pending staged ability"><strong>${esc(sequence.name)}</strong>
+ <span>${sequence.status==='await-roll'?`Awaiting reduction roll vs ${esc(sequence.incoming)} incoming damage; initial reaction already spent.`:'Damage fully deflected. Confirm a catchable missile and free hand before optional return attack.'}</span>
+ ${sequence.status==='optional-followup'?`<button type="button" class="button mini primary" data-action="staged-followup" data-arg="${esc(sequence.id)}" ${Number(character.resources?.[sequence.followup.resource]?.current||0)<sequence.followup.cost?'disabled':''}>${esc(sequence.followup.label)} · ${esc(sequence.followup.cost)} ${esc(sequence.followup.resource)}</button>`:''}
+ ${button('Decline / finish','staged-decline',sequence.id,'button mini subtle')}</div>`:'';
+ return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}${combatActions()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
- ${editMode?button('+ Custom ability','add-action','','button mini'):''}</div>
- ${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
- ${specialFilter?`${combatActions()}<div class="ability-action-list" aria-label="Imported and custom actions">${entries.map(a=>{
+ ${editMode?`${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
+ ${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
+ ${specialFilter?`<div class="ability-action-list" aria-label="Imported and custom actions">${entries.map(a=>{
    const roll=a.roll||'', damage=a.damage||'';
    return `<details class="work-entry action-entry" data-action-id="${esc(a.id||a.index)}"><summary><span class="entry-title">${esc(a.name)}</span><span class="entry-meta">${esc(a.activation||'special')}${a.source==='manual'?' · Custom':a.source==='user-reference'?' · Screenshot reference':''}</span></summary>
    <div class="entry-details"><p class="action-description">${esc(a.description||'No rules description imported. Configure manually if needed.')}</p>
-   <div class="controls-row action-buttons">${button('Use ability','action-use',String(a.index),'button mini primary')}${roll?button('Roll '+roll,'action-roll',String(a.index),'button mini'):''}
+   <div class="controls-row action-buttons">${(()=>{let reason='';try{const p=Action.plan(character,a);reason=unavailableReason(p);}catch(e){reason=e.message;}const lock=reason&&Action.combat(character).active&&Action.combat(character).economy.auto;return `<button type="button" class="button mini primary" data-action="action-use" data-arg="${a.index}" ${lock?'disabled aria-disabled="true"':''} title="${esc(lock?reason:'Confirm ability use')}">Use ability</button>`;})()}${roll&&!a.workflow?button('Roll '+roll,'action-roll',String(a.index),'button mini'):''}
    ${damage?button('Damage '+damage,'action-damage',String(a.index),'button mini subtle'):''}
    ${a.resource&&num(a.cost)>0?`<small class="action-cost">${esc(a.cost)} ${esc(a.resource)} on use</small>`:''}</div>
    ${editMode?`<div class="action-editor"><div class="entry-pair">${field('Name',`actions.${a.index}.name`,a.name)}${field('Activation',`actions.${a.index}.activation`,a.activation||'')}</div>
-   <div class="entry-pair">${field('Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
+   <div class="entry-pair">${field(a.workflow?'Damage reduction dice (1d10 + DEX mod + class level)':'Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
+   ${a.workflow?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
+   <div class="entry-pair">${field('Action pool cost (1–3)',`actions.${a.index}.economy_units`,a.economy_units??1,'number')}
+   <label class="field">Requires a prior Attack action<input type="checkbox" data-action-requires-attack="${a.index}" ${a.requires_attack?'checked':''}></label></div>
+   <div class="entry-pair">${field('Grant resource pool',`actions.${a.index}.grant_resource`,a.grant_resource||'')}${field('Grant amount',`actions.${a.index}.grant_amount`,a.grant_amount||0,'number')}</div>
+   <label class="field">Grant extra action permission<select class="input" data-input="actions.${a.index}.grant_economy"><option value="" ${!a.grant_economy?'selected':''}>None</option><option value="any" ${a.grant_economy==='any'?'selected':''}>Unrestricted action (Action Surge-like)</option><option value="attack" ${a.grant_economy==='attack'?'selected':''}>One attack only (Haste-like)</option></select></label>
    <label class="field"><span class="field-label">Effect after roll (DM-approved only)</span><select class="input" data-input="actions.${a.index}.effect_kind"><option value="none" ${(a.effect_kind||'none')==='none'?'selected':''}>No automatic effect</option><option value="heal" ${a.effect_kind==='heal'?'selected':''}>Offer HP healing after roll</option><option value="damage" ${a.effect_kind==='damage'?'selected':''}>Offer damage to selected target</option><option value="condition" ${a.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
    <label class="field"><span class="field-label">Self-condition (only when effect is condition)</span><select class="input" data-action-condition="${a.index}"><option value="">Choose condition</option>${[...Action.CONDITIONS].map(n=>`<option value="${n}" ${a.effect_condition===n?'selected':''}>${n}</option>`).join('')}</select></label>
    <div class="entry-pair">${field('Duration (rounds, 0 = untimed)',`actions.${a.index}.duration_rounds`,a.duration_rounds??0,'number')}
    <label class="field"><span class="field-label">Concentration (DM approved)</span><input type="checkbox" data-action-concentration="${a.index}" ${a.concentration?'checked':''}></label></div>
    <label class="field">Damage type (when configured)<select class="input" data-input="actions.${a.index}.damage_type">${Action.DAMAGE_TYPES.map(t=>`<option value="${t}" ${(a.damage_type||'untyped')===t?'selected':''}>${t}</option>`).join('')}</select></label>
    ${field('Description / DM ruling',`actions.${a.index}.description`,a.description||'')}
+   <div class="entry-pair"><label class="field">Apply vetted / player-approved template<select class="input" id="apply-template-${a.index}">
+   <option value="">Choose a replacement...</option>${Object.entries(ABILITY_TEMPLATES).map(([key,preset])=>`<option value="${esc(key)}">${esc(preset.name)}</option>`).join('')}</select></label>
+   ${button('Review template','apply-ability-template',String(a.index),'button mini subtle')}</div>
    ${button('Archive ability','archive-action',String(a.index),'button mini subtle')}</div>`:''}</div></details>`;
  }).join('')}</div></div>`:''}`;
 }
@@ -480,19 +524,20 @@ function setPath(path,value){
  let obj=character;
  for(const p of parts.slice(0,-1)){if(!obj||!Object.prototype.hasOwnProperty.call(obj,p))return;obj=obj[p];}
  const key=parts.at(-1);
- if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type)$/.test(path)))return;
+ if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|economy_units|grant_resource|grant_amount|grant_economy)$/.test(path)))return;
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
  obj[key]=value;
+ if(/^actions\.\d+\.(?:economy_units|grant_amount)$/.test(path))obj[key]=Math.max(0,Math.min(999,Math.floor(num(value))));
  if(/^(?:actions|spells)\.\d+\.duration_rounds$/.test(path))obj[key]=Math.max(0,Math.min(999,Math.floor(num(value))));
  // User-edited imported abilities become manual overrides, retained on reimport.
  if(/^actions\.\d+\./.test(path)){const a=character.actions[Number(parts[1])];if(a)a.source='manual';}
  save();
 }
-function dialog(heading,message,onConfirm){
+function dialog(heading,message,onConfirm,confirmLabel='Continue',cancelLabel='Cancel'){
  const layer=$('#dialog-layer');
  layer.hidden=false;
  layer.innerHTML=`<section class="dialog" role="dialog" aria-modal="true" aria-label="${esc(heading)}"><h2>${esc(heading)}</h2><p>${esc(message)}</p>
- <div class="controls-row"><button class="button subtle" id="dlg-no">Cancel</button><button class="button primary" id="dlg-yes">Continue</button></div></section>`;
+ <div class="controls-row"><button class="button subtle" id="dlg-no">${esc(cancelLabel)}</button><button class="button primary" id="dlg-yes">${esc(confirmLabel)}</button></div></section>`;
  $('#dlg-no').onclick=()=>{layer.hidden=true;layer.innerHTML='';};
  $('#dlg-yes').onclick=()=>{layer.hidden=true;layer.innerHTML='';onConfirm();};
 }
@@ -521,7 +566,12 @@ function doRest(kind){
    if(res.reset==='turn')res.current=0;
    else if(kind==='long'||(kind==='short'&&res.reset==='short rest'))res.current=res.max;
  }
- if(kind==='long'){character.conditions=character.conditions.filter(x=>x==='Exhaustion');character.effects.empty_body_rounds=0;Action.activeEffects(character);character.effects.active=[];}
+ if(kind==='long'){
+  Action.endAllEffects(character);
+  Action.endEmptyBody(character);
+  // Long rests restore resources, not arbitrary manual conditions; the DM
+  // decides whether an independently applied condition has ended.
+ }
  save();render();toast(`${kind==='long'?'Long':'Short'} rest applied`);
 }
 function handleAction(action,arg){
@@ -604,19 +654,52 @@ function handleAction(action,arg){
   case 'about':showAbout();break;
   case 'toggle-edit-rolls':editRollModifiers=!editRollModifiers;render();break;
   case 'hp':applyDamage(arg);break;
-  case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?' and hit points':''}?`,()=>doRest(arg));break;
+  case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
   case 'condition':if(Action.activeEffects(character).some(e=>e.condition===arg)){toast('End the linked effect before removing '+arg+'.');break;}character.conditions=character.conditions.includes(arg)?character.conditions.filter(x=>x!==arg):[...character.conditions,arg];delete Action.combat(character).undo_turn;save();render();break;
   case 'set-hp':{character.hp.current=Math.max(0,Math.min(character.hp.max,num(arg)));save();render();break;}
   case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,value));save();render();}break;}
   case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,r.current+delta));save();render();}break;}
   case 'add-action':character.actions=character.actions||[];character.actions.unshift({id:'manual-'+Date.now(),name:'New ability',activation:'action',description:'',roll:'',damage:'',resource:'',cost:0,effect_kind:'none',duration_rounds:0,concentration:false,source:'manual',archived:false,effect_condition:''});save();render();break;
+  case 'add-ability-template':{
+   const key=$('#ability-template')?.value,base=ABILITY_TEMPLATES[key];if(!base){toast('Select an ability template first.');break;}
+   if((character.actions||[]).some(a=>a.preset_id===key)){toast('Template already installed.');break;}
+   character.actions=character.actions||[];
+   const id='preset-'+key+'-'+Date.now();character.actions.unshift({id,preset_id:key,source:'manual',archived:false,roll:'',damage:'',...base});
+   save();render();toast(base.name+' added as an editable custom ability.');break;
+  }
+  case 'apply-ability-template':{
+   const index=num(arg),a=character.actions?.[index],selected=$(`#apply-template-${index}`)?.value,preset=ABILITY_TEMPLATES[selected];
+   if(!a||!preset){toast('Select an ability template first.');break;}
+   if(preset.ruleset_profile&&character.system_edition!==preset.ruleset_profile){toast('Template requires '+preset.ruleset_profile+' edition.');break;}
+   dialog('Replace mechanics for '+a.name+'?',`This explicitly replaces the selected ability’s activation and resource costs with the ${preset.name} template. The original ability ID and imported description are retained. Verify dice modifiers and homebrew rules with your DM. No resource is spent by configuring an ability.`,()=>{
+    const name=a.name,id=a.id,description=a.description||'';
+    for(const field of ['activation','roll','damage','resource','cost','effect_kind','effect_condition','duration_rounds','concentration','economy_units','requires_attack','grant_resource','grant_amount','grant_economy','workflow','damage_type','ruleset_profile'])delete a[field];
+    Object.assign(a,JSON.parse(JSON.stringify(preset)),{id,name,source:'manual',preset_id:selected});
+    a.description=description?description+'\n\nWorkflow configuration: '+preset.description:preset.description;
+    save();render();toast('Ability workflow configured. Review dice modifiers before use.');
+   },'Apply template');break;
+  }
   case 'archive-action':{const a=character.actions?.[num(arg)];if(a){a.archived=true;save();render();}break;}
   case 'action-use':{
    const a=character.actions?.[num(arg)];if(!a)break;
    let p;try{p=Action.plan(character,a);}catch(e){toast('Cannot use '+a.name+': '+e.message);break;}
+   if(p.workflow){
+    try{Action.verifyEconomy(character,p);if(!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough room for the reduction dice.');}
+    catch(e){toast(e.message);break;}
+    let incoming=0;
+    dialog('Activate '+p.name+'?',`Confirm you were hit by a ranged weapon attack. Spend the reaction now, then roll ${p.roll.expression} to reduce the incoming damage. Counterattack Ki is OPTIONAL and never charged upfront.`,()=>{
+     try{const fresh=Action.plan(character,a);const flow=Action.beginWorkflow(character,fresh,incoming);save();render();
+      queueRoll(flow.roll,flow.name+' damage reduction',{kind:'staged-reduction',characterId:activeId,sequenceId:flow.id});}
+     catch(error){toast('Cannot activate: '+error.message);}
+    },'Spend reaction & roll');
+    const panel=$('#dialog-layer .dialog'),field=document.createElement('label');field.className='field';field.textContent='Incoming ranged-weapon damage (confirmed by DM)';
+    const input=document.createElement('input');input.className='input';input.type='number';input.min='1';input.max='999999';input.value='1';incoming=1;
+    input.addEventListener('input',()=>incoming=Number(input.value));field.append(input);panel.querySelector('.controls-row').before(field);
+    break;
+   }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
-   const details=[p.activation,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
+   const details=[p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
    dialog('Use '+p.name+'?',details.join(' · ')+'. Continue only if appropriate under your table rules.',()=>{
     try{
      // Never spend resources while the active dice animation is unresolved.
@@ -629,6 +712,22 @@ function handleAction(action,arg){
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
+  }
+  case 'staged-decline':{
+   try{Action.declineWorkflow(character,arg);save();render();toast('Optional follow-up declined. The original reaction remains spent.');}
+   catch(error){toast(error.message);}break;
+  }
+  case 'staged-followup':{
+   const flow=Action.pendingWorkflow(character);
+   if(!flow||flow.id!==arg||flow.status!=='optional-followup'){toast('No eligible follow-up.');break;}
+   if(pendingRoll){toast('Finish the prepared dice first.');break;}
+   dialog('Catch and return missile?',`Confirm with the DM: damage was reduced to zero; the projectile is small enough to catch, one hand is free, and the return target is within range. Spend ${flow.followup.cost} ${flow.followup.resource} ONLY if you choose to throw back. No second reaction is spent.`,()=>{
+    try{const cfg=Action.dice(flow.followup.roll);if(!canPrepareDice(cfg.count,cfg.sides))throw Error('Not enough room for return dice.');
+     const attack=Action.finishWorkflow(character,arg,{catchable:true,freeHand:true});save();render();
+     queueRoll(attack.roll,attack.label+' vs '+Action.targetById(character,currentTargetId()).name,
+      {kind:'target-attack',characterId:activeId,targetId:currentTargetId(),sourceId:attack.sourceId},'attack');}
+    catch(error){toast(error.message);}
+   },'Spend & throw','Decline');break;
   }
   case 'cast-spell':{
    const sp=character.spells?.[num(arg)];if(!sp)break;
@@ -652,6 +751,11 @@ function handleAction(action,arg){
   }
   case 'toggle-encounter':Action.setEncounter(character,!Action.combat(character).active);save();render();break;
   case 'mark-turn-action':try{Action.markAction(character,arg);save();render();}catch(e){toast(e.message);}break;
+  case 'economy-add-resource':try{
+   Action.addResourcePool(character,$('#economy-new-resource')?.value,Number($('#economy-new-resource-max')?.value),$('#economy-new-resource-reset')?.value);
+   save();render();toast('Custom resource pool created.');
+  }catch(e){toast(e.message);}break;
+  case 'grant-economy':try{Action.grantEconomyAction(character,arg);save();render();}catch(e){toast(e.message);}break;
   case 'undo-turn':if(Action.undoTurn(character)){save();render();toast('Last turn advance undone.');}break;
   case 'effect-end':{
    if(Action.endEffect(character,arg)){save();render();toast('Effect ended.');}break;
@@ -679,32 +783,17 @@ function handleAction(action,arg){
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check',null,'ability-check');break;}
   case 'attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId();
-   queueRoll(`1d20${sgn(a.bonus)}`,a.name+' attack vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg)},'attack');}break;}
-  case 'damage':{const a=character.attacks[num(arg)];if(a){const ex=/\d+d\d+(?:[+-]\d+)?/i.exec(a.damage);
-   if(ex){const targetId=currentTargetId(),explicit=Action.DAMAGE_TYPES.filter(t=>t!=='untyped'&&new RegExp('\\b'+t+'\\b','i').test(a.damage));
-    const damageType=explicit.length===1?explicit[0]:selectedDamageType;
-    const critical=lastAttackOutcome?.critical&&lastAttackOutcome.targetId===targetId&&lastAttackOutcome.sourceId==='attack-'+num(arg);
-    const expression=critical?Action.criticalDamageExpression(ex[0]):ex[0];
-    if(queueRoll(expression,a.name+(critical?' critical':'')+' damage vs '+Action.targetById(character,targetId).name,{kind:'target-damage',characterId:activeId,targetId,damageType,source:a.name}))lastAttackOutcome=null;}
-   else toast('Could not parse damage dice: '+a.damage);}break;}
+   try{Action.verifyAttack(character);
+    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+' attack vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg)},'attack'))pendingRoll.combatAttack=true;
+   }catch(e){toast(e.message);}}break;}
+  case 'damage':{
+   const index=num(arg),targetId=currentTargetId();
+   const confirmed=lastAttackOutcome?.hit&&lastAttackOutcome.targetId===targetId&&lastAttackOutcome.sourceId==='attack-'+index;
+   if(prepareAttackDamage(index,targetId,Boolean(confirmed&&lastAttackOutcome.critical)))lastAttackOutcome=null;
+   break;
+  }
   case 'clear-history':history.length=0;lastResult=null;updateTableResults();save();break;
   case 'clear-table':if(activeRolls.length||pointer?.down){toast('Finish the active dice first.');break;}dice=[];pendingRoll=null;queuedEffect=null;pointer=null;following=false;updateTableResults();toast('Table cleared');break;
-  case 'stance':{
-    try{Action.markAction(character,'action');}catch(e){if(Action.combat(character).active){toast(e.message);break;}}
-    if(character.resources?.['Shield Stance Points'])character.resources['Shield Stance Points'].current=4;
-    save();render();toast('Defensive stance entered (action).');break;
-  }
-  case 'empty-body':{
-    if((character.effects?.empty_body_rounds||0)>0){toast('Empty Body already active.');break;}
-    const ki=character.resources?.Ki;
-    if(!ki||ki.current<4){toast('Not enough Ki for Empty Body (requires 4).');break;}
-    try{Action.verifyEconomy(character,{activation:'action'});}catch(e){toast(e.message);break;}
-    if(Action.combat(character).active)Action.markAction(character,'action');
-    ki.current-=4;character.effects=character.effects||{};
-    character.effects.empty_body_rounds=10;
-    if(!character.conditions.includes('Invisible'))character.conditions.push('Invisible');
-    save();render();toast('Empty Body activated • 10 rounds remaining');break;
-  }
   case 'advance-turn':{
     const expired=Action.advanceTurn(character);
     save({preserveUndo:true});render();toast(expired.length?'Expired effects: '+expired.join(', '):'Advanced one turn');break;
@@ -761,6 +850,39 @@ function prepareDice(specs,modifier,label,expression,follow=false){
 function canPrepareDice(count,sides){
  const reusable=dice.filter(d=>d.sides===sides&&d.sleeping&&!d.held&&!activeRolls.some(g=>g.diceIds.includes(d.id))).length;
  return Math.max(0,count-reusable)+dice.length<=35;
+}
+// One attack→damage preparation path for Auto, Guided and the manual Damage button.
+// Never mutate HP, overwrite another prepared throw, or infer unlisted damage dice.
+function prepareAttackDamage(index,targetId,critical=false){
+ const attack=character.attacks?.[index],target=Action.targetById(character,targetId);
+ if(!attack||!target)return false;
+ if(pendingRoll){toast('Another roll is already prepared. Finish or clear it before damage.');return false;}
+ const match=/\d+d\d+(?:[+-]\d+)?/i.exec(attack.damage||'');
+ if(!match){toast('Configure damage dice for '+attack.name+' before rolling damage.');return false;}
+ try{
+  const matchingTypes=Action.DAMAGE_TYPES.filter(t=>t!=='untyped'&&new RegExp('\\b'+t+'\\b','i').test(attack.damage));
+  const damageType=matchingTypes.length===1?matchingTypes[0]:selectedDamageType;
+  const expression=critical?Action.criticalDamageExpression(match[0]):Action.dice(match[0]).expression;
+  return queueRoll(expression,attack.name+(critical?' critical':'')+' damage vs '+target.name,
+   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name});
+ }catch(error){toast(error.message);return false;}
+}
+function attackFollowup(result,group,knownHit){
+ const source=group.effect?.sourceId||'';
+ const match=/^attack-(\d+)$/.exec(source);
+ if(!match)return;
+ const index=Number(match[1]),targetId=group.effect.targetId;
+ const mode=Action.combat(character).economy.mode;
+ if(mode==='manual')return;
+ const applyHit=()=>{
+  lastAttackOutcome={targetId,sourceId:source,critical:result.natural===20,hit:true};
+  if(prepareAttackDamage(index,targetId,result.natural===20))lastAttackOutcome=null;
+  else toast('Hit confirmed. Use the Damage button when the tabletop is free.');
+ };
+ if(mode==='guided'||knownHit===null){
+  const target=Action.targetById(character,targetId);
+  dialog('Did the attack hit?',`${result.label}: ${result.total} to hit${target?' against '+target.name:''}. Confirm with your DM.`,applyHit,'Hit','Miss');
+ }else if(knownHit)applyHit();
 }
 function queueRoll(expr,label,effect=null,rollKind='untyped'){
  try{
@@ -853,6 +975,10 @@ document.addEventListener('change',e=>{
   dialog('Use D&D 2014 SRD automation?', 'Enable all verified 2014 SRD effect profiles for this character. Unsupported spells, imported values, homebrew and existing active effects remain unchanged.',()=>{character.rules_profile='srd-2014';if(!character.system_edition||character.system_edition==='unspecified')character.system_edition='dnd-2014';save();render();toast('Qualified 2014 SRD spell effects enabled.');});
   return;
  }
+ if(el.id==='combat-mode'){try{Action.setCombatMode(character,el.value);save();render();}catch(error){toast(error.message);render();}return;}
+ if(el.dataset.economyAuto!==undefined){try{Action.setAutoEconomy(character,el.checked);save();render();}catch(error){toast(error.message);render();}return;}
+ if(el.dataset.economyConfig){try{Action.configureEconomy(character,el.dataset.economyConfig,Number(el.value));save();render();}catch(error){toast(error.message);render();}return;}
+ if(el.dataset.actionRequiresAttack!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttack)];if(a){a.requires_attack=el.checked;a.source='manual';save();}return;}
  if(el.dataset.effectAuto!==undefined){
   try{Action.setAutoUse(character,el.dataset.effectAuto,el.checked);save();toast((el.checked?'Armed ':'Paused ')+Action.activeEffects(character).find(e=>e.id===el.dataset.effectAuto)?.name);}
   catch(error){toast(error.message);render();}return;
@@ -1116,6 +1242,12 @@ function initDiceCanvas(){
 }
 function startDiceGroup(selected,p,vx,vy,shake,effect){
  if(!selected.length)return false;
+ // An Attack action is spent only when its physical dice actually launch.
+ // Canceling/replacing prepared dice never consumes an action or attack.
+ if(p.combatAttack){
+  try{Action.commitAttack(character);save();render();}
+  catch(error){toast(error.message);return false;}
+ }
  selected.forEach(d=>{
   d.held=false;d.ready=false;d.rolling=true;
   DP.launch(d,vx+(DP.random()-.5)*170,vy+(DP.random()-.5)*150,shake);
@@ -1130,15 +1262,16 @@ function beginThrow(vx=120,vy=45,shake=80){
  if(!pendingRoll)return;
  const p=pendingRoll,selected=(p.diceIds||[]).map(id=>dice.find(d=>d.id===id)).filter(d=>d&&d.ready);
  if(!selected.length)return;
- const effect=queuedEffect;queuedEffect=null;
+ const effect=queuedEffect;
  if(startDiceGroup(selected,p,vx,vy,shake,effect)){
-   pendingRoll=null;following=false;$('#dice-stage').classList.remove('dice-following');
+   queuedEffect=null;pendingRoll=null;following=false;$('#dice-stage').classList.remove('dice-following');
  }
 }
 function finishRollIfSettled(){
  if(!activeRolls.length)return;
  const completed=[];
  let effectsChanged=false;
+ const attackFollowups=[];
  for(const group of activeRolls){
    const selected=group.diceIds.map(id=>dice.find(d=>d.id===id)).filter(Boolean);
    if(!selected.length||selected.length!==group.diceIds.length||!selected.every(d=>d.sleeping&&!d.held))continue;
@@ -1173,12 +1306,19 @@ function finishRollIfSettled(){
    if(group.effect?.characterId===activeId){
      if(group.effect.kind==='heal'&&result.total>=0)pendingHealing={characterId:activeId,name:group.effect.name,amount:result.total};
      if(group.effect.kind==='target-attack'){
-       try{const target=Action.targetById(character,group.effect.targetId);
-        if(target){const verdict=Action.evaluateAttack(result.total,Action.effectiveAC(character,group.effect.targetId),
-         group.expression.startsWith('1d20')?(selectedD20?selectedD20.natural:result.parts[0]):null);
-         result.outcome=verdict.critical?'CRITICAL HIT':verdict.hit?'HIT':'MISS';
-         lastAttackOutcome={targetId:group.effect.targetId,sourceId:group.effect.sourceId||null,critical:verdict.critical,hit:verdict.hit};
-         toast(`${target.name}: ${result.outcome} vs AC ${verdict.targetAC}. Roll damage separately and confirm before applying.`);
+       try{
+        const target=Action.targetById(character,group.effect.targetId);
+        if(target){
+         const natural=selectedD20?selectedD20.natural:result.parts[0];
+         let knownHit=null;
+         try{
+          const verdict=Action.evaluateAttack(result.total,Action.effectiveAC(character,group.effect.targetId),natural);
+          knownHit=verdict.hit;
+          result.outcome=verdict.critical?'CRITICAL HIT':verdict.hit?'HIT':'MISS';
+          toast(`${target.name}: ${result.outcome} vs AC ${verdict.targetAC}. Confirm before applying damage.`);
+         }catch(error){toast('AC unknown: confirm hit/miss with the DM.');}
+         lastAttackOutcome={targetId:group.effect.targetId,sourceId:group.effect.sourceId||null,critical:natural===20,hit:knownHit};
+         if(group.effect.sourceId)attackFollowups.push({result,group,knownHit});
         }
        }catch(e){toast('Attack outcome: '+e.message);}
      }
@@ -1195,6 +1335,12 @@ function finishRollIfSettled(){
          source:group.effect.source||group.label,type:group.effect.damageType||'untyped',amount:result.total,
          saveOutcome:lastSaveOutcome?.targetId===targetId?lastSaveOutcome.outcome:null});
      }
+     if(group.effect.kind==='staged-reduction'){
+       try{const outcome=Action.resolveWorkflow(character,group.effect.sequenceId,result.total);
+        toast(outcome.eligible?'Damage reduced to zero. Optional counterattack available if the missile is catchable.':`Damage reduced by ${result.total}; ${outcome.remaining} damage remains. Apply remaining HP damage with your DM.`);
+        effectsChanged=true;}
+       catch(error){toast('Staged ability: '+error.message);}
+     }
      if(group.effect.kind==='concentration'){
        const resolution=Action.resolveConcentrationCheck(character,group.effect.checkId,result.total);
        if(resolution){toast(resolution.success?'Concentration maintained.':'Concentration broken: '+resolution.effectName);render();}
@@ -1207,6 +1353,9 @@ function finishRollIfSettled(){
  activeRolls=activeRolls.filter(g=>!completed.includes(g));activeRoll=activeRolls.at(-1)||null;
  updateTableResults();save();
  if(effectsChanged)render(); // Shared state changed when a charge expired; repaint the buff bar.
+ // Finishing a throw must not trample a player-prepared roll or an open dialog.
+ if(!pendingRoll&&attackFollowups.length===1){const next=attackFollowups[0];attackFollowup(next.result,next.group,next.knownHit);}
+ else if(attackFollowups.length>1)toast('Multiple attacks settled; use Damage manually for the appropriate hit.');
 }
 function updateTableResults(){
  const result=$('#last-result'),list=$('#table-history'),count=$('#history-count'),collapsed=$('#collapsed-result');

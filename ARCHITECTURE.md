@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.28.0
+# Interactive Tabletop architecture — v0.29.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -135,3 +135,29 @@ Qualified spell profiles now declare an `activation` matched against their read-
 ### v0.28 — Single qualification and deployment pipeline
 
 Previously the separate Pages workflow could publish without exercising any of the 15 Chromium gameplay checks, and browser tests assumed an absolute local executable and screenshot folder. The single GitHub Actions workflow now runs `tools/qualify.sh` for all Python, JavaScript and browser tests in its `qualify` job, and only builds/deploys Pages from `main` after qualification succeeds. `tests/browser_support.py` is the single Chromium launch policy shared by local and CI execution. Screenshots are not part of automated assertions. The edition gate lives in `DndAction.planSpell`, not in the UI selection alone. No new runtime service or game-state store is introduced.
+
+## v0.29 — Effect lifecycle and concentration integrity
+
+- `DndAction.endEffect` is the single ownership-aware effect removal path. `endAllEffects` now delegates to it for each active effect and clears orphan concentration checks from legacy saves; long-rest UI must **not** clear `effects.active` or remove arbitrary manual conditions directly.
+- Concentration check identity belongs to `character.effects.concentration_sequence`, a persistent monotonic counter. It is not derived from wall time or the current queue length, which previously permitted ID reuse when several checks occurred or resolved rapidly. Old queued IDs remain readable; no migration or extra vault is needed.
+- Undo of damage that generated a concentration check is safe only while that *exact check* remains pending. Once the check has resolved or the effect has ended, HP alone cannot be restored without also reversing a player/DM decision, so the undo is rejected.
+- The existing Empty Body ability now records `effects.empty_body_owned` to remove only Invisibility that **it** added, preserving a manually present condition. Advancing and undoing a turn restore that ownership state. This does not create a new status system or presume that a long rest cures every manual condition.
+- UI and action engine remain separate: rest handles HP/resource restoration, and all effect state/lifecycle operations go through the existing `DndAction` module. The expanded Node and real-Chromium checks run in the existing qualification pipeline.
+
+## v0.29 — Configurable action and resource pool contract
+
+The per-character **vault** remains the only persistence owner. The combat action engine maintains a single turn ledger in `effects.combat.economy`, with `auto`, `spent` counts for `action`/`bonus`/`reaction`, an `attacks` sequence, and explicit one-turn `grants`. Old `effects.combat.used` flags remain a derived compatibility view, not an independent budget. No global/combat engine database was introduced.
+
+- `combat_profile.action_pools` declares DM-approved per-turn pool quantities (default: 1 each; configured 1–3). `combat_profile.attacks_per_action` declares an explicit attack allowance (default 1, configured 1–4). Importing a Fighter or Monk label **never** infers Extra Attack. These settings survive a PDF reimport.
+- All spells and configured abilities use the existing `verifyEconomy` / `commitUsage` planner. Auto mode validates and charges the appropriate pool at commit. Manual mode still debits real class resources, but skips automatic action charges and same-turn enforcement; players may mark pools manually. Changing modes does not refund spent actions.
+- A physical weapon attack uses `verifyAttack` before dice preparation and `commitAttack` at **actual throw**, never at cursor pickup/preparation. The first attack spends one Attack action and creates its explicitly configured remaining attacks; follow-up attacks spend only that sequence. Unrestricted granted actions permit another sequence, whereas attack-only Haste-style grants allow one attack. Extra Attack is *not* another generic action.
+- Custom ability records may declare `economy_units` (1–3), `requires_attack`, `grant_resource` + `grant_amount`, and `grant_economy` (`any` or `attack`). Costs, prerequisites and pool existence validate before anything is spent. Custom resource pools live under the existing `character.resources`, have explicit reset policies, and are capped at their configured maximum. Shield Stance and Empty Body live in the Abilities panel as explicit editable templates; no character-name-specific Action Economy shortcuts remain. Turn-undo includes the ledger and turn-reset resources.
+- The three-action Pathfinder-2e-style pool is now **representable**; actual Pathfinder rules are **not** implemented. Future edition profiles must provide verified action traits, multiple-attack penalties, subordinate activities, reactions and timing, rather than assuming D&D Attack action semantics. Likewise this alpha does not infer Action Surge, Haste, Monk Flurry of Blows, proficiency level, or homebrew defensive-point triggers from imported prose.
+
+Core invariants: one transaction for resource charges and action budget; no hidden rules inferred from a name; no effect duplicate store; canceled pending attack dice spend no action; manual adjustments are possible and explicit; unsupported/unknown mechanics remain DM-adjudicated.
+
+## v0.29 — Staged action workflow
+
+The existing `DndAction` planner admits an explicitly configured `workflow.kind = 'damage-reduction'` shape. The initial action charges its reaction once; the pending workflow is stored inside `effects.combat.pending_workflow` in the same vault. The physical reduction result is compared with confirmed incoming damage. Only a zero remainder permits the optional resource follow-up, and explicit catchability/free-hand confirmation is required. The follow-up spends no second reaction. Decline, stale sequence identity, insufficient resources, rest and turn change fail closed. No natural-language effects are interpreted or arbitrary scripts executed.
+
+Three modes are owned by `economy.mode` (`auto`, `guided`, `manual`); `economy.auto` is a compatibility projection. In Auto, known AC offers immediate damage dice for a hit; Guided asks for confirmation; Manual never auto-stages damage. HP application is confirmed separately. The opt-in 2014 Deflect Missiles template can replace the mechanics of an existing imported ability after explicit approval, preserving ID and source description. Exact DEX/class-level roll modifiers must be entered by the player when ambiguous. The current staged schema is deliberately narrow; it is not yet a complete generic action-language interpreter.

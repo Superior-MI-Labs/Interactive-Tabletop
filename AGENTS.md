@@ -33,3 +33,21 @@ python3 tools/build_release.py && python3 tools/build_site.py
 `TABLETOP_CHROMIUM=managed` forces Playwright's downloaded Chromium; alternatively provide an absolute executable path. Browser tests must not write screenshots to repository paths, assume `/mnt/data`, or bypass `browser_support.launch_chromium`. Tests use the real DOM, real JS modules, and in-memory API stubs, with no external network calls. Pull requests run full qualification but never deploy; `main` deploys **only if** qualification passes. Record exact failures; never claim Pages succeeded until the deployment check reports success.
 
 Update `VERSION`, launcher/site version references, `CHANGELOG.md`, and architecture/contracts together. Only the canonical `web/` is edited; `docs/` and desktop ZIPs remain generated.
+
+## Lifecycle review rule
+
+No UI operation may assign directly to `character.effects.active` to end effects. All removal must go through `DndAction.endEffect`/`endAllEffects` to preserve condition ownership and concentration cleanup. Check damage previews, associated concentration saves, damage undo, and turn undo as one transactional behavior; don't blindly restore HP after a saved outcome has already been resolved.
+
+## Action economy contracts (v0.29)
+
+- Do not add a Pathfinder engine or duplicate turn ledger. `effects.combat.economy` is the sole spending state; `effects.combat.used` is a compatibility projection. `combat_profile` is explicit user/DM configuration, `character.resources` owns class/homebrew points, and `DndAction` validates and commits them.
+- Preserve the difference between action-pool units, extra attacks within an Attack action, and restricted action grants. No class feature (Extra Attack, Haste, Flurry of Blows, Action Surge, Sky homebrew) may activate by name/prose parsing. Explicit custom ability cost, activation, permissions and prerequisite must be validated before resource mutation.
+- Physical attacks debit at dice **throw**, not when the dice are prepared or cursor-follow is canceled. Check manual mode, no-encounter mode, full pool, variable three-action pools, failed costs, partial multiattack, granted-action limits, turn undo and PDF reimports. `tests/test_economy_pools.js` and `tests/browser_economy_smoke.py` protect these contracts.
+- Custom resource pools use the vault's existing resources object and reset policy. Pathfinder rules remain unavailable pending a complete, edition-pinned rule profile including multiple-attack penalties, activities and reactions. Do not claim that support merely because the pool primitive is configurable.
+
+## Staged reactions and combat assistance (v0.29)
+
+- `effects.combat.pending_workflow` is the sole staged reaction record. Extend only with validated declarative operation shapes inside `DndAction`; never parse arbitrary imported descriptions or use per-ability JS interpreters.
+- Parent reactions and follow-up class-resource costs are distinct commits. The follow-up must check resolved trigger data, preserve original action context, and never debit its parent's reaction twice. Declining or failing preconditions cannot spend Ki.
+- `economy.mode` (`auto` / `guided` / `manual`) controls assistance; `economy.auto` is a compatibility projection. UI button eligibility must come from the shared planner. Auto/GUIded charge economy at committed use or Attack dice launch, not while dice follow the pointer. HP damage always requires confirmation.
+- The 2014 Deflect Missiles template is opt-in and edition-pinned, with manually configurable roll bonuses. Applying a template to an existing imported ability retains ID and description while replacing stale cost fields. Browser and Node tests must exercise optional, canceled, insufficient resource, expired, persisted and double-spend behavior.
