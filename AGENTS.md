@@ -57,3 +57,9 @@ No UI operation may assign directly to `character.effects.active` to end effects
 - Keep `DndAction.previewWorkflowFollowup` and `finishWorkflow` as the shared eligibility and commit boundary. The browser only prepares/throws dice; optional costs are **not** spent until launch. A stale, declined or underfunded sequence must fail without affecting resources or turn accounting. The initial reaction is still spent on activation.
 - Every combat roll must be associated with the active vault character. On character switches, clear prepared rolls and never resolve previous-character physical rolls into the new character's history/effects/HP. Do not create cross-vault sync by convenience.
 - Regression gates: `tests/test_staged_abilities.js`, `tests/browser_staged_smoke.py`, `tests/browser_roll_ownership_smoke.py`; keep browser-test coverage count and the unified qualification command current.
+
+## Reaction/event and input ownership (v0.32)
+
+- All reaction abilities must have a verified trigger timing, not merely `activation: 1 reaction`. Only typed event windows in `effects.combat` qualify configured events; `DndAction` owns opening, eligibility and consumption. Imported text must not be interpreted as runnable rules; profiles must be opted into and edition-qualified.
+- Never award a Stunned condition on mere hit: target saving throw still needs resolution. Never place a pre-roll ability after an attack has already hit. Do not use an automatic hit-result without known target AC, attack type and player/DM confirmation.
+- Right-click/Escape cancels pending physical dice; these gestures cannot undo committed gameplay transactions. Preserve active-roll ownership, cursor capture cleanup, and charged resources. Regression gates: `tests/test_combat_events.js` and `tests/browser_event_cancel_smoke.py`.

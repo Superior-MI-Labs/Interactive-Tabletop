@@ -1,3 +1,10 @@
+## v0.32.0 — Confirmed combat-event windows and reversible prepared dice
+
+- Add short-lived, per-character, DM-confirmed combat events to the existing `effects.combat` turn record. Valid phases are incoming attack **before** its roll, ranged weapon attack that **hit you**, and your own confirmed melee hit. One event permits one committed trigger-aware ability; replacing/closing it or advancing your turn invalidates it. Legacy vaults remain compatible.
+- Validate optional `trigger_event` on player-approved action records, including edition checks, resource availability and action economy, before any costs are committed. Deflect Missiles uses the ranged-hit event, and new opt-in Stunning Strike and Warding Flare examples use melee-hit and incoming-attack events respectively. Unknown/homebrew description prose never creates a trigger. Warding Flare's disadvantage and Stunning Strike's target save still require DM resolution, rather than guessed automatic outcomes.
+- Right-click and Escape cancel any prepared dice, including grab-in-progress, without rolling them or spending an action or optional resource. Releasing an already launched die cannot reverse a committed action. The shared cancel pathway restores a grabbed die's physical state rather than treating cancellation as a roll.
+- Expand unit and real-browser coverage for wrong phase, single-use windows, turn expiration, manual-mode override, vault persistence, spell/action budget and physical cursor cancellation.
+
 ## v0.31.0 — Deferred optional-roll charges and vault-scoped dice ownership
 
 - Counterthrow confirmation for a configured staged reaction now **previews** and prepares physical attack dice without spending the optional Ki/resource. The existing `DndAction.finishWorkflow` becomes the single final debit at **actual dice launch**, revalidating the same pending sequence, catch/free-hand confirmation and available resource. Replacing/canceling prepared dice, failed revalidation and stale/declined sequences never consume the optional resource. The initial reaction remains spent when first activated, and the follow-up never spends a second reaction.

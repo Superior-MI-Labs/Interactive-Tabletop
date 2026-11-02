@@ -1,4 +1,4 @@
-"""Dice input regression: clickable above controls, overlapping rolls, right release."""
+"""Dice input regression: clickable above controls, overlapping rolls, reversible right cancellation."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from browser_support import launch_chromium
@@ -49,11 +49,17 @@ with sync_playwright() as pw:
  page.mouse.move(p['x'],p['y']);page.mouse.down()
  assert page.evaluate('pointer?.selected[0].sides')==20
  page.mouse.move(p['x']+40,p['y']+60,steps=3)
- # Right click must throw; it must not display the browser context menu.
+ # Right click cancels the grab; never starts another roll.
  page.mouse.down(button='right');page.mouse.up(button='right')
  assert page.evaluate('pointer===null')
- assert page.evaluate('activeRolls.length')==2
+ assert page.evaluate('activeRolls.length')==1
  page.mouse.up(button='left')
+ # The canceled die can be grabbed and thrown deliberately with a fresh left gesture.
+ p=page.evaluate('''()=>{const d=dice.find(x=>x.sides===20),r=document.querySelector('#dice-stage').getBoundingClientRect();return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
+ page.mouse.move(p['x'],p['y']);page.mouse.down()
+ assert page.evaluate('pointer?.selected[0].sides')==20
+ page.mouse.move(p['x']+50,p['y']+30,steps=3);page.mouse.up()
+ assert page.evaluate('activeRolls.length')==2
  # Catch a rolling d20; original group should remain active while it is held.
  p2=page.evaluate('''()=>{const d=dice.find(x=>x.sides===20);const r=document.querySelector('#dice-stage').getBoundingClientRect();
  d.v=[0,0,0];d.w=[0,0,0];return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
@@ -67,5 +73,5 @@ with sync_playwright() as pw:
  assert page.evaluate('history.length')==2
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
  assert not errors,errors
- print('PASS browser: d12 over controls, concurrent rolls, right-release, catch/rethrow, independent completion, zero errors')
+ print('PASS browser: d12 over controls, concurrent rolls, right-cancel, deliberate rethrow, catch/rethrow, independent completion, zero errors')
  browser.close()

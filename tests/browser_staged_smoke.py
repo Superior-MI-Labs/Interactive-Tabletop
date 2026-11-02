@@ -34,6 +34,7 @@ with sync_playwright() as pw:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Staged QA'")
  page.get_by_role('button',name='Start encounter').click()
+ page.get_by_role('button',name='Ranged weapon hit on you').click()
  entry=page.locator('.action-entry').filter(has_text='Reactive Deflection');entry.locator('summary').click()
  entry.get_by_role('button',name='Use ability').click()
  page.locator('#dialog-layer input[type=number]').fill('4')

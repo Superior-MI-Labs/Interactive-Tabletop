@@ -67,6 +67,33 @@ function actionCantrip(plan){return plan.kind==='spell'&&plan.slotLevel===0&&act
 // The configured pool quantities are explicit player/DM settings. Never derive
 // actions, attacks or feature costs from untrusted imported feature prose.
 const POOL_NAMES=['action','bonus','reaction'];
+// Explicit DM/player event windows, not a text parser or an autonomous combat log.
+// Each window is short-lived and consumed by exactly one committed ability.
+const EVENT_KINDS=['incoming-attack','ranged-hit','melee-hit'];
+function combatEvent(character){return combat(character).event_window||null;}
+function recordCombatEvent(character,kind){
+ if(!EVENT_KINDS.includes(kind))throw Error('Unknown combat event.');
+ const state=combat(character);
+ if(!state.active)throw Error('Start encounter tracking before confirming a combat event.');
+ if(state.pending_workflow)throw Error('Finish the pending reaction before opening another event.');
+ const next=(state.event_sequence||0)+1;
+ if(!Number.isSafeInteger(next))throw Error('Combat event sequence exhausted.');
+ state.event_sequence=next;
+ state.event_window={id:'event-'+next,kind,used:false};
+ delete state.undo_turn;
+ return deepcopy(state.event_window);
+}
+function dismissCombatEvent(character){delete combat(character).event_window;return true;}
+function verifyCombatEvent(character,required){
+ if(!required)return true;
+ if(!EVENT_KINDS.includes(required))throw Error('Unsupported ability trigger.');
+ const state=combat(character);
+ if(!state.active||!state.economy.auto)return true; // Manual mode is DM-controlled.
+ const current=state.event_window;
+ if(!current||current.kind!==required||current.used)throw Error('Confirm the '+required+' event before using this ability.');
+ return true;
+}
+
 function poolLimits(character){
  const specified=character.combat_profile?.action_pools||{},limits={};
  for(const key of POOL_NAMES){
@@ -203,6 +230,7 @@ function grantEconomyAction(character,scope='any',source='manual'){
 function verifyEconomy(character,validated){
  const state=combat(character),type=activationCost(validated.activation),units=validated.economyUnits??1;
  if(!state.active||!state.economy.auto)return type;
+ verifyCombatEvent(character,validated.triggerEvent);
  if(type&&!economyAvailable(character,type,units))throw Error('Your '+type+' is already used or its pool is exhausted this turn.');
  if(validated.requiresAttack&&state.economy.attackActionMade<1)throw Error('This feature requires an Attack action first this turn.');
  if(validated.requiresAttackComplete&&(state.economy.attacks.remaining>0||state.economy.lastActivity!=='attack'))
@@ -233,6 +261,7 @@ function commitUsage(character,validated){
   if(type)spendEconomy(character,type,validated.economyUnits??1);
   if(validated.grantEconomy)grantEconomyAction(character,validated.grantEconomy,validated.sourceId);
   if(validated.grantAttacks)e.attackGrants.push({source:validated.sourceId,scope:validated.grantAttackScope,remaining:validated.grantAttacks});
+  if(validated.triggerEvent)state.event_window.used=true;
   e.lastActivity='other';
   if(follows2014(character)&&validated.kind==='spell'){
    if(type==='bonus')state.spellcasting.bonus=true;
@@ -252,7 +281,7 @@ function markAction(character,type){
 function setEncounter(character,enabled){
  const state=combat(character),mode=state.economy.mode;
  state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
- state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.pending_workflow;delete state.undo_turn;
+ state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.undo_turn;
  return state;
 }
 
@@ -396,6 +425,9 @@ function plan(character,action){
  // A staged ability is declarative: the same planner owns the initial action,
  // the physical reduction roll, and a separately approved follow-up charge.
  if(action.ruleset_profile&&action.ruleset_profile!==character.system_edition)throw Error('Ability profile requires '+action.ruleset_profile+' character edition.');
+ const triggerEvent=String(action.trigger_event||'');
+ if(triggerEvent&&!EVENT_KINDS.includes(triggerEvent))throw Error('Unsupported ability trigger.');
+ if(triggerEvent&&activationCost(action.activation)!=='reaction'&&triggerEvent!=='melee-hit')throw Error('This trigger requires a reaction.');
  const workflow=action.workflow;
  let staged=null;
  if(workflow!==undefined&&workflow!==null){
@@ -412,6 +444,7 @@ function plan(character,action){
   staged={kind:'damage-reduction',followup:{label:String(next.label||'Counterattack'),resource:nextResource,cost:nextCost,roll:nextRoll.expression,
    requires_catchable:true,requires_free_hand:true}};
  }
+ if(staged&&triggerEvent&&triggerEvent!=='ranged-hit')throw Error('Damage reduction requires a ranged-hit trigger.');
  const effect=action.effect_kind||'none';
  if(!['none','heal','condition','damage'].includes(effect))throw Error('Unsupported ability effect.');
  const roll=dice(action.roll||'');
@@ -424,7 +457,7 @@ function plan(character,action){
  if(action.damage)dice(action.damage); // Validate all configured dice before mutation.
  return Object.freeze({kind:'ability',name:String(action.name||'Ability'),sourceId:String(action.id||action.name||'ability'),resource,cost,roll,effect,
    concentration:action.concentration===true,durationRounds:duration(action.duration_rounds),activation:String(action.activation||'special'),condition,damageType,
-   economyUnits,requiresAttack:action.requires_attack===true,requiresAttackComplete,grantAttacks,grantAttackScope,grantResource,grantAmount,grantEconomy,workflow:staged});
+   economyUnits,requiresAttack:action.requires_attack===true,requiresAttackComplete,grantAttacks,grantAttackScope,grantResource,grantAmount,grantEconomy,triggerEvent:triggerEvent||(staged?'ranged-hit':''),workflow:staged});
 }
 // One pending sequence per character. The continuation is not a second
 // reaction: it is an optional child of the already committed parent action.
@@ -653,12 +686,12 @@ function advanceEffects(character){
 }
 function advanceTurn(character){
  const state=combat(character);
- const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),
+ const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),
   effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
-  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.pending_workflow;}
+  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;}
  const expired=advanceEffects(character);
  for(const [name,resource] of Object.entries(character.resources||{}))
   if(resource?.reset==='turn'||(name==='Shield Stance Points'&&resource?.reset===undefined))resource.current=0; // legacy character import compatibility
@@ -672,7 +705,7 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy;
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;
@@ -862,6 +895,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={EVENT_KINDS,combatEvent,recordCombatEvent,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

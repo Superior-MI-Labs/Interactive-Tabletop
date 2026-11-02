@@ -313,10 +313,23 @@ const ABILITY_TEMPLATES={
  flurry_2014:{name:'Flurry of Blows (2014)',ruleset_profile:'dnd-2014',activation:'1 bonus action',resource:'Ki',cost:1,
   requires_attack:true,requires_attack_complete:true,grant_attacks:2,grant_attack_scope:'unarmed',effect_kind:'none',
   description:'2014 SRD: immediately after completing your Attack action, spend one Ki point and your bonus action to gain two unarmed strikes. Mark an imported attack as Unarmed in edit mode. These strikes are separate from Extra Attack and consume no additional action.'},
- deflect_missiles_2014:{name:'Deflect Missiles (2014)',ruleset_profile:'dnd-2014',activation:'1 reaction',roll:'1d10+0',cost:0,effect_kind:'none',
+ deflect_missiles_2014:{name:'Deflect Missiles (2014)',ruleset_profile:'dnd-2014',activation:'1 reaction',trigger_event:'ranged-hit',roll:'1d10+0',cost:0,effect_kind:'none',
   workflow:{kind:'damage-reduction',followup:{label:'Return caught missile',resource:'Ki',cost:1,roll:'1d20+0',requires_catchable:true,requires_free_hand:true}},
   description:'2014 SRD: on a confirmed ranged weapon hit, spend one reaction and reduce incoming damage by 1d10 + DEX modifier + Monk level. Configure the flat bonus in this dice expression. If damage reaches zero, and the missile is small/catchable and one hand is free, optionally spend 1 Ki for a return ranged attack within 20/60 ft as part of the SAME reaction. Confirm level and attack bonus with the DM.'}
+ ,
+ stunning_strike_2014:{name:'Stunning Strike (2014)',ruleset_profile:'dnd-2014',activation:'special',trigger_event:'melee-hit',resource:'Ki',cost:1,effect_kind:'none',
+  description:'Requires a confirmed hit with a melee weapon attack. Spend 1 Ki after the hit; DM requests a Constitution save against your monk Ki save DC. Stunned only on a failed save. No automatic condition application.'},
+ warding_flare_2014:{name:'Warding Flare (2014; DM-configured)',ruleset_profile:'dnd-2014',activation:'1 reaction',trigger_event:'incoming-attack',resource:'Warding Flare Uses',cost:1,effect_kind:'none',
+  description:'Before the incoming attack roll is resolved, confirm a visible attacker within 30 feet that can be blinded. Spend one reaction and one configured use to impose disadvantage; do not automatically alter enemy dice. Confirm variant and uses with your DM.'}
 };
+function stateEventControls(){
+ const state=Action.combat(character),event=Action.combatEvent(character);
+ if(!state.active)return '';
+ return `<section class="pending-resolution" aria-label="Combat event windows"><strong>Event window (DM confirmed)</strong>
+ <small>Choose when the trigger occurs. Before roll = incoming attack; after ranged weapon hit = deflect; after your confirmed melee hit = strike. No event is inferred from descriptive text.</small>
+ <div class="controls-row">${[['incoming-attack','Incoming attack (before roll)'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit']].map(([id,name])=>button(name,'combat-event',id,'button mini subtle')).join('')}</div>
+ ${event?`<small>Current: ${esc(event.kind)} ${event.used?'(consumed)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}</section>`;
+}
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
  const specialFilter=actionFilter==='all'||actionFilter==='action';
@@ -330,7 +343,7 @@ function actionWorkspace(){
  return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}${combatActions()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
  ${editMode?`${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
- ${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
+ ${stateEventControls()}${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
  ${specialFilter?`<div class="ability-action-list" aria-label="Imported and custom actions">${entries.map(a=>{
    const roll=a.roll||'', damage=a.damage||'';
    return `<details class="work-entry action-entry" data-action-id="${esc(a.id||a.index)}"><summary><span class="entry-title">${esc(a.name)}</span><span class="entry-meta">${esc(a.activation||'special')}${a.source==='manual'?' · Custom':a.source==='user-reference'?' · Screenshot reference':''}</span></summary>
@@ -342,7 +355,8 @@ function actionWorkspace(){
    <div class="entry-pair">${field(a.workflow?'Damage reduction dice (1d10 + DEX mod + class level)':'Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
    ${a.workflow?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
-   <div class="entry-pair">${field('Action pool cost (1–3)',`actions.${a.index}.economy_units`,a.economy_units??1,'number')}
+   <label class="field">Confirmed event prerequisite<select class="input" data-input="actions.${a.index}.trigger_event">${[['','None'],['incoming-attack','Incoming attack before roll'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit']].map(([id,label])=>`<option value="${id}" ${a.trigger_event===id?'selected':''}>${label}</option>`).join('')}</select></label>
+   <div class="entry-pair">${field('Action pool cost (1–3)', `actions.${a.index}.economy_units`,a.economy_units??1,'number')}
    <label class="field">Requires a prior Attack action<input type="checkbox" data-action-requires-attack="${a.index}" ${a.requires_attack?'checked':''}></label></div>
    <div class="entry-pair"><label class="field">Immediately after completed Attack<input type="checkbox" data-action-requires-attack-complete="${a.index}" ${a.requires_attack_complete?'checked':''}></label>
    ${field('Bonus strikes granted (0–4)',`actions.${a.index}.grant_attacks`,a.grant_attacks??0,'number')}</div>
@@ -730,6 +744,8 @@ function handleAction(action,arg){
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
   }
+  case 'combat-event':try{Action.recordCombatEvent(character,arg);save();render();toast('Confirmed event: '+arg+'.');}catch(e){toast(e.message);}break;
+  case 'combat-event-close':Action.dismissCombatEvent(character);save();render();break;
   case 'staged-decline':{
    try{Action.declineWorkflow(character,arg);save();render();toast('Optional follow-up declined. The original reaction remains spent.');}
    catch(error){toast(error.message);}break;
@@ -870,7 +886,7 @@ function prepareDice(specs,modifier,label,expression,follow=false){
  pendingRoll={count:chosen.length,sides:null,modifier,label,expression,diceIds:chosen.map(d=>d.id)};
  following=follow;
  $('#dice-stage').classList.toggle('dice-following',Boolean(follow));
- $('#tray-help').textContent=`${expression} ready · ${follow?'click anywhere to grab the dice; drag and release to throw (Esc cancels)':'drag a die or press Throw'}`;
+ $('#tray-help').textContent=`${expression} ready · ${follow?'click anywhere to grab the dice; drag and release to throw (Esc/right-click cancels)':'drag a die or press Throw'}`;
  toast(`${chosen.length} ${chosen.length===1?'die':'dice'} ready · ${expression}`);
  return true;
 }
@@ -1143,6 +1159,15 @@ async function boot(){
 // ── Persistent tabletop ──────────────────────────────────────────────────
 // The physical scene is deliberately outside the character panel render() path.
 // Re-rendering, navigating, or collapsing panels must not reset dice or rolls.
+function cancelPreparedRoll(){
+ if(!pendingRoll)return false;
+ const ids=new Set(pendingRoll.diceIds||[]);
+ for(const die of dice)if(ids.has(die.id)){die.ready=false;die.held=false;die.sleeping=true;die.z=DP.height(die);}
+ pendingRoll=null;queuedEffect=null;following=false;
+ $('#dice-stage')?.classList.remove('dice-following');
+ $('#tray-help').textContent='Prepared roll canceled · no action or resource spent';
+ return true;
+}
 function initDiceCanvas(){
  canvas=$('#dice-canvas');ctx=canvas.getContext('2d');
  const stage=$('#dice-stage');
@@ -1151,6 +1176,22 @@ function initDiceCanvas(){
  // Capture events on the tabletop ancestor, and intercept ONLY a visible die hit.
  // This also works when a die lies above a button, input or scrollable panel.
  const findDie=(x,y)=>[...dice].reverse().find(d=>DP.hitTest(d,x,y,lastDimensions.w,lastDimensions.h,Math.max(10,d.r*.23)));
+ const cancelGrab=()=>{
+  if(!pointer?.down)return false;
+  const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
+  try{stage.releasePointerCapture(held.id);}catch(_){}
+  held.selected.forEach((d,i)=>{d.held=false;const before=held.prior[i];
+   if(before){Object.assign(d,{x:before.x,y:before.y,q:before.q,v:before.v,w:before.w,z:before.z,
+    rolling:before.rolling,sleeping:before.sleeping,restTime:before.restTime});}
+  });
+  return true;
+ };
+ const cancelGesture=()=>{
+  const hadPrepared=Boolean(pendingRoll);
+  if(pointer?.down)cancelGrab();
+  if(hadPrepared)cancelPreparedRoll();
+  return hadPrepared;
+ };
  const releaseGrab=(vx,vy,shake)=>{
    if(!pointer?.down)return;
    const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
@@ -1172,14 +1213,14 @@ function initDiceCanvas(){
  },true);
  stage.addEventListener('contextmenu',e=>{
    e.preventDefault();e.stopPropagation();
-   if(pointer?.down)releaseGrab(Math.max(-850,Math.min(850,pointer.dx)),Math.max(-850,Math.min(850,pointer.dy)),pointer.shake);
+   cancelGesture();
  });
  // Pointer Events do not emit a second pointerdown if a second mouse button
  // is pressed while the primary button remains held. mousedown does.
  document.addEventListener('mousedown',e=>{
    if(e.button!==2||!pointer?.down)return;
    e.preventDefault();e.stopPropagation();
-   if(pointer?.down)releaseGrab(Math.max(-850,Math.min(850,pointer.dx)),Math.max(-850,Math.min(850,pointer.dy)),pointer.shake);
+   cancelGesture();
  },true);
  stage.addEventListener('pointerdown',e=>{
    if(pointer?.down||e.button!==0)return;
@@ -1198,12 +1239,12 @@ function initDiceCanvas(){
    // is grabbed. No one-roll global lockout and no lost attached heal effect.
    const mode=followingGroup.length?'prepared':active?'existing':hit.ready&&pendingRoll?'prepared':'manual';
    const selected=mode==='prepared'?followingGroup.length?followingGroup:dice.filter(d=>d.ready):[hit];
-   const prior=selected.map(d=>({sleeping:d.sleeping,rolling:d.rolling,v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime}));
+   const prior=selected.map(d=>({sleeping:d.sleeping,rolling:d.rolling,v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
    selected.forEach(d=>{d.held=true;d.sleeping=true;});
    pointer={id:e.pointerId,x,y,dx:0,dy:0,shake:0,down:true,lastTime:performance.now(),selected,mode,
     offsets:selected.map(d=>({x:d.x-x,y:d.y-y})),prior};
    document.body.classList.add('dice-dragging');
-   $('#tray-help').textContent='Drag to shake · release to throw · right-click to release';
+   $('#tray-help').textContent='Drag to shake · release to throw · right-click cancels';
  },true);
  stage.addEventListener('pointermove',e=>{
    const {x,y}=relative(e);pointerPosition={x,y};
@@ -1248,9 +1289,9 @@ function initDiceCanvas(){
    });
  });
  document.addEventListener('keydown',e=>{
-   if(e.key!=='Escape'||!following||pointer?.down)return;
-   following=false;stage.classList.remove('dice-following');
-   e.preventDefault();toast('Cursor follow canceled; dice remain ready on the table.');
+   if(e.key!=='Escape'||(!pendingRoll&&!pointer?.down))return;
+   if(!cancelGesture())return;
+   e.preventDefault();toast('Prepared roll canceled; no combat costs spent.');
  });
  stage.addEventListener('pointerleave',()=>{if(!pointer?.down){pointerPosition=null;hoverDieId=null;stage.classList.remove('die-hover');}});
  const draw=(now)=>{
