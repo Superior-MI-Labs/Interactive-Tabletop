@@ -71,7 +71,7 @@ const POOL_NAMES=['action','bonus','reaction'];
 // Each window is short-lived and consumed by exactly one committed ability.
 const EVENT_KINDS=['incoming-attack','ranged-hit','melee-hit'];
 function combatEvent(character){return combat(character).event_window||null;}
-function recordCombatEvent(character,kind){
+function setCombatEvent(character,kind,origin=null){
  if(!EVENT_KINDS.includes(kind))throw Error('Unknown combat event.');
  const state=combat(character);
  if(!state.active)throw Error('Start encounter tracking before confirming a combat event.');
@@ -79,11 +79,47 @@ function recordCombatEvent(character,kind){
  const next=(state.event_sequence||0)+1;
  if(!Number.isSafeInteger(next))throw Error('Combat event sequence exhausted.');
  state.event_sequence=next;
- state.event_window={id:'event-'+next,kind,used:false};
+ state.event_window={id:'event-'+next,kind,used:false,...(origin?{origin:origin.origin,rollId:origin.rollId,sourceId:origin.sourceId,targetId:origin.targetId}:{})};
  delete state.undo_turn;
  return deepcopy(state.event_window);
 }
+function recordCombatEvent(character,kind){return setCombatEvent(character,kind);}
 function dismissCombatEvent(character){delete combat(character).event_window;return true;}
+// A resolved physical attack is evidence for a typed trigger, not an ability.
+// The dice controller supplies the already-settled identity and the planner
+// rechecks the current explicit classification, target and result. Imported
+// descriptions and names are never used to infer melee/ranged mechanics.
+function attackRange(attack){
+ const range=attack?.attack_range??'unspecified';
+ if(!['melee','ranged','unspecified'].includes(range))throw Error('Unsupported attack range.');
+ return range;
+}
+function recordResolvedAttack(character,record){
+ const state=combat(character);
+ if(!state.active||!state.economy.auto)return null;
+ if(!state.economy.attacks.made)throw Error('A completed, committed attack is required before its hit can trigger an ability.');
+ if(!record||typeof record!=='object')throw Error('Invalid completed attack.');
+ const {rollId,sourceIndex,targetId,attackId,attackType:rolledType,attackRange:rolledRange,total,natural,adjudication}=record;
+ if(typeof rollId!=='string'||!/^attack-roll-[a-z0-9-]{1,90}$/i.test(rollId))throw Error('Invalid attack roll identity.');
+ if(!Number.isSafeInteger(sourceIndex)||sourceIndex<0||sourceIndex>= (character.attacks||[]).length)throw Error('Attack source was removed.');
+ const source=character.attacks[sourceIndex];
+ if(String(source.id||source.name)!==attackId||attackType(source)!==rolledType||attackRange(source)!==rolledRange)throw Error('Attack source changed since the dice were thrown.');
+ if(attackRange(source)!=='melee'||!['weapon','unarmed'].includes(attackType(source)))return null;
+ if(targetId==='self'||!targetById(character,targetId))return null;
+ if(!Number.isSafeInteger(total)||!Number.isSafeInteger(natural)||natural<1||natural>20)throw Error('Completed attack dice are invalid.');
+ const seen=Array.isArray(state.resolved_attack_ids)?state.resolved_attack_ids:[];
+ if(seen.includes(rollId))throw Error('This attack result was already recorded.');
+ // Auto can trust a computed hit against explicitly supplied AC. Guided mode
+ // must obtain a separate positive DM/player confirmation from the UI.
+ if(adjudication==='auto'){
+  if(state.economy.mode!=='auto'||!evaluateAttack(total,effectiveAC(character,targetId),natural).hit)return null;
+ }else if(adjudication!=='guided')throw Error('Hit confirmation is required.');
+ const event=setCombatEvent(character,'melee-hit',{
+  origin:'resolved-attack',rollId,sourceId:attackId,targetId
+ });
+ state.resolved_attack_ids=[...seen.slice(-39),rollId];
+ return event;
+}
 function verifyCombatEvent(character,required){
  if(!required)return true;
  if(!EVENT_KINDS.includes(required))throw Error('Unsupported ability trigger.');
@@ -281,7 +317,7 @@ function markAction(character,type){
 function setEncounter(character,enabled){
  const state=combat(character),mode=state.economy.mode;
  state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
- state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.undo_turn;
+ state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;delete state.undo_turn;
  return state;
 }
 
@@ -686,12 +722,12 @@ function advanceEffects(character){
 }
 function advanceTurn(character){
  const state=combat(character);
- const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),
+ const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),resolved_attack_ids:deepcopy(state.resolved_attack_ids||[]),
   effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
-  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;}
+  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;}
  const expired=advanceEffects(character);
  for(const [name,resource] of Object.entries(character.resources||{}))
   if(resource?.reset==='turn'||(name==='Shield Stance Points'&&resource?.reset===undefined))resource.current=0; // legacy character import compatibility
@@ -705,7 +741,7 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;
@@ -895,6 +931,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={EVENT_KINDS,combatEvent,recordCombatEvent,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={EVENT_KINDS,combatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

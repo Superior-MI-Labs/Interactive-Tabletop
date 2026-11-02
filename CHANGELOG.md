@@ -1,3 +1,10 @@
+## v0.33.0 — Settled melee-hit eligibility and provenance
+
+- Connect physically completed attacks to the existing typed combat-event window. Explicit attack range and attack type are required, along with a non-self target and a verified hit against entered AC or positive Guided confirmation. No ability cost or condition automatically follows the event.
+- Bind the hit to roll/source/target identities, protect against duplicate dice-result replay, and reject changed attack classifications between preparation and settlement. Restore the replay guard on turn undo.
+- Preserve player-configured melee/ranged classification across unambiguous PDF reimports while continuing to take attack bonuses/dice from the new PDF.
+- Expand unit and Chromium regressions for Automatic, Guided and Manual flows; maintain one action engine and one existing event-window store.
+
 ## v0.32.0 — Confirmed combat-event windows and reversible prepared dice
 
 - Add short-lived, per-character, DM-confirmed combat events to the existing `effects.combat` turn record. Valid phases are incoming attack **before** its roll, ranged weapon attack that **hit you**, and your own confirmed melee hit. One event permits one committed trigger-aware ability; replacing/closing it or advancing your turn invalidates it. Legacy vaults remain compatible.

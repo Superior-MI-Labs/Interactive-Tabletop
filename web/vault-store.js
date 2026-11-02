@@ -51,10 +51,11 @@ function reconcile(old,fresh){
  const previousAttacks=before.attacks||[],freshAttacks=next.attacks||[];
  const names=items=>items.reduce((m,a)=>{const k=canonical(a.name);m.set(k,(m.get(k)||0)+1);return m;},new Map());
  const oldCount=names(previousAttacks),newCount=names(freshAttacks);
- const classified=new Map(previousAttacks.filter(a=>['unarmed','weapon'].includes(a.attack_type))
+ const classified=new Map(previousAttacks
   .filter(a=>oldCount.get(canonical(a.name))===1&&newCount.get(canonical(a.name))===1)
-  .map(a=>[canonical(a.name),a.attack_type]));
- merged.attacks=freshAttacks.map(a=>classified.has(canonical(a.name))?{...a,attack_type:classified.get(canonical(a.name))}:a);
+  .map(a=>[canonical(a.name),Object.fromEntries(Object.entries({attack_type:a.attack_type,attack_range:a.attack_range})
+   .filter(([key,value])=>key==='attack_type'?['unarmed','weapon'].includes(value):['melee','ranged'].includes(value)))]));
+ merged.attacks=freshAttacks.map(a=>classified.has(canonical(a.name))?{...a,...classified.get(canonical(a.name))}:a);
  // Latest PDF owns published maximums, stats and attack bonuses; gameplay state stays live.
  merged.hp.current=Math.max(0,Math.min(next.hp.max,Number(before.hp.current)||0));
  merged.hp.temp=Math.max(0,Number(before.hp.temp)||0);

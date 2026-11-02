@@ -198,12 +198,12 @@ function attackUnavailable(permission='action',type='unspecified'){
 function attackRows(mode='compact'){
  return (character.attacks||[]).map((a,i)=>{
   const reason=attackUnavailable(),disabled=reason?' disabled aria-disabled="true"':'';
-  const type=Action.attackType(a),bonusRemaining=Action.availableAttackGrants(character,type);
+  const type=Action.attackType(a),range=Action.attackRange(a),bonusRemaining=Action.availableAttackGrants(character,type);
   const bonusReason=attackUnavailable('bonus',type);
   const bonusControl=bonusRemaining?`<button class="button mini" type="button" data-action="bonus-attack" data-arg="${i}" ${bonusReason?'disabled aria-disabled="true"':''} title="${esc(bonusReason||'Spend one granted '+type+' strike when dice launch')}">Bonus strike (${bonusRemaining})</button>`:'';
   const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}`;
-  if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)}</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
-  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)} · ${esc(type)}"><span class="attack-name">${esc(a.name)}${editMode?`<label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
+  if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label><label class="field">Attack range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Not classified</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
+  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range"><span class="attack-name">${esc(a.name)}${editMode?`<label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
 }
 function rollRows(kind,mode='compact'){
@@ -328,7 +328,7 @@ function stateEventControls(){
  return `<section class="pending-resolution" aria-label="Combat event windows"><strong>Event window (DM confirmed)</strong>
  <small>Choose when the trigger occurs. Before roll = incoming attack; after ranged weapon hit = deflect; after your confirmed melee hit = strike. No event is inferred from descriptive text.</small>
  <div class="controls-row">${[['incoming-attack','Incoming attack (before roll)'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit']].map(([id,name])=>button(name,'combat-event',id,'button mini subtle')).join('')}</div>
- ${event?`<small>Current: ${esc(event.kind)} ${event.used?'(consumed)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}</section>`;
+ ${event?`<small>Current: ${esc(event.kind)} ${event.origin==='resolved-attack'?'· '+esc(Action.targetById(character,event.targetId)?.name||'removed target')+' · settled attack':''} ${event.used?'(consumed)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}</section>`;
 }
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
@@ -827,7 +827,7 @@ function handleAction(action,arg){
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check',null,'ability-check');break;}
   case 'attack':case 'bonus-attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId(),permission=action==='bonus-attack'?'bonus':'action',type=Action.attackType(a);
    try{Action.verifyAttack(character,permission,type);
-    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+(permission==='bonus'?' bonus strike':' attack')+' vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg)},'attack')){pendingRoll.combatAttack=true;pendingRoll.attackPermission=permission;pendingRoll.attackType=type;}
+    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+(permission==='bonus'?' bonus strike':' attack')+' vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg),attackId:String(a.id||a.name),attackType:type,attackRange:Action.attackRange(a)},'attack')){pendingRoll.combatAttack=true;pendingRoll.attackPermission=permission;pendingRoll.attackType=type;}
    }catch(e){toast(e.message);}}break;}
   case 'damage':{
    const index=num(arg),targetId=currentTargetId();
@@ -915,12 +915,27 @@ function attackFollowup(result,group,knownHit){
  const match=/^attack-(\d+)$/.exec(source);
  if(!match)return;
  const index=Number(match[1]),targetId=group.effect.targetId;
+ const sourceAttack=character.attacks?.[index];
+ if(!sourceAttack||String(sourceAttack.id||sourceAttack.name)!==group.effect.attackId||
+    Action.attackType(sourceAttack)!==group.effect.attackType||Action.attackRange(sourceAttack)!==group.effect.attackRange){
+  toast('The original attack configuration changed. Confirm outcomes manually.');return;
+ }
  // Normal d20 uses the primary physical face; advantage/disadvantage expose
  // the selected natural explicitly. Both must preserve natural-20 damage.
  const natural=Number.isInteger(result.natural)?result.natural:result.parts?.[0];
  const mode=Action.combat(character).economy.mode;
  if(mode==='manual')return;
  const applyHit=()=>{
+  // A confirmed hit is eligible for event-bound abilities only with a
+  // deliberately classified melee attack against another creature.
+  try{
+   const event=Action.recordResolvedAttack(character,{
+    rollId:group.rollId,sourceIndex:index,attackId:group.effect.attackId,
+    targetId,attackType:group.effect.attackType,attackRange:group.effect.attackRange,
+    total:result.total,natural,adjudication:mode==='guided'||knownHit===null?'guided':'auto'
+   });
+   if(event){save();render();toast('Confirmed melee hit · eligible on-hit abilities are available.');}
+  }catch(error){toast('Attack trigger: '+error.message);}
   lastAttackOutcome={targetId,sourceId:source,critical:natural===20,hit:true};
   if(prepareAttackDamage(index,targetId,natural===20))lastAttackOutcome=null;
   else toast('Hit confirmed. Use the Damage button when the tabletop is free.');
@@ -1028,6 +1043,7 @@ document.addEventListener('change',e=>{
  if(el.dataset.actionRequiresAttack!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttack)];if(a){a.requires_attack=el.checked;a.source='manual';save();render();}return;}
  if(el.dataset.actionRequiresAttackComplete!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttackComplete)];if(a){a.requires_attack_complete=el.checked;a.source='manual';save();render();}return;}
  if(el.dataset.attackType!==undefined){const a=character.attacks?.[num(el.dataset.attackType)];if(a){a.attack_type=el.value;save();render();}return;}
+ if(el.dataset.attackRange!==undefined){const a=character.attacks?.[num(el.dataset.attackRange)];if(a){a.attack_range=el.value;save();render();}return;}
  if(el.dataset.effectAuto!==undefined){
   try{Action.setAutoUse(character,el.dataset.effectAuto,el.checked);save();toast((el.checked?'Armed ':'Paused ')+Action.activeEffects(character).find(e=>e.id===el.dataset.effectAuto)?.name);}
   catch(error){toast(error.message);render();}return;
@@ -1336,7 +1352,8 @@ function startDiceGroup(selected,p,vx,vy,shake,effect){
   DP.launch(d,vx+(DP.random()-.5)*170,vy+(DP.random()-.5)*150,shake);
  });
  const group={diceIds:selected.map(d=>d.id),primaryCount:p.primaryCount??selected.length,bonuses:(p.bonuses||[]).map(b=>({...b})),rollKind:p.rollKind||'untyped',
-  characterId:activeId,modifier:p.modifier,label:p.label,expression:p.expression,effect,d20Mode:p.d20Mode||'normal'};
+  characterId:activeId,modifier:p.modifier,label:p.label,expression:p.expression,effect,d20Mode:p.d20Mode||'normal',
+  rollId:'attack-roll-'+Date.now().toString(36)+'-'+(++nextResolutionId).toString(36)};
  activeRolls.push(group);activeRoll=activeRolls.at(-1)||null;
  $('#tray-help').textContent='Rolling · grab another die at any time';
  return true;

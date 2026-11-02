@@ -1,0 +1,43 @@
+'use strict';
+const assert=require('node:assert/strict');
+const A=require('../web/dnd-action.js'),V=require('../web/vault-store.js');
+const create=()=>({schema_version:1,name:'Hit QA',system_edition:'dnd-2014',effects:{},hp:{current:20,max:20},inventory:[],conditions:[],actions:[],resources:{Ki:{current:2,max:2}},
+ attacks:[{id:'staff',name:'Staff',bonus:6,damage:'1d6+3',attack_type:'weapon',attack_range:'melee'},
+ {id:'bow',name:'Bow',bonus:6,damage:'1d8+3',attack_type:'weapon',attack_range:'ranged'},
+ {id:'unclear',name:'Unclassified',bonus:6,damage:'1d8+3'}]});
+const record=(i,id,rollId,additional={})=>({rollId:'attack-roll-'+rollId,sourceIndex:i,attackId:id,attackType:i===2?'unspecified':'weapon',attackRange:i===0?'melee':i===1?'ranged':'unspecified',targetId:target.id,total:18,natural:12,adjudication:'auto',...additional});
+let c=create();const target=A.addTarget(c,{name:'Target',ac:17,hp:30});A.setEncounter(c,true);
+assert.throws(()=>A.recordResolvedAttack(c,record(0,'staff','unspent')),/committed attack/);
+A.commitAttack(c);
+assert.equal(A.recordResolvedAttack(c,record(1,'bow','ranged')),null,'Ranged hits cannot unlock melee-on-hit abilities');
+assert.equal(A.recordResolvedAttack(c,record(2,'unclear','unknown')),null,'Unclassified records cannot infer melee mechanics');
+assert.equal(A.combatEvent(c),null);
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','miss',{total:10})),null);
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','nat1',{natural:1,total:30})),null);
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','self',{targetId:'self'})),null);
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','missing',{targetId:'missing'})),null);
+assert.throws(()=>A.recordResolvedAttack(c,record(0,'staff','different',{attackId:'different'})),/source changed/);
+assert.throws(()=>A.recordResolvedAttack(c,record(0,'staff','reranged',{attackRange:'ranged'})),/source changed/);
+const hit=A.recordResolvedAttack(c,record(0,'staff','hit'));
+assert.equal(hit.kind,'melee-hit');assert.equal(hit.origin,'resolved-attack');assert.equal(hit.targetId,target.id);
+assert.throws(()=>A.recordResolvedAttack(c,record(0,'staff','hit')),/already recorded/);
+const stun={id:'stun',name:'Stun',activation:'special',trigger_event:'melee-hit',resource:'Ki',cost:1};
+A.commitUsage(c,A.plan(c,stun));assert.equal(c.resources.Ki.current,1);assert.equal(A.combatEvent(c).used,true);
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','newhit')).used,false,'A second genuine hit gets a new window');
+const snap=V.normalize({schema_version:1,active_id:'qa',characters:[{id:'qa',character:c}]});
+assert.equal(A.combatEvent(snap.characters[0].character).rollId,'attack-roll-newhit');
+assert.throws(()=>A.recordResolvedAttack(c,record(0,'staff','newhit')),/already recorded/);
+A.advanceTurn(c);assert.equal(A.combatEvent(c),null);A.commitAttack(c);
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','newhit')).kind,'melee-hit','New turn can receive a new attack identity');
+A.setCombatMode(c,'guided');
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','guided-miss',{adjudication:'auto'})),null,'Guided mode does not trust an automatic AC verdict');
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','guided',{adjudication:'guided',total:9})).kind,'melee-hit','Guided mode accepts explicitly confirmed hit');
+A.setCombatMode(c,'auto');
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','auto-guided',{adjudication:'guided',total:5})).kind,'melee-hit','Auto with unknown AC can accept DM confirmation');
+A.setCombatMode(c,'manual');
+assert.equal(A.recordResolvedAttack(c,record(0,'staff','manual')),null,'Manual never opens automated event');
+const fresh=create();fresh.attacks=[{name:'Staff',bonus:9,damage:'1d10+4'}];
+assert.deepEqual(V.reconcile(c,fresh).attacks[0],{name:'Staff',bonus:9,damage:'1d10+4',attack_type:'weapon',attack_range:'melee'},'Safe PDF reimport preserves range classification only');
+const dup=create();dup.attacks=[{name:'Staff',bonus:1},{name:'Staff',bonus:2}];
+assert.ok(V.reconcile(c,dup).attacks.every(a=>!a.attack_range),'Ambiguous reimport must not transfer range classification');
+console.log('Resolved melee events: type, range, target, natural faces, identity, guided, vault and reuse PASS');
