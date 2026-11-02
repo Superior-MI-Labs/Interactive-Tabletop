@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.23.0
+# Interactive Tabletop architecture — v0.27.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -124,3 +124,10 @@ Attack and saving throw action paths now tag their roll *type* explicitly. Targe
 ### v0.26 verified healing automation and activation
 
 Qualified spell profiles now declare an `activation` matched against their read-only SRD `casting_time` by the reference validator. The planner uses that validated timing, not a hardcoded mapping from effect type. Healing accepts the vetted `d4` / `d8` dice family with its configured per-slot scaling, using the existing self-heal roll/confirmation/pending-HP pipeline. Healing Word remains self-only; other creatures and bonus-action spellcasting restrictions beyond basic turn-economy tracking require DM adjudication. No new effect executor or character store is introduced.
+
+### v0.27 single-turn spellcasting contract
+
+- `DndAction.verifyEconomy` is the single eligibility check used at dialog preview and commit. It enforces the 2014 bonus-action casting restriction for **all** spell plans on explicitly `dnd-2014` characters, including manual/custom entries; the catalog only provides optional vetted spell effects. This does not execute any new effect or import rules from prose.
+- `effects.combat.spellcasting = {bonus, restricted}` belongs to the existing optional per-character turn tracker. `bonus` records any bonus-action spell this turn; `restricted` records any non-qualifying other spell. A qualifying 1-action cantrip does not set `restricted`. No separate rules engine, action-log table, migration, or parallel vault state is added.
+- The shared `commitUsage` validates before spending slots. Ending/starting an encounter and advancing a tracked turn resets both flags; turn undo restores them. Old vaults initialize missing flags safely. Outside tracked encounters these restrictions are intentionally not enforced.
+- Casting-time text marked `special` is not invented as a standard action: it conservatively counts as a restricting spell for same-turn bonus spell decisions. Reaction spells cast outside the character's tracked turn, extra actions, and full initiative rules still require DM accounting.

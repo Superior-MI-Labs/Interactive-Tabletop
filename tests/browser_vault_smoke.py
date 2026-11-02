@@ -59,7 +59,7 @@ with sync_playwright() as p:
     backup=json.loads(Path(down.value.path()).read_text())
     assert len(backup['characters'])==2
     assert backup['characters'][0]['character']['notes']=='Private session notes'
-    page.screenshot(path=str(root/'vault-preview.png'),full_page=True)
+    page.screenshot(path=str(Path('/tmp')/'interactive-tabletop-vault-preview.png'),full_page=True)
     assert not errors,errors
     print('PASS: actual DOM, switching, reimport confirmation, HP preservation, downloadable full backup; no JS errors')
     browser.close()

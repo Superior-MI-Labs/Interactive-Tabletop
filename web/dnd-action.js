@@ -19,6 +19,11 @@ function combat(character){
  for(const key of ['action','bonus','reaction'])state.used[key]=Boolean(state.used[key]);
  if(!Number.isSafeInteger(state.turn)||state.turn<1)state.turn=1;
  state.active=Boolean(state.active);
+ // A spell-cast restriction is a turn resource, not an extra character rule store.
+ // Older vaults have no ledger; only casts committed after this upgrade are recorded.
+ if(!state.spellcasting||typeof state.spellcasting!=='object')state.spellcasting={};
+ state.spellcasting.bonus=state.spellcasting.bonus===true;
+ state.spellcasting.restricted=state.spellcasting.restricted===true;
  return state;
 }
 function activationCost(raw){
@@ -28,9 +33,21 @@ function activationCost(raw){
  if(/^(?:1\s*)?action$/.test(text))return 'action';
  return null; // 'special', minute casting, etc. require DM adjudication.
 }
+// 2014 PHB/SRD: after casting any bonus-action spell on a turn, the only
+// other spell permitted that turn is a cantrip with casting time 1 action.
+// Evaluate committed plans rather than parsing prose or individual spell names.
+function follows2014(character){return character.system_edition==='dnd-2014';}
+function actionCantrip(plan){return plan.kind==='spell'&&plan.slotLevel===0&&activationCost(plan.activation)==='action';}
 function verifyEconomy(character,validated){
  const state=combat(character),type=activationCost(validated.activation);
- if(state.active&&type&&state.used[type])throw Error('Your '+type+' is already used this turn. Advance the turn or ask your DM to reset it.');
+ if(!state.active)return type; // Encounter accounting is strictly opt-in.
+ if(type&&state.used[type])throw Error('Your '+type+' is already used this turn. Advance the turn or ask your DM to reset it.');
+ if(follows2014(character)&&validated.kind==='spell'){
+  if(state.spellcasting.bonus&&!actionCantrip(validated))
+   throw Error('2014 bonus-action spell rule: only a 1-action cantrip may follow a bonus-action spell this turn.');
+  if(type==='bonus'&&state.spellcasting.restricted)
+   throw Error('2014 bonus-action spell rule: another spell this turn prevents casting a bonus-action spell.');
+ }
  return type;
 }
 function commitUsage(character,validated){
@@ -41,7 +58,14 @@ function commitUsage(character,validated){
  // All guards are complete before either the resource or turn state changes.
  if(validated.cost)pool.current=Number(pool.current)-validated.cost;
  const state=combat(character);
- if(state.active&&type){state.used[type]=true;delete state.undo_turn;}
+ if(state.active){
+  if(type)state.used[type]=true;
+  if(follows2014(character)&&validated.kind==='spell'){
+   if(type==='bonus')state.spellcasting.bonus=true;
+   else if(!actionCantrip(validated))state.spellcasting.restricted=true;
+  }
+  delete state.undo_turn;
+ }
  return type;
 }
 function markAction(character,type){
@@ -53,7 +77,7 @@ function markAction(character,type){
 }
 function setEncounter(character,enabled){
  const state=combat(character);
- state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};delete state.undo_turn;
+ state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};delete state.undo_turn;
  return state;
 }
 
@@ -128,7 +152,7 @@ function planSpell(character,spell,slotLevel,profile=null){
  let target='self';
  let rounds=duration(spell.duration_rounds);
  let concentration=typeof spell.concentration==='boolean'?spell.concentration:/\bconcentration\b/i.test(String(spell.duration||''));
- if(spell.automation==='srd-2014'||(spell.automation!== 'manual' && !spell.automation && character.rules_profile==='srd-2014')){
+ if(spell.automation==='srd-2014'||(spell.automation!=='manual'&&!spell.automation&&character.rules_profile==='srd-2014'&&profile!=null)){
   if(character.system_edition&&/2024|5\.5|srd.?5\.2/i.test(String(character.system_edition)))throw Error('2014 automation is not enabled for a 2024 edition character.');
   const spellKey=String(spell.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   if(!profile||profile.schema!=='srd51-spell-effect/1'||profile.target!=='self'||
@@ -353,11 +377,11 @@ function advanceEffects(character){
 }
 function advanceTurn(character){
  const state=combat(character);
- const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),
+ const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),
   effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
   empty_body_rounds:character.effects.empty_body_rounds||0,
   shield_points:character.resources?.['Shield Stance Points']?.current};
- if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};}
+ if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};}
  const expired=advanceEffects(character);
  if(character.resources?.['Shield Stance Points'])character.resources['Shield Stance Points'].current=0;
  if(character.effects.empty_body_rounds>0){
@@ -370,7 +394,7 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.shield_points!==undefined&&character.resources?.['Shield Stance Points'])character.resources['Shield Stance Points'].current=before.shield_points;

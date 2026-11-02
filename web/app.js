@@ -207,7 +207,7 @@ function buffBar(){
 function combatActions(){
  const state=Action.combat(character);
  const tracker=state.active?`<div class="turn-tracker" aria-label="D&D turn resources"><strong>Turn ${state.turn}</strong>
- ${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button class="turn-chip ${state.used[key]?'spent':''}" type="button" data-action="mark-turn-action" data-arg="${key}" aria-pressed="${state.used[key]}" data-tip="${state.used[key]?'Used':'Available'}: ${label}; mark manually for basic attacks or DM rulings">${label} ${state.used[key]?'×':'✓'}</button>`).join('')}</div>`:'<span class="combat-notice">Turn tracking off</span>';
+ ${character.system_edition==='dnd-2014'&&state.spellcasting.bonus?'<small class="spell-turn-hint" title="2014 rule: only a 1-action cantrip can also be cast this turn">Bonus spell: cantrips only</small>':''}${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button class="turn-chip ${state.used[key]?'spent':''}" type="button" data-action="mark-turn-action" data-arg="${key}" aria-pressed="${state.used[key]}" data-tip="${state.used[key]?'Used':'Available'}: ${label}; mark manually for basic attacks or DM rulings">${label} ${state.used[key]?'×':'✓'}</button>`).join('')}</div>`:'<span class="combat-notice">Turn tracking off</span>';
  const sky=String(character.name).toLowerCase()==='sky blue eyes'&&/monk/i.test(character.class_level||'');
  return `<section class="combat-actions" aria-label="Combat actions"><strong>Actions</strong> ${tracker}
  ${button(state.active?'End encounter':'Start encounter','toggle-encounter','','button mini subtle')}

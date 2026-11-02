@@ -37,3 +37,10 @@ Regression gates: standalone d12 pickup; mixed d20+d4 cursor release; a short cl
 - Each automated profile declares its verified casting action (`action`, `bonus action` or `reaction`). Catalog validation rejects a mismatch with the spell reference casting time. No effect-type-to-action hardcoded mapping remains.
 - The existing heal executor supports vetted `d4` and `d8` first-level healing profiles, with one extra base die for each higher-level slot and a validated spellcasting modifier. Healing Word is self-target only, even though tabletop rules allow another visible creature.
 - A settled healing result still requires explicit HP application, and a canceled or blocked cast never spends a slot. The optional encounter tracker accounts for bonus action usage; complex bonus-action spellcasting restrictions and targeting others are not automated.
+
+## 2014 bonus-action casting and turn ownership (v0.27)
+
+- For a character pinned to `dnd-2014` **and** with encounter tracking enabled, a committed bonus-action spell forbids any other spell on that tracked turn except a cantrip with an actual 1-action casting time. That exception works in either order; a prior nonqualifying spell also prevents casting a bonus-action spell. Cantrips whose casting time is bonus action or special do not qualify.
+- All `kind: spell` plans (qualified SRD automation, manual and homebrew) go through the same check. A manually marked **ability** does not masquerade as a spell. Unknown/special cast times are conservatively tracked as nonqualifying spells, but the action budget remains under DM control.
+- The flags belong to `effects.combat` and persist through the normal vault; changing the active character, importing a new PDF, and reloading the browser do not reset a tracked turn. Reset/undo use the same encounter pipeline. The UI only displays the existing flags.
+- This guard assumes a tracked character turn. Reactions on other creatures' turns, Action Surge, special class traits, ritual casting and multi-character initiative are **not** automatically reconciled. When encounter tracking is disabled, no 2014 same-turn restriction is enforced.

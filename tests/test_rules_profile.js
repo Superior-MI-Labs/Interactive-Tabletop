@@ -14,6 +14,9 @@ const c=character();
 assert.equal(A.planSpell(c,c.spells[0],1,ref).effect,'none','No unapproved automation');
 c.rules_profile='srd-2014';
 assert.equal(A.planSpell(c,c.spells[0],1,ref).roll.expression,'1d8+4');
+assert.equal(A.planSpell(c,{id:'sacred',name:'Sacred Flame',level:0,casting_time:'1 action'},0,null).automatic,false,'Unqualified spells remain castable manually under the global SRD preference');
+assert.throws(()=>A.planSpell(c,{id:'sacred',name:'Sacred Flame',level:0,casting_time:'1 action',automation:'srd-2014'},0,null),/profile is unavailable/,'An explicit automation request must not silently fall back');
+
 c.spells[0].automation='manual';
 assert.equal(A.planSpell(c,c.spells[0],1,ref).effect,'none','Individual manual override wins');
 c.spells[0].automation='srd-2014';c.rules_profile='manual';

@@ -1,3 +1,10 @@
+## v0.27.0 — Same-turn 2014 spellcasting contract
+
+- Enforce the bonus-action spellcasting restriction for all confirmed spell plans inside the existing optional encounter turn tracker, without interpreting imported prose or expanding unsupported spell effects.
+- Preserve the 1-action cantrip exception in either casting order. Reject leveled, reaction, special, and bonus-timed alternatives as required; keep verified action-cost and slot validation atomic.
+- Persist two small spellcasting flags inside the existing combat state, with legacy-save defaults, turn advance/undo and encounter reset. No new rules store or public schema migration.
+- Show a contextual hint in the existing action tracker and qualify both unit and live-browser scenarios.
+
 ## v0.26.0 — Verified casting times and Healing Word self-healing
 
 - Qualify 2014 SRD Healing Word for explicitly confirmed, self-only healing: `1d4 + spellcasting modifier`, upcast +1d4 per slot, no allied HP changes.
