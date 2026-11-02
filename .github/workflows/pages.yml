@@ -4,7 +4,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
+      - 'web/**'
+      - 'tools/**'
+      - 'tests/**'
+      - 'vendor/**'
+      - 'main.py'
+      - 'desktop.py'
+      - 'README.md'
+      - 'INSTALL.sh'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -25,6 +32,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate source and release contracts
+        run: |
+          python -I -S -m unittest discover -s tests -p 'test_*.py' -v
+          node tests/test_import_model.js
+          node tests/test_dice_physics.js
+          node tests/test_vault.js
+          node tests/test_dnd_action.js
+          node tests/test_spell_actions.js
+          node tests/test_pwa.js
+          node tests/test_reference_catalog.js
+          node tests/test_reference_comparison.js
+          node tests/test_combat_state.js
+          node tests/test_dice_interaction.js
+      - name: Build desktop download and public site from canonical source
+        run: |
+          python tools/build_release.py
+          python tools/build_site.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

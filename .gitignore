@@ -6,3 +6,5 @@ _private_fields_*.json
 **/character.json
 *.log
 .DS_Store
+# Site is generated during Pages deployment, not an independent UI source.
+docs/

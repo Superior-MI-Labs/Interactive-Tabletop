@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One-ZIP Phoenix Tabletop installer. Run via:
-# unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.10.0.zip" SkyBlueEyes-Tabletop-v0.10.0/INSTALL.sh | bash
+# unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.18.0.zip" SkyBlueEyes-Tabletop-v0.18.0/INSTALL.sh | bash
 set -Eeuo pipefail
 
-VERSION='v0.10.0'
+VERSION='v0.18.0'
 ROOT_NAME="SkyBlueEyes-Tabletop-$VERSION"
 DOWNLOADS="${SKY_DOWNLOADS_DIR:-$HOME/Downloads}"
 ZIP="$DOWNLOADS/$ROOT_NAME.zip"
@@ -61,12 +61,15 @@ done
 printf 'Running offline tests...\n'
 (cd "$SOURCE" && python3 -I -S -m unittest discover -s tests -q)
 
-# Save lives OUTSIDE the app folder. Back it up before replacing anything.
-if [[ -f "$SAVE/character.json" ]]; then
-    mkdir -p -- "$SAVE/backups"
-    cp -p -- "$SAVE/character.json" "$SAVE/backups/character-before-$VERSION-$STAMP.json"
-    echo "Character save backed up to $SAVE/backups"
-fi
+# Back up both the old single-character file and the new multi-character vault.
+# Save data lives outside the application directory.
+for filename in character.json vault.json; do
+    if [[ -f "$SAVE/$filename" ]]; then
+        mkdir -p -- "$SAVE/backups"
+        cp -p -- "$SAVE/$filename" "$SAVE/backups/${filename%.json}-before-$VERSION-$STAMP.json"
+        echo "Backed up $filename to $SAVE/backups"
+    fi
+done
 
 PREVIOUS=""
 if [[ -e "$APP" ]]; then
@@ -87,7 +90,7 @@ if [[ -z "${SKY_INSTALL_DIR:-}" && "$APP" != *$'\n'* && "$APP" != *'"'* && "$APP
     cat > "$MENU" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Phoenix Tabletop Tabletop
+Name=Interactive Tabletop
 Comment=Offline character sheet and physical dice table
 Exec=/bin/bash "$APP/RUN-DESKTOP-LINUX.sh"
 Icon=$APP/web/solar-crest.png
@@ -113,7 +116,7 @@ discard_old() {
 [[ -z "$PREVIOUS" ]] || discard_old "$PREVIOUS"
 for folder in "$DOWNLOADS" "$PARENT"; do
     [[ -d "$folder" ]] || continue
-    for version in v0.1 v0.2 v0.3 v0.4 v0.5 v0.6 v0.7 v0.7.1 v0.8 v0.9 v0.9.1 v0.9.2; do
+    for version in v0.17.0 v0.16.0 v0.15.0 v0.14.0 v0.13.0 v0.12.0 v0.11.0 v0.1 v0.2 v0.3 v0.4 v0.5 v0.6 v0.7 v0.7.1 v0.8 v0.9 v0.9.1 v0.9.2 v0.10.0; do
         discard_old "$folder/SkyBlueEyes-Tabletop-$version"
         discard_old "$folder/SkyBlueEyes-Tabletop-$version.zip"
     done

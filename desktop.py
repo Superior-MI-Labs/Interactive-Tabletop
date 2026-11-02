@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local desktop host for Sky Blue Eyes. One Python server, one character document.
+"""Local desktop host for Interactive Tabletop. One Python server, one character document.
 
 Prefers Qt WebEngine when installed; otherwise launches Chromium/Edge in app mode.
 No separate state model, app services, or network hosting is introduced.
@@ -37,7 +37,7 @@ def qt_window():
         return None
     app = QApplication(sys.argv)
     window = QMainWindow()
-    window.setWindowTitle('Sky Blue Eyes · Tabletop')
+    window.setWindowTitle('Interactive Tabletop')
     window.setMinimumSize(800, 550)
     window.resize(1460, 940)
     browser = QWebEngineView(window)
@@ -58,7 +58,7 @@ def browser_app():
                  Path(os.environ.get('PROGRAMFILES', r'C:\Program Files'))/'Google/Chrome/Application/chrome.exe']
         browser = next((str(path) for path in paths if path.exists()), None)
     if browser:
-        with tempfile.TemporaryDirectory(prefix='skyblueeyes-window-') as profile:
+        with tempfile.TemporaryDirectory(prefix='interactive-tabletop-window-') as profile:
             p = subprocess.Popen([browser, f'--app={URL}', f'--user-data-dir={profile}', '--no-first-run'])
             return p.wait()
     print(f'No embedded/standalone browser found. Opening your normal browser at {URL}')

@@ -5,6 +5,8 @@ The JavaScript normalizer owns the only form-fields-to-character model conversio
 from __future__ import annotations
 import io
 import json
+from datetime import datetime, timezone
+import threading
 import re
 import sys
 import webbrowser
@@ -19,6 +21,8 @@ from pypdf import PdfReader
 
 MAX_UPLOAD = 15 * 1024 * 1024
 STATE_PATH = Path.home() / ".skyblueeyes-tabletop" / "character.json"
+VAULT_PATH = STATE_PATH.with_name("vault.json")
+VAULT_LOCK = threading.RLock()
 SKILL_FIELDS = {
     "Acrobatics": "Acrobatics", "Animal Handling": "Animal", "Arcana": "Arcana",
     "Athletics": "Athletics", "Deception": "Deception", "History": "History",
@@ -162,6 +166,59 @@ def migrate_character(state: dict) -> dict:
     return state
 
 
+def validate_vault(data: dict) -> dict:
+    """Validate the saved vault envelope without rewriting character rules."""
+    if not isinstance(data, dict) or data.get("schema_version") != 1:
+        raise ValueError("Unsupported character vault format.")
+    records = data.get("characters")
+    if not isinstance(records, list) or len(records) > 200:
+        raise ValueError("Invalid character vault entries.")
+    seen = set()
+    for entry in records:
+        if not isinstance(entry, dict):
+            raise ValueError("Invalid vault entry.")
+        identifier = entry.get("id")
+        character = entry.get("character")
+        if (not isinstance(identifier, str) or not 0 < len(identifier) <= 128 or
+                identifier in seen or not isinstance(character, dict) or
+                character.get("schema_version") != 1 or
+                not isinstance(character.get("name"), str) or
+                not isinstance(character.get("hp"), dict) or
+                not isinstance(character.get("inventory"), list)):
+            raise ValueError("Invalid or duplicated character record.")
+        seen.add(identifier)
+    active = data.get("active_id")
+    if active is not None and active not in seen:
+        raise ValueError("Active character is missing from vault.")
+    return data
+
+
+def read_vault() -> dict:
+    """Migrate the previous single-character save without modifying/deleting it."""
+    with VAULT_LOCK:
+        if VAULT_PATH.exists():
+            return validate_vault(json.loads(VAULT_PATH.read_text(encoding="utf-8")))
+        if STATE_PATH.exists():
+            legacy = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+            if isinstance(legacy, dict) and legacy.get("name") and legacy.get("hp"):
+                return validate_vault({"schema_version": 1, "active_id": "legacy-character",
+                    "characters": [{"id": "legacy-character", "character": legacy,
+                        "updated_at": datetime.now(timezone.utc).isoformat()}]})
+        return {"schema_version": 1, "active_id": None, "characters": []}
+
+
+def write_vault(data: dict):
+    data = validate_vault(data)
+    with VAULT_LOCK:
+        VAULT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = VAULT_PATH.with_name("vault.json.tmp")
+        try:
+            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(VAULT_PATH)
+        finally:
+            tmp.unlink(missing_ok=True)
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         # Avoid logging uploaded character data; only request status/route.
@@ -178,6 +235,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         name=urlparse(self.path).path
+        if name=="/api/vault":
+            try:
+                self.respond(200, json.dumps(read_vault(), ensure_ascii=False).encode("utf-8"))
+            except (OSError, ValueError) as ex:
+                self.respond(500, json.dumps({"error": str(ex)}).encode())
+            return
         if name=="/api/state":
             try:
                 data=json.loads(STATE_PATH.read_text(encoding="utf-8")) if STATE_PATH.is_file() else {}
@@ -190,7 +253,7 @@ class Handler(BaseHTTPRequestHandler):
         filename="index.html" if name=="/" else name.lstrip("/")
         mime={".html":"text/html", ".js":"text/javascript", ".css":"text/css",
               ".json":"application/json", ".jpg":"image/jpeg", ".png":"image/png",
-              ".webp":"image/webp"}
+              ".webp":"image/webp", ".webmanifest":"application/manifest+json"}
         suffix=Path(filename).suffix.lower()
         # Deliberately flat: no hidden files, nested paths, or traversal.
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*",filename) or suffix not in mime:
@@ -204,7 +267,9 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(200,path.read_bytes(),content_type + ("; charset=utf-8" if suffix not in (".jpg",".png",".webp") else ""))
 
     def do_POST(self):
-        if self.path not in ("/api/pdf-fields", "/api/state"):
+        if self.path not in ("/api/pdf-fields", "/api/vault"):
+            # The old single-character save endpoint is deliberately read-only.
+            # vault.json is the only live writable character store.
             self.respond(404,b'{"error":"Not found"}')
             return
         try:
@@ -214,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
         if amount<=0 or amount>MAX_UPLOAD:
             self.respond(413,b'{"error":"PDF must be under 15MB."}')
             return
-        expected_type="application/json" if self.path=="/api/state" else "application/pdf"
+        expected_type="application/json" if self.path=="/api/vault" else "application/pdf"
         if self.headers.get("Content-Type","").split(";")[0].strip().lower()!=expected_type:
             self.respond(415,b'{"error":"Unsupported upload content type"}')
             return
@@ -223,18 +288,11 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(403,b'{"error":"Origin not allowed"}')
             return
         raw=self.rfile.read(amount)
-        if self.path=="/api/state":
+        if self.path=="/api/vault":
             try:
-                state=json.loads(raw)
-                if not isinstance(state,dict) or state.get("schema_version")!=1 or not isinstance(state.get("hp"),dict):
-                    raise ValueError("Invalid character state.")
-                state=migrate_character(state)
-                STATE_PATH.parent.mkdir(parents=True,exist_ok=True)
-                tmp=STATE_PATH.with_suffix(".json.tmp")
-                tmp.write_text(json.dumps(state,ensure_ascii=False,indent=2),encoding="utf-8")
-                tmp.replace(STATE_PATH)
+                write_vault(json.loads(raw))
                 self.respond(200,b'{"saved":true}')
-            except (ValueError,OSError) as ex:
+            except (ValueError,OSError,TypeError) as ex:
                 self.respond(422,json.dumps({"error":str(ex)}).encode())
             return
         try:
@@ -254,7 +312,7 @@ def serve(port=8765, browser=True):
         print(f"Cannot start tabletop on port {port}: {exc}. Close any previous instance.")
         raise SystemExit(1) from exc
     host,port=httpd.server_address
-    print(f"Sky Blue Eyes Tabletop running at http://{host}:{port}/")
+    print(f"Interactive Tabletop running at http://{host}:{port}/")
     print("Local only. Press Ctrl+C here to exit.")
     if browser:
         import threading
