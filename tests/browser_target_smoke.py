@@ -47,16 +47,18 @@ with sync_playwright() as playwright:
  # Hit evaluation uses an actual completed simulated roll; it never modifies HP.
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
- assert page.evaluate('lastResult.outcome') in ('HIT','MISS','CRITICAL HIT')
+ outcome=page.evaluate('lastResult.outcome')
+ assert outcome in ('HIT','MISS','CRITICAL HIT')
+ critical=outcome=='CRITICAL HIT'
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  page.locator('.attack-list [data-action=damage]').first.click()
- assert page.evaluate('pendingRoll.expression')=='1d8+4'
+ assert page.evaluate('pendingRoll.expression')==('2d8+4' if critical else '1d8+4'), (outcome,page.evaluate('pendingRoll.expression'))
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('pendingDamage.length')==1
  assert page.evaluate('pendingDamage[0].type')=='fire'
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  roll_amount=page.evaluate('pendingDamage[0].amount')
- assert 5<=roll_amount<=12
+ assert (6<=roll_amount<=20) if critical else (5<=roll_amount<=12)
  if not page.locator('#dice-widget').get_attribute('open'):
   page.locator('#dice-widget > summary').click()
  page.locator('#roll-effect [data-action="apply-target-damage"]').click()
