@@ -67,3 +67,7 @@ No UI operation may assign directly to `character.effects.active` to end effects
 ## Resolved-hit event contract (v0.33)
 
 Use the existing typed event-window store (`effects.combat.event_window`) rather than introducing an event bus or an attack-outcome store. Only physical d20 settlement and explicit Guided Hit confirmation may create a `resolved-attack` window. Capture the source identity/type/range when dice are prepared and revalidate at settlement. Do not infer melee/ranged from names or PDFs; invalid source, self target, miss, wrong mode, or duplicate settled roll must not create an event. Never spend optional ability resources just because a trigger became available. Test Auto, Guided, Manual, critical/miss, duplicate IDs, turn advance/undo, safe PDF reimport and real-browser UI eligibility.
+
+## Event-window expiry regression (v0.34)
+
+Treat an event as one turn-scoped, optionally target-scoped opportunity. Only the existing D&D action/attack transaction boundaries can retire it. On-hit plans snapshot event identity; commit must reject a stale window or different target without consuming Ki, reaction or other resources. Preparation, canceled dice and damage rolls do not constitute new actions. Target deletion, combat-mode changes and turn advancement expire the opportunity; test undo and legacy saves. Never add per-ability event timers or a second event bus. Regression gates: `tests/test_event_window_lifecycle.js`, `tests/browser_resolved_attack_event_smoke.py`.

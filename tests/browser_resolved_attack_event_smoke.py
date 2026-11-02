@@ -56,6 +56,15 @@ with sync_playwright() as pw:
  assert page.evaluate('character.resources.Ki.current')==2
  entry=page.locator('.action-entry').filter(has_text='Stunning Strike')
  assert entry.get_by_role('button',name='Use ability').is_enabled()
+ # One hit belongs to exactly one target. Changing the target must disable
+ # the ability without paying Ki; switching back restores the live window.
+ page.evaluate('''()=>{const t=Action.addTarget(character,{name:'Other target',ac:15,hp:20});selectedTargetId=t.id;render();}''')
+ entry=page.locator('.action-entry').filter(has_text='Stunning Strike')
+ assert entry.get_by_role('button',name='Use ability').is_disabled()
+ assert page.evaluate('character.resources.Ki.current')==2
+ page.evaluate('''()=>{selectedTargetId=Action.targets(character).find(t=>t.name==='Ogre').id;render();}''')
+ entry=page.locator('.action-entry').filter(has_text='Stunning Strike')
+ assert entry.get_by_role('button',name='Use ability').is_enabled()
  # Auto damage preparation is not a cost; clear it to choose an on-hit ability.
  page.keyboard.press('Escape')
  assert page.evaluate('pendingRoll') is None

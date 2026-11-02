@@ -1,3 +1,10 @@
+## v0.34.0 — Transaction-scoped event windows and target identity
+
+- Expire an unconsumed or consumed combat trigger on the next committed unrelated action, next attack, manually spent action, target removal, combat-mode change, or new turn. Merely preparing, canceling, or resolving the existing attack’s damage dice does not spend another action or close the window.
+- Bind confirmed melee-hit events to an existing encounter target. Configured on-hit abilities check that target against the selected recipient, not just the trigger type; the UI disables unavailable actions and never spends a resource after an invalid selection.
+- Plan references to an already-open event carry its event ID. Replacing the window between confirmation and commit rejects stale plans; failed validation remains non-mutating. Manual/legacy event confirmations stay available where source evidence is not automated.
+- Keep encounter state, event identity, resource spending and action transaction boundaries in the same shared action engine. Add unit and Chromium regressions, including vault persistence and turn undo.
+
 ## v0.33.0 — Settled melee-hit eligibility and provenance
 
 - Connect physically completed attacks to the existing typed combat-event window. Explicit attack range and attack type are required, along with a non-self target and a verified hit against entered AC or positive Guided confirmation. No ability cost or condition automatically follows the event.

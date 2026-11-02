@@ -326,7 +326,7 @@ function stateEventControls(){
  const state=Action.combat(character),event=Action.combatEvent(character);
  if(!state.active)return '';
  return `<section class="pending-resolution" aria-label="Combat event windows"><strong>Event window (DM confirmed)</strong>
- <small>Choose when the trigger occurs. Before roll = incoming attack; after ranged weapon hit = deflect; after your confirmed melee hit = strike. No event is inferred from descriptive text.</small>
+ <small>Choose when the trigger occurs. Incoming attack is before the attack roll; melee hit is bound to the selected target. A window closes after the next unrelated committed action, target removal, or turn change.</small>
  <div class="controls-row">${[['incoming-attack','Incoming attack (before roll)'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit']].map(([id,name])=>button(name,'combat-event',id,'button mini subtle')).join('')}</div>
  ${event?`<small>Current: ${esc(event.kind)} ${event.origin==='resolved-attack'?'· '+esc(Action.targetById(character,event.targetId)?.name||'removed target')+' · settled attack':''} ${event.used?'(consumed)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}</section>`;
 }
@@ -348,7 +348,7 @@ function actionWorkspace(){
    const roll=a.roll||'', damage=a.damage||'';
    return `<details class="work-entry action-entry" data-action-id="${esc(a.id||a.index)}"><summary><span class="entry-title">${esc(a.name)}</span><span class="entry-meta">${esc(a.activation||'special')}${a.source==='manual'?' · Custom':a.source==='user-reference'?' · Screenshot reference':''}</span></summary>
    <div class="entry-details"><p class="action-description">${esc(a.description||'No rules description imported. Configure manually if needed.')}</p>
-   <div class="controls-row action-buttons">${(()=>{let reason='';try{const p=Action.plan(character,a);reason=unavailableReason(p);}catch(e){reason=e.message;}const lock=reason&&Action.combat(character).active&&Action.combat(character).economy.auto;return `<button type="button" class="button mini primary" data-action="action-use" data-arg="${a.index}" ${lock?'disabled aria-disabled="true"':''} title="${esc(lock?reason:'Confirm ability use')}">Use ability</button>`;})()}${roll&&!a.workflow?button('Roll '+roll,'action-roll',String(a.index),'button mini'):''}
+   <div class="controls-row action-buttons">${(()=>{let reason='';try{const p=Action.plan(character,a,{targetId:currentTargetId()});reason=unavailableReason(p);}catch(e){reason=e.message;}const lock=reason&&Action.combat(character).active&&Action.combat(character).economy.auto;return `<button type="button" class="button mini primary" data-action="action-use" data-arg="${a.index}" ${lock?'disabled aria-disabled="true"':''} title="${esc(lock?reason:'Confirm ability use')}">Use ability</button>`;})()}${roll&&!a.workflow?button('Roll '+roll,'action-roll',String(a.index),'button mini'):''}
    ${damage?button('Damage '+damage,'action-damage',String(a.index),'button mini subtle'):''}
    ${a.resource&&num(a.cost)>0?`<small class="action-cost">${esc(a.cost)} ${esc(a.resource)} on use</small>`:''}</div>
    ${editMode?`<div class="action-editor"><div class="entry-pair">${field('Name',`actions.${a.index}.name`,a.name)}${field('Activation',`actions.${a.index}.activation`,a.activation||'')}</div>
@@ -713,7 +713,7 @@ function handleAction(action,arg){
   case 'archive-action':{const a=character.actions?.[num(arg)];if(a){a.archived=true;save();render();}break;}
   case 'action-use':{
    const a=character.actions?.[num(arg)];if(!a)break;
-   let p;try{p=Action.plan(character,a);}catch(e){toast('Cannot use '+a.name+': '+e.message);break;}
+   let p;try{p=Action.plan(character,a,{targetId:currentTargetId()});}catch(e){toast('Cannot use '+a.name+': '+e.message);break;}
    if(p.workflow){
     try{Action.verifyEconomy(character,p);if(!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough room for the reduction dice.');}
     catch(e){toast(e.message);break;}
@@ -737,14 +737,14 @@ function handleAction(action,arg){
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      // Never charge a resource if the required dice cannot be prepared.
      if(p.roll&&!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough space for this throw. Clear unused dice first.');
-     const confirmed=Action.plan(character,a);
+     const confirmed=Action.plan(character,a,{targetId:currentTargetId()});
      Action.commitUsage(character,confirmed);Action.startEffect(character,confirmed);save();render();
      if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:confirmed.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:currentTargetId(),damageType:confirmed.damageType,source:confirmed.name}:null);
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
   }
-  case 'combat-event':try{Action.recordCombatEvent(character,arg);save();render();toast('Confirmed event: '+arg+'.');}catch(e){toast(e.message);}break;
+  case 'combat-event':try{Action.recordCombatEvent(character,arg,arg==='melee-hit'?currentTargetId():null);save();render();toast('Confirmed event: '+arg+'.');}catch(e){toast(e.message);}break;
   case 'combat-event-close':Action.dismissCombatEvent(character);save();render();break;
   case 'staged-decline':{
    try{Action.declineWorkflow(character,arg);save();render();toast('Optional follow-up declined. The original reaction remains spent.');}

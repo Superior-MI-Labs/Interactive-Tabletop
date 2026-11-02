@@ -70,7 +70,19 @@ const POOL_NAMES=['action','bonus','reaction'];
 // Explicit DM/player event windows, not a text parser or an autonomous combat log.
 // Each window is short-lived and consumed by exactly one committed ability.
 const EVENT_KINDS=['incoming-attack','ranged-hit','melee-hit'];
-function combatEvent(character){return combat(character).event_window||null;}
+// A window belongs to one turn and at most one selected creature. The same
+// ledger that charges actions retires windows on the NEXT unrelated activity.
+function combatEvent(character){
+ const state=combat(character),event=state.event_window;
+ if(event&&(!state.active||event.turn!==state.turn)){delete state.event_window;return null;}
+ return event||null;
+}
+function expireCombatEvent(character){
+ const state=combat(character);
+ if(!state.event_window)return false;
+ delete state.event_window;
+ return true;
+}
 function setCombatEvent(character,kind,origin=null){
  if(!EVENT_KINDS.includes(kind))throw Error('Unknown combat event.');
  const state=combat(character);
@@ -79,11 +91,19 @@ function setCombatEvent(character,kind,origin=null){
  const next=(state.event_sequence||0)+1;
  if(!Number.isSafeInteger(next))throw Error('Combat event sequence exhausted.');
  state.event_sequence=next;
- state.event_window={id:'event-'+next,kind,used:false,...(origin?{origin:origin.origin,rollId:origin.rollId,sourceId:origin.sourceId,targetId:origin.targetId}:{})};
+ state.event_window={id:'event-'+next,kind,turn:state.turn,used:false,...(origin?{
+  origin:origin.origin,rollId:origin.rollId,sourceId:origin.sourceId,targetId:origin.targetId
+ }:{} )};
  delete state.undo_turn;
  return deepcopy(state.event_window);
 }
-function recordCombatEvent(character,kind){return setCombatEvent(character,kind);}
+function recordCombatEvent(character,kind,targetId=null){
+ if(kind==='melee-hit'&&targetId!==null){
+  if(targetId==='self'||!targetById(character,targetId))throw Error('Choose the creature hit by your melee attack.');
+  return setCombatEvent(character,kind,{origin:'dm-confirmed',targetId});
+ }
+ return setCombatEvent(character,kind);
+}
 function dismissCombatEvent(character){delete combat(character).event_window;return true;}
 // A resolved physical attack is evidence for a typed trigger, not an ability.
 // The dice controller supplies the already-settled identity and the planner
@@ -120,13 +140,18 @@ function recordResolvedAttack(character,record){
  state.resolved_attack_ids=[...seen.slice(-39),rollId];
  return event;
 }
-function verifyCombatEvent(character,required){
+function verifyCombatEvent(character,required,targetId=null,expectedId=null){
  if(!required)return true;
  if(!EVENT_KINDS.includes(required))throw Error('Unsupported ability trigger.');
  const state=combat(character);
  if(!state.active||!state.economy.auto)return true; // Manual mode is DM-controlled.
- const current=state.event_window;
+ const current=combatEvent(character);
  if(!current||current.kind!==required||current.used)throw Error('Confirm the '+required+' event before using this ability.');
+ if(expectedId&&expectedId!==current.id)throw Error('The original combat event changed. Confirm the ability again.');
+ if(required==='melee-hit'&&current.targetId){
+  if(!targetById(character,current.targetId))throw Error('The original hit target is no longer in this encounter.');
+  if(targetId!==null&&current.targetId!==targetId)throw Error('This ability must use the creature hit by the qualifying attack.');
+ }
  return true;
 }
 
@@ -199,6 +224,9 @@ function commitAttack(character,permission='action',type='unspecified'){
  verifyAttack(character,permission,type);
  const state=combat(character);
  if(!state.active||!state.economy.auto)return false;
+ // A new committed strike closes any earlier on-hit opportunity; merely
+ // preparing or canceling dice never reaches this boundary.
+ expireCombatEvent(character);
  const sequence=state.economy.attacks;
  if(permission==='bonus'){
   const grant=attackGrant(character,type);
@@ -248,6 +276,7 @@ function configureEconomy(character,key,value){
 function setCombatMode(character,mode){
  if(!['auto','guided','manual'].includes(mode))throw Error('Unknown combat assistance mode.');
  const state=combat(character);
+ if(state.economy.mode!==mode)expireCombatEvent(character);
  state.economy.mode=mode;state.economy.auto=mode!=='manual';delete state.undo_turn;
  return mode;
 }
@@ -266,7 +295,7 @@ function grantEconomyAction(character,scope='any',source='manual'){
 function verifyEconomy(character,validated){
  const state=combat(character),type=activationCost(validated.activation),units=validated.economyUnits??1;
  if(!state.active||!state.economy.auto)return type;
- verifyCombatEvent(character,validated.triggerEvent);
+ verifyCombatEvent(character,validated.triggerEvent,validated.targetId??null,validated.eventId??null);
  if(type&&!economyAvailable(character,type,units))throw Error('Your '+type+' is already used or its pool is exhausted this turn.');
  if(validated.requiresAttack&&state.economy.attackActionMade<1)throw Error('This feature requires an Attack action first this turn.');
  if(validated.requiresAttackComplete&&(state.economy.attacks.remaining>0||state.economy.lastActivity!=='attack'))
@@ -291,6 +320,9 @@ function commitUsage(character,validated){
  if(state.active&&e.auto&&validated.grantAttacks&&e.attackGrants.reduce((n,g)=>n+g.remaining,0)+validated.grantAttacks>8)
   throw Error('Maximum eight unspent bonus attacks.');
  // All costs and requirements were validated before modifying any resource.
+ // The ability consuming the event retains its consumed token; any other
+ // committed ability ends the prior opportunity.
+ if(state.active&&e.auto&&!validated.triggerEvent)expireCombatEvent(character);
  if(validated.cost)pool.current=Number(pool.current)-validated.cost;
  if(grant)grant.current=Math.min(Number(grant.max),Number(grant.current)+validated.grantAmount);
  if(state.active&&e.auto){
@@ -313,6 +345,7 @@ function markAction(character,type){
  if(!state.active)throw Error('Start encounter tracking before marking actions.');
  if(!economyAvailable(character,type,1))throw Error('That '+type+' is already spent.');
  spendEconomy(character,type,1);
+ expireCombatEvent(character);
 }
 function setEncounter(character,enabled){
  const state=combat(character),mode=state.economy.mode;
@@ -433,7 +466,7 @@ function planSpell(character,spell,slotLevel,profile=null){
  return Object.freeze({kind:'spell',name:String(spell.name||'Spell'),sourceId:String(spell.id||spell.name||'spell'),resource,cost,roll,effect,
   concentration,durationRounds:rounds,activation:String(automatic?profile.activation:spell.casting_time||'special'),slotLevel:slot,condition,acBonus,bonusDice,bonusScopes,bonusMode,charges,target,automatic,damageType});
 }
-function plan(character,action){
+function plan(character,action,context=null){
  if(!character||!action||action.archived)throw Error('Ability is not available.');
  const cost=Number(action.cost||0);
  if(!Number.isSafeInteger(cost)||cost<0||cost>9999)throw Error('Invalid ability resource cost.');
@@ -493,7 +526,9 @@ function plan(character,action){
  if(action.damage)dice(action.damage); // Validate all configured dice before mutation.
  return Object.freeze({kind:'ability',name:String(action.name||'Ability'),sourceId:String(action.id||action.name||'ability'),resource,cost,roll,effect,
    concentration:action.concentration===true,durationRounds:duration(action.duration_rounds),activation:String(action.activation||'special'),condition,damageType,
-   economyUnits,requiresAttack:action.requires_attack===true,requiresAttackComplete,grantAttacks,grantAttackScope,grantResource,grantAmount,grantEconomy,triggerEvent:triggerEvent||(staged?'ranged-hit':''),workflow:staged});
+   economyUnits,requiresAttack:action.requires_attack===true,requiresAttackComplete,grantAttacks,grantAttackScope,grantResource,grantAmount,grantEconomy,triggerEvent:triggerEvent||(staged?'ranged-hit':''),
+   targetId:triggerEvent==='melee-hit'?(context?.targetId??null):null,
+   eventId:(triggerEvent||(staged?'ranged-hit':''))?(combatEvent(character)?.id??null):null,workflow:staged});
 }
 // One pending sequence per character. The continuation is not a second
 // reaction: it is an optional child of the already committed parent action.
@@ -843,6 +878,7 @@ function removeTarget(character,id){
  const roster=targets(character),index=roster.findIndex(t=>t.id===id);
  if(index<0)return false;
  roster.splice(index,1);
+ if(combatEvent(character)?.targetId===id)expireCombatEvent(character);
  return true;
 }
 function updateTargetStat(character,id,field,value){
@@ -931,6 +967,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={EVENT_KINDS,combatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={EVENT_KINDS,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

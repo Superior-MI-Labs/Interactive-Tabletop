@@ -85,3 +85,9 @@ Every prepared combat roll belongs to a character's vault ID. Switching away cle
 ## Verified on-hit provenance (v0.33)
 
 A fully resolved `target-attack` physical roll can create a typed `melee-hit` window **only** when the recorded attack has explicitly configured both an eligible attack type (`weapon`/`unarmed`) and `melee` range, the original source is unchanged, the target is a non-self tracked creature, and the hit is confirmed. Auto rechecks against entered AC; Guided always requires the user's explicit Hit choice; Manual never automatically produces it. Unknown AC in Auto also requires the Guided confirmation. The window records roll/source/target identity, is one-use, and is not a resource spend. Correct 2014 Stunning Strike still needs explicit activation and a DM-adjudicated save. Incoming attacks and incoming ranged hits remain explicit until an opponent attack pipeline can provide equally trustworthy timing and target provenance.
+
+## Event window lifetime and recipient binding (v0.34)
+
+- A resolved melee hit is tied to its original roll/source and encounter target. A DM-confirmed melee hit is associated with the selected creature. On-hit ability execution in Auto/Guided cannot be redirected to another target; removing the original target invalidates it.
+- Event IDs and their turn stamps are authoritative in the single combat state. A plan made while a window is open cannot be applied to a replacement event of the same kind. The next unrelated **committed** action or attack closes the old window; merely preparing or canceling dice, rolling its damage, or displaying the sheet does not.
+- In Manual mode the DM retains responsibility for eligibility; costs remain explicit. This is intentionally not an interpreter for arbitrary prose, nor a timer based on real-world milliseconds.
