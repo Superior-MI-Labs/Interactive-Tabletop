@@ -8,7 +8,13 @@ class ReleaseContract(unittest.TestCase):
         version=(ROOT/'VERSION').read_text().strip()
         self.assertRegex(version,r'^0\.\d+\.\d+$')
         self.assertIn('v'+version,(ROOT/'INSTALL.sh').read_text())
-        self.assertIn("VERSION=(ROOT/'VERSION').read_text().strip()",(ROOT/'tools/build_release.py').read_text())
+        builder=ROOT/'tools/build_release.py'
+        # Desktop ZIPs contain runtime files and tests, but not source build tools.
+        if builder.is_file():
+            self.assertIn("VERSION=(ROOT/'VERSION').read_text().strip()",builder.read_text())
+        else:
+            self.assertTrue((ROOT/'main.py').is_file())
+            self.assertTrue((ROOT/'web/dnd-slots.js').is_file())
         self.assertIn('v'+version,(ROOT/'web/service-worker.js').read_text())
         self.assertIn('v'+version,(ROOT/'web/index.html').read_text())
     def test_script_references_and_order(self):
