@@ -1,6 +1,7 @@
 """Visual and interaction gate for 2014 reference lookup; synthetic character data only."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 import json
 ROOT=Path(__file__).resolve().parents[1]
 hero={
@@ -18,7 +19,7 @@ hero={
  'conditions':[],'features':[],'actions':[],'roll_history':[],'effects':{},'notes':'Private test note'
 }
 with sync_playwright() as p:
- browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ browser=launch_chromium(p)
  page=browser.new_page(viewport={'width':1440,'height':900})
  errors=[];page.on('pageerror',lambda error: errors.append(str(error)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -51,7 +52,6 @@ with sync_playwright() as p:
  assert page.locator('#reference-layer').is_visible()
  assert '1d10 slashing' in page.locator('#reference-layer').inner_text()
  assert '20 gp' in page.locator('#reference-layer').inner_text()
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.17.0-Preview.png')
  page.keyboard.press('Escape')
  page.locator('#catalog-search').fill('')
  # Filter by level and by structured description/school; changing filters never edits the character.

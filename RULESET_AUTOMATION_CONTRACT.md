@@ -44,3 +44,8 @@ Regression gates: standalone d12 pickup; mixed d20+d4 cursor release; a short cl
 - All `kind: spell` plans (qualified SRD automation, manual and homebrew) go through the same check. A manually marked **ability** does not masquerade as a spell. Unknown/special cast times are conservatively tracked as nonqualifying spells, but the action budget remains under DM control.
 - The flags belong to `effects.combat` and persist through the normal vault; changing the active character, importing a new PDF, and reloading the browser do not reset a tracked turn. Reset/undo use the same encounter pipeline. The UI only displays the existing flags.
 - This guard assumes a tracked character turn. Reactions on other creatures' turns, Action Surge, special class traits, ritual casting and multi-character initiative are **not** automatically reconciled. When encounter tracking is disabled, no 2014 same-turn restriction is enforced.
+
+## Strict edition gate (v0.28)
+
+- The D&D 2014 effect planner requires `character.system_edition === 'dnd-2014'` for **every** automated profile, whether enabled by the character-level selection or an explicit per-spell override. Unspecified and 2024 editions cannot execute 2014 profiles. Manual spell planning always remains available. A rejected automated plan must not consume a slot, effect or turn resource.
+- The catalog lookup and UI controls are advisory presentation; the planner enforces the final edition boundary independently of callers.

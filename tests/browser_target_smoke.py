@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 ROOT=Path(__file__).resolve().parents[1]
 hero={'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','name':'Synthetic Duelist','class_level':'Fighter 5',
  'species':'Human','background':'','hp':{'current':25,'max':35,'temp':0},'ac':17,'initiative':1,'proficiency':3,'speed':'30 ft.',
@@ -9,7 +10,7 @@ hero={'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','name':
  'attacks':[{'name':'Flame Sword','bonus':7,'damage':'1d8+4 Fire'}],
  'inventory':[],'conditions':[],'features':[],'actions':[],'roll_history':[],'effects':{},'spells':[],'resources':{}}
 with sync_playwright() as playwright:
- b=playwright.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ b=launch_chromium(playwright)
  page=b.new_page(viewport={'width':1440,'height':900});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -79,7 +80,6 @@ with sync_playwright() as playwright:
  assert 'Training Golem' in page.locator('#dialog-layer').inner_text()
  page.locator('#dlg-no').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.20.0-Preview.png')
  page.set_viewport_size({'width':390,'height':844})
  page.wait_for_timeout(100)
  assert page.evaluate('document.documentElement.scrollWidth')<=400,'Horizontal overflow in narrow layout'

@@ -1,11 +1,12 @@
 """Compare imported SRD fields, edit existing spell, and create inert reference action."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 import json
 ROOT=Path(__file__).resolve().parents[1]
 hero={'schema_version':1,'system_id':'dnd5e','system_edition':'unspecified','name':'Synthetic Cleric','player':'QA','class_level':'Cleric 3','species':'Human','background':'','hp':{'current':10,'max':20,'temp':0},'ac':12,'initiative':0,'proficiency':2,'speed':'30 ft.','abilities':{'WIS':{'score':16,'modifier':3}},'saves':{'Wisdom':5},'skills':{'Insight':5},'attacks':[],'resources':{'Level 1 Spell Slots':{'current':2,'max':4,'reset':'long rest'}},'inventory':[],'spells':[{'id':'sp1','name':'Bless','level':1,'casting_time':'1 action','range':'35 feet','components':'V,S,M','duration':'Concentration, up to 1 minute','prepared':True,'available':True,'source':'PDF'}], 'conditions':[], 'features':[], 'actions':[], 'roll_history':[], 'effects':{}, 'notes':''}
 with sync_playwright() as p:
- b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ b=launch_chromium(p)
  page=b.new_page(viewport={'width':1366,'height':900})
  errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')

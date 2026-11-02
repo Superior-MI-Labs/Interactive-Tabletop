@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.27.0
+# Interactive Tabletop architecture — v0.28.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -131,3 +131,7 @@ Qualified spell profiles now declare an `activation` matched against their read-
 - `effects.combat.spellcasting = {bonus, restricted}` belongs to the existing optional per-character turn tracker. `bonus` records any bonus-action spell this turn; `restricted` records any non-qualifying other spell. A qualifying 1-action cantrip does not set `restricted`. No separate rules engine, action-log table, migration, or parallel vault state is added.
 - The shared `commitUsage` validates before spending slots. Ending/starting an encounter and advancing a tracked turn resets both flags; turn undo restores them. Old vaults initialize missing flags safely. Outside tracked encounters these restrictions are intentionally not enforced.
 - Casting-time text marked `special` is not invented as a standard action: it conservatively counts as a restricting spell for same-turn bonus spell decisions. Reaction spells cast outside the character's tracked turn, extra actions, and full initiative rules still require DM accounting.
+
+### v0.28 — Single qualification and deployment pipeline
+
+Previously the separate Pages workflow could publish without exercising any of the 15 Chromium gameplay checks, and browser tests assumed an absolute local executable and screenshot folder. The single GitHub Actions workflow now runs `tools/qualify.sh` for all Python, JavaScript and browser tests in its `qualify` job, and only builds/deploys Pages from `main` after qualification succeeds. `tests/browser_support.py` is the single Chromium launch policy shared by local and CI execution. Screenshots are not part of automated assertions. The edition gate lives in `DndAction.planSpell`, not in the UI selection alone. No new runtime service or game-state store is introduced.

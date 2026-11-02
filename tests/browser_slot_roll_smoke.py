@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 R=Path(__file__).resolve().parents[1]
 hero={'schema_version':1,'system_id':'dnd5e','name':'Legacy Caster','player':'QA','class_level':'Cleric 2',
  'species':'Human','background':'','hp':{'current':11,'max':20,'temp':0},'ac':15,'initiative':0,'proficiency':2,'speed':'30 ft',
@@ -11,7 +12,7 @@ hero={'schema_version':1,'system_id':'dnd5e','name':'Legacy Caster','player':'QA
  'resources':{'First-level Spell Slots':{'current':2,'max':2,'reset':'long rest'}},
  'spells':[{'id':'spell-1','name':'Bless','level':1,'prepared':True,'casting_time':'1 action','duration':'Concentration, up to 1 minute'}]}
 with sync_playwright() as pw:
- browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ browser=launch_chromium(pw)
  page=browser.new_page(viewport={'width':1440,'height':900})
  errors=[];page.on('pageerror',lambda e: errors.append(str(e)))
  page.set_content((R/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -46,7 +47,6 @@ with sync_playwright() as pw:
  page.locator('.attack-list [data-action=attack]').first.click()
  assert page.evaluate('pendingRoll.count')==2
  assert page.evaluate('pendingRoll.d20Mode')=='advantage'
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.22.0-Preview.png',full_page=False)
  page.evaluate('''()=>{
    beginThrow();const id=activeRoll.diceIds; const values=new Map([[id[0],3],[id[1],20]]);
    DP.faceValue=die=>values.get(die.id)||10;

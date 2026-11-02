@@ -20,13 +20,16 @@ Read `ARCHITECTURE.md`, `RULESET_AUTOMATION_CONTRACT.md`, and `DND_EFFECT_CAPABI
 
 ## Qualification before push
 
+The same test command gates every pull request, push, and Pages deployment. No browser tests are allowed to remain local-only.
+
 ```bash
-python3 -I -S -m unittest discover -s tests -p 'test_*.py' -v
-for f in web/*.js; do node --check "$f" || exit; done
-for test in tests/test_*.js; do node "$test" || exit; done
-# With Playwright Python and system Chromium installed:
-for smoke in tests/browser_*.py; do python3 "$smoke" || exit; done
+python3 -m pip install -r tools/requirements-qa.txt
+# On a machine without /usr/bin/chromium:
+python3 -m playwright install chromium
+bash tools/qualify.sh
 python3 tools/build_release.py && python3 tools/build_site.py
 ```
 
-GitHub Actions currently gates the Python/Node tests and the Pages build; Chromium smoke tests are additional local release qualifications, **not** automatically run in CI. Record explicitly which were run. Update `VERSION`, launcher/site version references, `CHANGELOG.md`, and architecture/contracts together. Push only after qualification and verify the pushed GitHub Actions checks and Pages status. Do not claim deploy success until the workflow confirms it.
+`TABLETOP_CHROMIUM=managed` forces Playwright's downloaded Chromium; alternatively provide an absolute executable path. Browser tests must not write screenshots to repository paths, assume `/mnt/data`, or bypass `browser_support.launch_chromium`. Tests use the real DOM, real JS modules, and in-memory API stubs, with no external network calls. Pull requests run full qualification but never deploy; `main` deploys **only if** qualification passes. Record exact failures; never claim Pages succeeded until the deployment check reports success.
+
+Update `VERSION`, launcher/site version references, `CHANGELOG.md`, and architecture/contracts together. Only the canonical `web/` is edited; `docs/` and desktop ZIPs remain generated.

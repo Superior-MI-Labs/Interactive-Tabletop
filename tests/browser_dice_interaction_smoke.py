@@ -1,13 +1,14 @@
 """Dice input regression: clickable above controls, overlapping rolls, right release."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 R=Path(__file__).resolve().parents[1]
 char={'schema_version':1,'name':'Dice QA','player':'','class_level':'Fighter 1','species':'Human','background':'',
 'hp':{'current':12,'max':15,'temp':0},'ac':16,'initiative':2,'proficiency':2,'speed':'30 ft.',
 'abilities':{'STR':{'score':16,'modifier':3}},'saves':{'Strength':5},'skills':{'Athletics':5},
 'inventory':[],'attacks':[],'conditions':[],'features':[],'actions':[],'roll_history':[],'effects':{},'resources':{},'spells':[]}
 with sync_playwright() as pw:
- browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ browser=launch_chromium(pw)
  page=browser.new_page(viewport={'width':1440,'height':900});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((R/'web/index.html').read_text(),wait_until='domcontentloaded')

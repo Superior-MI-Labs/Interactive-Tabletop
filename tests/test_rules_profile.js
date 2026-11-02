@@ -29,4 +29,17 @@ assert.equal(Vault.reconcile(d,character()).rules_profile,'srd-2014','Preserve c
 d.system_edition='dnd-2024';
 assert.throws(()=>A.planSpell(d,d.spells[0],1,ref),/2014 automation/);
 assert.equal(R.match('spell','Cure Wounds','dnd-2024'),null);
+
+for(const edition of ['unspecified','dnd5e',null,'dnd-2024']){
+ const unknown=character();unknown.system_edition=edition;
+ unknown.rules_profile='srd-2014';
+ const before=JSON.stringify(unknown);
+ assert.throws(()=>A.planSpell(unknown,unknown.spells[0],1,ref),/2014 automation requires/);
+ assert.equal(JSON.stringify(unknown),before,'A rejected catalog profile never mutates character state');
+ unknown.rules_profile='manual';unknown.spells[0].automation='srd-2014';
+ assert.throws(()=>A.planSpell(unknown,unknown.spells[0],1,ref),/2014 automation requires/,'Explicit overrides do not bypass edition gate');
+ unknown.spells[0].automation='manual';
+ assert.equal(A.planSpell(unknown,unknown.spells[0],1,ref).automatic,false,'Manual spell plans remain available without edition');
+}
+
 console.log('PASS ruleset: verified global profiles, manual per-spell override, older opt-ins, reimport and 2024 fence');

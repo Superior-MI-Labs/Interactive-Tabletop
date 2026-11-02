@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 ROOT=Path(__file__).resolve().parents[1]
 hero={'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','name':'Synthetic Cleric','player':'QA','class_level':'Cleric 5','species':'Human','background':'',
 'hp':{'current':10,'max':35,'temp':0},'ac':17,'initiative':1,'proficiency':3,'speed':'30 ft.',
@@ -11,7 +12,7 @@ hero={'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','name':
 {'id':'faith','name':'Shield of Faith','level':1,'source':'Cleric','prepared':True,'casting_time':'1 bonus action','duration':'Concentration, up to 10 minutes'},
 {'id':'guidance','name':'Guidance','level':0,'source':'Cleric','casting_time':'1 action','duration':'Concentration, up to 1 minute'}]}
 with sync_playwright() as p:
- b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ b=launch_chromium(p)
  page=b.new_page(viewport={'width':1440,'height':900});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -57,7 +58,6 @@ with sync_playwright() as p:
  assert page.evaluate('character.ac')==17
  assert page.evaluate('Action.effectiveAC(character)')==19
  assert 'Shield of Faith' in page.locator('.buff-bar').inner_text()
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.19.0-Preview.png')
  page.get_by_role('tab',name='Spells').click()
  guide=spell('Guidance');guide.locator('summary').click()
  guide.get_by_role('button',name='Enable 2014 effect').click();page.locator('#dlg-yes').click()

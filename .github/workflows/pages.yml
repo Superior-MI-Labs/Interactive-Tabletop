@@ -1,35 +1,15 @@
-name: Deploy Interactive Tabletop Pages
-
+name: Interactive Tabletop qualification and Pages
 on:
   push:
-    branches: [main]
-    paths:
-      - 'web/**'
-      - 'tools/**'
-      - 'tests/**'
-      - 'vendor/**'
-      - 'main.py'
-      - 'desktop.py'
-      - 'README.md'
-      - 'INSTALL.sh'
-      - '.github/workflows/pages.yml'
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages
-  cancel-in-progress: false
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  qualify:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,11 +18,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate source and release contracts
+      - name: Install pinned browser test runtime
         run: |
-          python -I -S -m unittest discover -s tests -p 'test_*.py' -v
-          for test in tests/test_*.js; do node "$test"; done
-      - name: Build desktop download and public site from canonical source
+          python -m pip install -r tools/requirements-qa.txt
+          python -m playwright install --with-deps chromium
+      - name: Qualify gameplay, UI and source contracts
+        env:
+          TABLETOP_CHROMIUM: managed
+        run: bash tools/qualify.sh
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: qualify
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build desktop ZIP and Pages site from qualified source
         run: |
           python tools/build_release.py
           python tools/build_site.py

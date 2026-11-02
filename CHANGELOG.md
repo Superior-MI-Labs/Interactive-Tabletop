@@ -1,3 +1,10 @@
+## v0.28.0 — Qualified browser deployment and strict rule provenance
+
+- Consolidate GitHub checks and Pages deployment into a single dependent workflow: a push or PR must pass Python, Node and all 15 Chromium gameplay smokes; only the qualified main branch may deploy.
+- Use one pinned Playwright test runtime and one shared Chromium launcher across Linux and CI. Remove developer-specific screenshot paths, which were not tested assertions and broke portability.
+- Require an explicitly D&D-2014 character edition for every validated SRD automation profile, including per-spell overrides; unspecified and 2024 characters can still cast manually. Add negative and non-mutation regression tests.
+- Keep one canonical `web/` source, one QA command, and generated desktop/Pages distributions. No parallel rules, browser runner, or storage layer.
+
 ## v0.27.0 — Same-turn 2014 spellcasting contract
 
 - Enforce the bonus-action spellcasting restriction for all confirmed spell plans inside the existing optional encounter turn tracker, without interpreting imported prose or expanding unsupported spell effects.

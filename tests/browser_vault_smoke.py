@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 
 root=Path(__file__).resolve().parents[1]
 old={'schema_version':1,'name':'Sky Blue Eyes','player':'Sample Player','class_level':'Monk 19',
@@ -18,7 +19,7 @@ old={'schema_version':1,'name':'Sky Blue Eyes','player':'Sample Player','class_l
      'notes':'Private session notes','homebrew_notes':'DM approved'}
 new={**old,'name':'Witty Rose','player':'Different Player','class_level':'Bard 19','hp':{'max':117,'current':117,'temp':0},'resources':{}}
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+    browser=launch_chromium(p)
     page=browser.new_page(viewport={'width':1440,'height':900},accept_downloads=True)
     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
     # The Chromium container blocks every navigation via policy. Set the full DOM and
@@ -59,7 +60,6 @@ with sync_playwright() as p:
     backup=json.loads(Path(down.value.path()).read_text())
     assert len(backup['characters'])==2
     assert backup['characters'][0]['character']['notes']=='Private session notes'
-    page.screenshot(path=str(Path('/tmp')/'interactive-tabletop-vault-preview.png'),full_page=True)
     assert not errors,errors
     print('PASS: actual DOM, switching, reimport confirmation, HP preservation, downloadable full backup; no JS errors')
     browser.close()

@@ -1,6 +1,7 @@
 """Live DOM acceptance: combat action budget, spell slot, conditions and undo."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 R=Path(__file__).resolve().parents[1]
 char={
  'schema_version':1,'name':'QA Monk','player':'Test','class_level':'Monk 3','species':'Human','background':'',
@@ -13,7 +14,7 @@ char={
  'spells':[{'id':'s0','name':'Blessing','level':1,'prepared':True,'casting_time':'1 action','duration':'Instantaneous'}]
 }
 with sync_playwright() as pw:
- browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ browser=launch_chromium(pw)
  page=browser.new_page(viewport={'width':1440,'height':900});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((R/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -64,7 +65,6 @@ with sync_playwright() as pw:
  page.get_by_role('button',name='Next turn').click()
  assert not page.evaluate('character.effects.active')
  assert 'Invisible' not in page.evaluate('character.conditions')
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.14.0-Preview.png',full_page=False)
  assert not errors,errors
  print('PASS browser: encounter start, action cost/cancel, slot budget, condition timer, undo, no JS errors')
  browser.close()

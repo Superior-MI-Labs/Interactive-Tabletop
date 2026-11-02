@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 ROOT=Path(__file__).resolve().parents[1]
 hero={
  'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','rules_profile':'srd-2014',
@@ -13,7 +14,7 @@ hero={
  'spells':[{'id':'healingword','name':'Healing Word','level':1,'source':'Cleric','prepared':True,'casting_time':'1 bonus action'}]
 }
 with sync_playwright() as pw:
- browser=pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ browser=launch_chromium(pw)
  page=browser.new_page(viewport={'width':1400,'height':900});errors=[]
  page.on('pageerror',lambda error:errors.append(str(error)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')

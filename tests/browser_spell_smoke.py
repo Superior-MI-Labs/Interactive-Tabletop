@@ -1,6 +1,7 @@
 """Live DOM spell casting and timers, with mocked local vault transport."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 ROOT=Path(__file__).resolve().parents[1]
 hero={
  'schema_version':1,'name':'Test Caster','player':'QA','class_level':'Cleric 5','species':'Human','background':'',
@@ -15,7 +16,7 @@ hero={
  {'id':'spell-3','name':'Guidance','level':0,'prepared':False,'duration':'Concentration, up to 1 minute'}]
 }
 with sync_playwright() as playwright:
- browser=playwright.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ browser=launch_chromium(playwright)
  page=browser.new_page(viewport={'width':1440,'height':900})
  errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -88,6 +89,5 @@ with sync_playwright() as playwright:
  page.locator('#roll-effect').get_by_role('button',name='Apply to HP').click()
  assert page.evaluate('character.hp.current')==min(27,13+total)
  assert not errors,errors
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.13.0-Preview.png',full_page=False)
  print('PASS: browser spell cancel/cast, prepared guard, cantrip, concentration replacement/end, slot selection, settled healing, no JS errors')
  browser.close()

@@ -153,7 +153,7 @@ function planSpell(character,spell,slotLevel,profile=null){
  let rounds=duration(spell.duration_rounds);
  let concentration=typeof spell.concentration==='boolean'?spell.concentration:/\bconcentration\b/i.test(String(spell.duration||''));
  if(spell.automation==='srd-2014'||(spell.automation!=='manual'&&!spell.automation&&character.rules_profile==='srd-2014'&&profile!=null)){
-  if(character.system_edition&&/2024|5\.5|srd.?5\.2/i.test(String(character.system_edition)))throw Error('2014 automation is not enabled for a 2024 edition character.');
+  if(character.system_edition!=='dnd-2014')throw Error('2014 automation requires a character explicitly marked D&D 2014.');
   const spellKey=String(spell.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   if(!profile||profile.schema!=='srd51-spell-effect/1'||profile.target!=='self'||
      profile.spell_id!=='srd51:spell:'+spellKey||profile.base_level!==level)

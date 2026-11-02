@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 ROOT=Path(__file__).resolve().parents[1]
 c={
  'schema_version':1,'system_id':'dnd5e','system_edition':'unspecified','name':'Test Cleric','class_level':'Cleric 3',
@@ -13,7 +14,7 @@ c={
   {'id':'spell:guide','name':'Guidance','charges':1,'bonus_dice':'1d4','bonus_scope':'ability-check','target':'self','auto_use':True,'concentration':True,'rounds_remaining':10}]},
  'conditions':[],'features':[],'actions':[],'roll_history':[], 'notes':''}
 with sync_playwright() as pw:
- browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ browser=launch_chromium(pw)
  page=browser.new_page(viewport={'width':1400,'height':900});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')

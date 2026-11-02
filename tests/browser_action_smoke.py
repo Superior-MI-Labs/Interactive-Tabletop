@@ -1,6 +1,7 @@
 """Real DOM and interaction smoke on the source scripts, even where navigation is blocked."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
 ROOT=Path(__file__).resolve().parents[1]
 character={
  'schema_version':1,'name':'Example Hero','player':'Example','class_level':'Monk 5','species':'Tabaxi','background':'',
@@ -12,7 +13,7 @@ character={
    'roll':'1d10+2','effect_kind':'heal','damage':'','source':'manual','description':'DM approved'}]
 }
 with sync_playwright() as p:
- browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ browser=launch_chromium(p)
  page=browser.new_page(viewport={'width':1440,'height':900})
  errors=[];page.on('pageerror',lambda err:errors.append(str(err)))
  page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')
@@ -48,7 +49,6 @@ with sync_playwright() as p:
  }''')
  page.locator('#dice-widget > summary').click()
  assert page.locator('#roll-effect').get_by_role('button',name='Apply to HP').is_visible()
- page.screenshot(path='/mnt/data/Interactive-Tabletop-v0.12.0-Preview.png',full_page=False)
  result=page.evaluate('lastResult.total')
  before=page.evaluate('character.hp.current')
  page.locator('#roll-effect').get_by_role('button',name='Apply to HP').click()
