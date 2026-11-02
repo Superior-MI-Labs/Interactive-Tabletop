@@ -1,4 +1,4 @@
-"""Helpers for working with PDFtypes."""
+"""Helpers for working with PDF types."""
 
 import sys
 from typing import List, Literal, Union
@@ -7,25 +7,25 @@ if sys.version_info[:2] >= (3, 10):
     # Python 3.10+: https://www.python.org/dev/peps/pep-0484
     from typing import TypeAlias
 else:
-    from typing_extensions importTypeAlias
+    from typing_extensions import TypeAlias
 
 from .generic._base import NameObject, NullObject, NumberObject
 from .generic._data_structures import ArrayObject, Destination
 from .generic._outline import OutlineItem
 
-BorderArrayType: TypeAlias = List[Union[NameObject, NumberObject,ArrayObject]]
+BorderArrayType: TypeAlias = List[Union[NameObject, NumberObject, ArrayObject]]
 
 OutlineItemType: TypeAlias = Union[OutlineItem, Destination]
 
 FitType: TypeAlias = Literal[
     "/XYZ", "/Fit", "/FitH", "/FitV", "/FitR", "/FitB", "/FitBH", "/FitBV"
 ]
-# These go with the FitType, they specify valuesfor the fit
+# These go with the FitType, they specify values for the fit
 ZoomArgType: TypeAlias = Union[NumberObject, NullObject, float]
 ZoomArgsType: TypeAlias = List[ZoomArgType]
 
 # Recursive types like the following are not yet supported by Sphinx:
-#    OutlineType = List[Union[Destination,"OutlineType"]]
+#    OutlineType = List[Union[Destination, "OutlineType"]]
 # Hence use this for the moment:
 OutlineType = List[Union[Destination, List[Union[Destination, List[Destination]]]]]
 
@@ -33,7 +33,7 @@ LayoutType: TypeAlias = Literal[
     "/NoLayout",
     "/SinglePage",
     "/OneColumn",
-"/TwoColumnLeft",
+    "/TwoColumnLeft",
     "/TwoColumnRight",
     "/TwoPageLeft",
     "/TwoPageRight",
@@ -45,7 +45,7 @@ PagemodeType: TypeAlias = Literal[
     "/UseThumbs",
     "/FullScreen",
     "/UseOC",
-"/UseAttachments",
+    "/UseAttachments",
 ]
 
 AnnotationSubtype: TypeAlias = Literal[
@@ -59,7 +59,7 @@ AnnotationSubtype: TypeAlias = Literal[
     "/PolyLine",
     "/Highlight",
     "/Underline",
-"/Squiggly",
+    "/Squiggly",
     "/StrikeOut",
     "/Caret",
     "/Stamp",
@@ -72,7 +72,7 @@ AnnotationSubtype: TypeAlias = Literal[
     "/Widget",
     "/PrinterMark",
     "/TrapNet",
-"/Watermark",
+    "/Watermark",
     "/3D",
     "/Redact",
     "/Projection",

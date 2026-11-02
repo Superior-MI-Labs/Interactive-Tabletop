@@ -1,5 +1,5 @@
 # PDFDocEncoding Character Set: Table D.2 of PDF Reference 1.7
-# C.1 Predefined encodings sorted bycharacter name of another PDF reference
+# C.1 Predefined encodings sorted by character name of another PDF reference
 # Some indices have '\u0000' although they should have something else:
 # 22: should be '\u0017'
 _pdfdoc_encoding = [
@@ -8,7 +8,7 @@ _pdfdoc_encoding = [
     "\u0002",
     "\u0003",
     "\u0004",
-"\u0005",
+    "\u0005",
     "\u0006",
     "\u0007",  # 0 -  7
     "\u0008",
@@ -21,7 +21,7 @@ _pdfdoc_encoding = [
     "\u000f",  # 8 - 15
     "\u0010",
     "\u0011",
-"\u0012",
+    "\u0012",
     "\u0013",
     "\u0014",
     "\u0015",
@@ -34,7 +34,7 @@ _pdfdoc_encoding = [
     "\u02dd",
     "\u02db",
     "\u02da",
-"\u02dc",  # 24 - 31
+    "\u02dc",  # 24 - 31
     "\u0020",
     "\u0021",
     "\u0022",
@@ -47,7 +47,7 @@ _pdfdoc_encoding = [
     "\u0029",
     "\u002a",
     "\u002b",
-"\u002c",
+    "\u002c",
     "\u002d",
     "\u002e",
     "\u002f",  # 40 - 47
@@ -60,7 +60,7 @@ _pdfdoc_encoding = [
     "\u0036",
     "\u0037",  # 48 - 55
     "\u0038",
-"\u0039",
+    "\u0039",
     "\u003a",
     "\u003b",
     "\u003c",
@@ -73,7 +73,7 @@ _pdfdoc_encoding = [
     "\u0043",
     "\u0044",
     "\u0045",
-"\u0046",
+    "\u0046",
     "\u0047",  # 64 - 71
     "\u0048",
     "\u0049",
@@ -86,7 +86,7 @@ _pdfdoc_encoding = [
     "\u0050",
     "\u0051",
     "\u0052",
-"\u0053",
+    "\u0053",
     "\u0054",
     "\u0055",
     "\u0056",
@@ -99,7 +99,7 @@ _pdfdoc_encoding = [
     "\u005d",
     "\u005e",
     "\u005f",  # 88 - 95
-"\u0060",
+    "\u0060",
     "\u0061",
     "\u0062",
     "\u0063",
@@ -112,7 +112,7 @@ _pdfdoc_encoding = [
     "\u006a",
     "\u006b",
     "\u006c",
-"\u006d",
+    "\u006d",
     "\u006e",
     "\u006f",  # 104 - 111
     "\u0070",
@@ -125,7 +125,7 @@ _pdfdoc_encoding = [
     "\u0077",  # 112 - 119
     "\u0078",
     "\u0079",
-"\u007a",
+    "\u007a",
     "\u007b",
     "\u007c",
     "\u007d",
@@ -138,7 +138,7 @@ _pdfdoc_encoding = [
     "\u2014",
     "\u2013",
     "\u0192",
-"\u2044",  # 128 - 135
+    "\u2044",  # 128 - 135
     "\u2039",
     "\u203a",
     "\u2212",
@@ -151,7 +151,7 @@ _pdfdoc_encoding = [
     "\u201a",
     "\u2122",
     "\ufb01",
-"\ufb02",
+    "\ufb02",
     "\u0141",
     "\u0152",
     "\u0160",  # 144 - 151
@@ -164,7 +164,7 @@ _pdfdoc_encoding = [
     "\u017e",
     "\u0000",  # 152 - 159
     "\u20ac",
-"\u00a1",
+    "\u00a1",
     "\u00a2",
     "\u00a3",
     "\u00a4",
@@ -177,7 +177,7 @@ _pdfdoc_encoding = [
     "\u00ab",
     "\u00ac",
     "\u0000",
-"\u00ae",
+    "\u00ae",
     "\u00af",  # 168 - 175
     "\u00b0",
     "\u00b1",
@@ -190,7 +190,7 @@ _pdfdoc_encoding = [
     "\u00b8",
     "\u00b9",
     "\u00ba",
-"\u00bb",
+    "\u00bb",
     "\u00bc",
     "\u00bd",
     "\u00be",
@@ -203,7 +203,7 @@ _pdfdoc_encoding = [
     "\u00c5",
     "\u00c6",
     "\u00c7",  # 192 - 199
-"\u00c8",
+    "\u00c8",
     "\u00c9",
     "\u00ca",
     "\u00cb",
@@ -216,7 +216,7 @@ _pdfdoc_encoding = [
     "\u00d2",
     "\u00d3",
     "\u00d4",
-"\u00d5",
+    "\u00d5",
     "\u00d6",
     "\u00d7",  # 208 - 215
     "\u00d8",
@@ -229,7 +229,7 @@ _pdfdoc_encoding = [
     "\u00df",  # 216 - 223
     "\u00e0",
     "\u00e1",
-"\u00e2",
+    "\u00e2",
     "\u00e3",
     "\u00e4",
     "\u00e5",
@@ -242,7 +242,7 @@ _pdfdoc_encoding = [
     "\u00ec",
     "\u00ed",
     "\u00ee",
-"\u00ef",  # 232 - 239
+    "\u00ef",  # 232 - 239
     "\u00f0",
     "\u00f1",
     "\u00f2",
@@ -255,7 +255,7 @@ _pdfdoc_encoding = [
     "\u00f9",
     "\u00fa",
     "\u00fb",
-"\u00fc",
+    "\u00fc",
     "\u00fd",
     "\u00fe",
     "\u00ff",  # 248 - 255

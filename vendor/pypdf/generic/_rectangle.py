@@ -4,7 +4,7 @@ from ._base import FloatObject, NumberObject
 from ._data_structures import ArrayObject
 
 
-classRectangleObject(ArrayObject):
+class RectangleObject(ArrayObject):
     """
     This class is used to represent *page boxes* in pypdf.
 
@@ -12,31 +12,31 @@ classRectangleObject(ArrayObject):
 
     * :attr:`artbox <pypdf._page.PageObject.artbox>`
     * :attr:`bleedbox <pypdf._page.PageObject.bleedbox>`
-    *:attr:`cropbox <pypdf._page.PageObject.cropbox>`
+    * :attr:`cropbox <pypdf._page.PageObject.cropbox>`
     * :attr:`mediabox <pypdf._page.PageObject.mediabox>`
     * :attr:`trimbox <pypdf._page.PageObject.trimbox>`
     """
 
     def __init__(
-        self, arr: Union["RectangleObject", Tuple[float,float, float, float]]
+        self, arr: Union["RectangleObject", Tuple[float, float, float, float]]
     ) -> None:
         # must have four points
         assert len(arr) == 4
         # automatically convert arr[x] into NumberObject(arr[x]) if necessary
-        ArrayObject.__init__(self, [self._ensure_is_number(x) for x inarr])  # type: ignore
+        ArrayObject.__init__(self, [self._ensure_is_number(x) for x in arr])  # type: ignore
 
     def _ensure_is_number(self, value: Any) -> Union[FloatObject, NumberObject]:
         if not isinstance(value, (FloatObject, NumberObject)):
             value = FloatObject(value)
         return value
 
-    def scale(self,sx: float, sy: float) -> "RectangleObject":
+    def scale(self, sx: float, sy: float) -> "RectangleObject":
         return RectangleObject(
             (
                 float(self.left) * sx,
                 float(self.bottom) * sy,
                 float(self.right) * sx,
-                float(self.top) *sy,
+                float(self.top) * sy,
             )
         )
 
@@ -49,7 +49,7 @@ classRectangleObject(ArrayObject):
 
     @left.setter
     def left(self, f: float) -> None:
-self[0] = FloatObject(f)
+        self[0] = FloatObject(f)
 
     @property
     def bottom(self) -> FloatObject:
@@ -61,7 +61,7 @@ self[0] = FloatObject(f)
 
     @property
     def right(self) -> FloatObject:
-return self[2]
+        return self[2]
 
     @right.setter
     def right(self, f: float) -> None:
@@ -73,7 +73,7 @@ return self[2]
 
     @top.setter
     def top(self, f: float) -> None:
-self[3] = FloatObject(f)
+        self[3] = FloatObject(f)
 
     @property
     def lower_left(self) -> Tuple[float, float]:
@@ -81,7 +81,7 @@ self[3] = FloatObject(f)
         Property to read and modify the lower left coordinate of this box
         in (x,y) form.
         """
-        return self.left,self.bottom
+        return self.left, self.bottom
 
     @lower_left.setter
     def lower_left(self, value: Tuple[float, float]) -> None:
@@ -89,7 +89,7 @@ self[3] = FloatObject(f)
 
     @property
     def lower_right(self) -> Tuple[float, float]:
-"""
+        """
         Property to read and modify the lower right coordinate of this box
         in (x,y) form.
         """
@@ -97,14 +97,14 @@ self[3] = FloatObject(f)
 
     @lower_right.setter
     def lower_right(self, value: Tuple[float, float]) -> None:
-self[2], self[1] = (self._ensure_is_number(x) for x in value)
+        self[2], self[1] = (self._ensure_is_number(x) for x in value)
 
     @property
     def upper_left(self) -> Tuple[float, float]:
         """
         Property to read and modify the upper left coordinate of this box
         in (x,y) form.
-"""
+        """
         return self.left, self.top
 
     @upper_left.setter
@@ -112,7 +112,7 @@ self[2], self[1] = (self._ensure_is_number(x) for x in value)
         self[0], self[3] = (self._ensure_is_number(x) for x in value)
 
     @property
-    def upper_right(self) ->Tuple[float, float]:
+    def upper_right(self) -> Tuple[float, float]:
         """
         Property to read and modify the upper right coordinate of this box
         in (x,y) form.
@@ -120,7 +120,7 @@ self[2], self[1] = (self._ensure_is_number(x) for x in value)
         return self.right, self.top
 
     @upper_right.setter
-    def upper_right(self, value:Tuple[float, float]) -> None:
+    def upper_right(self, value: Tuple[float, float]) -> None:
         self[2], self[3] = (self._ensure_is_number(x) for x in value)
 
     @property
@@ -129,4 +129,4 @@ self[2], self[1] = (self._ensure_is_number(x) for x in value)
 
     @property
     def height(self) -> float:
-        returnself.top - self.bottom
+        return self.top - self.bottom

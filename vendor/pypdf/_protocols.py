@@ -2,7 +2,7 @@
 
 from abc import abstractmethod
 from pathlib import Path
-from typing import IO, Any, Dict, List,Optional, Protocol, Tuple, Union
+from typing import IO, Any, Dict, List, Optional, Protocol, Tuple, Union
 
 from ._utils import StrByteType, StreamType
 
@@ -14,14 +14,14 @@ class PdfObjectProtocol(Protocol):
         self,
         pdf_dest: Any,
         force_duplicate: bool = False,
-ignore_fields: Union[Tuple[str, ...], List[str], None] = (),
+        ignore_fields: Union[Tuple[str, ...], List[str], None] = (),
     ) -> Any:
         ...  # pragma: no cover
 
     def _reference_clone(self, clone: Any, pdf_dest: Any) -> Any:
         ...  # pragma: no cover
 
-    def get_object(self) ->Optional["PdfObjectProtocol"]:
+    def get_object(self) -> Optional["PdfObjectProtocol"]:
         ...  # pragma: no cover
 
     def hash_value(self) -> bytes:
@@ -29,7 +29,7 @@ ignore_fields: Union[Tuple[str, ...], List[str], None] = (),
 
     def write_to_stream(
         self, stream: StreamType, encryption_key: Union[None, str, bytes] = None
-    ) ->None:
+    ) -> None:
         ...  # pragma: no cover
 
 
@@ -43,7 +43,7 @@ class PdfCommonDocProtocol(Protocol):
         ...  # pragma: no cover
 
     @property
-    defpages(self) -> List[Any]:
+    def pages(self) -> List[Any]:
         ...  # pragma: no cover
 
     @property
@@ -51,7 +51,7 @@ class PdfCommonDocProtocol(Protocol):
         ...  # pragma: no cover
 
     def get_object(self, indirect_reference: Any) -> Optional[PdfObjectProtocol]:
-        ...# pragma: no cover
+        ...  # pragma: no cover
 
     @property
     def strict(self) -> bool:
@@ -62,7 +62,7 @@ class PdfReaderProtocol(PdfCommonDocProtocol, Protocol):
     @property
     @abstractmethod
     def xref(self) -> Dict[int, Dict[int, Any]]:
-...  # pragma: no cover
+        ...  # pragma: no cover
 
     @property
     @abstractmethod
@@ -72,7 +72,7 @@ class PdfReaderProtocol(PdfCommonDocProtocol, Protocol):
 
 class PdfWriterProtocol(PdfCommonDocProtocol, Protocol):
     _objects: List[Any]
-    _id_translated: Dict[int,Dict[int, int]]
+    _id_translated: Dict[int, Dict[int, int]]
 
     incremental: bool
     _reader: Any  # PdfReader
@@ -82,5 +82,5 @@ class PdfWriterProtocol(PdfCommonDocProtocol, Protocol):
         ...  # pragma: no cover
 
     @abstractmethod
-    def_add_object(self, obj: Any) -> Any:
+    def _add_object(self, obj: Any) -> Any:
         ...  # pragma: no cover

@@ -1,11 +1,11 @@
-# Widths for thestandard 14 fonts as described on page 416 of the PDF 1.7 standard
+# Widths for the standard 14 fonts as described on page 416 of the PDF 1.7 standard
 STANDARD_WIDTHS = {
     "Helvetica": {  # 4 fonts, includes bold, oblique and boldoblique variants
         " ": 278,
         "!": 278,
         '"': 355,
         "#": 556,
-"$": 556,
+        "$": 556,
         "%": 889,
         "&": 667,
         "'": 191,
@@ -17,7 +17,7 @@ STANDARD_WIDTHS = {
         "-": 333,
         ".": 278,
         "/": 278,
-"0": 556,
+        "0": 556,
         "1": 556,
         "2": 556,
         "3": 556,
@@ -29,7 +29,7 @@ STANDARD_WIDTHS = {
         "9": 556,
         ":": 278,
         ";": 278,
-"<": 584,
+        "<": 584,
         "=": 584,
         ">": 584,
         "?": 611,
@@ -41,7 +41,7 @@ STANDARD_WIDTHS = {
         "E": 667,
         "F": 611,
         "G": 778,
-"H": 722,
+        "H": 722,
         "I": 278,
         "J": 500,
         "K": 667,
@@ -53,7 +53,7 @@ STANDARD_WIDTHS = {
         "Q": 944,
         "R": 667,
         "S": 667,
-"T": 611,
+        "T": 611,
         "U": 278,
         "V": 278,
         "W": 584,
@@ -65,7 +65,7 @@ STANDARD_WIDTHS = {
         "]": 556,
         "^": 278,
         "_": 278,
-"`": 278,
+        "`": 278,
         "a": 278,
         "b": 278,
         "c": 333,
@@ -77,7 +77,7 @@ STANDARD_WIDTHS = {
         "i": 556,
         "j": 556,
         "k": 556,
-"l": 556,
+        "l": 556,
         "m": 556,
         "n": 278,
         "o": 278,
@@ -89,7 +89,7 @@ STANDARD_WIDTHS = {
         "u": 278,
         "v": 500,
         "w": 500,
-"x": 222,
+        "x": 222,
         "y": 222,
         "z": 556,
         "{": 222,
@@ -99,7 +99,7 @@ STANDARD_WIDTHS = {
     },
     "Times": {  # 4 fonts, includes bold, oblique and boldoblique variants
         " ": 250,
-"!": 333,
+        "!": 333,
         '"': 408,
         "#": 500,
         "$": 500,
@@ -111,7 +111,7 @@ STANDARD_WIDTHS = {
         "*": 500,
         "+": 564,
         ",": 250,
-"-": 333,
+        "-": 333,
         ".": 250,
         "/": 564,
         "0": 500,
@@ -123,7 +123,7 @@ STANDARD_WIDTHS = {
         "6": 500,
         "7": 500,
         "8": 500,
-"9": 500,
+        "9": 500,
         ":": 278,
         ";": 278,
         "<": 564,
@@ -135,7 +135,7 @@ STANDARD_WIDTHS = {
         "B": 667,
         "C": 667,
         "D": 722,
-"E": 611,
+        "E": 611,
         "F": 556,
         "G": 722,
         "H": 722,
@@ -147,7 +147,7 @@ STANDARD_WIDTHS = {
         "N": 722,
         "O": 722,
         "P": 556,
-"Q": 722,
+        "Q": 722,
         "R": 667,
         "S": 556,
         "T": 611,
@@ -159,7 +159,7 @@ STANDARD_WIDTHS = {
         "Z": 611,
         "[": 333,
         "\\": 278,
-"]": 333,
+        "]": 333,
         "^": 469,
         "_": 500,
         "`": 333,
@@ -171,7 +171,7 @@ STANDARD_WIDTHS = {
         "f": 333,
         "g": 500,
         "h": 500,
-"i": 278,
+        "i": 278,
         "j": 278,
         "k": 500,
         "l": 278,
@@ -183,7 +183,7 @@ STANDARD_WIDTHS = {
         "r": 333,
         "s": 389,
         "t": 278,
-"u": 500,
+        "u": 500,
         "v": 444,
         "w": 722,
         "x": 500,
@@ -196,13 +196,13 @@ STANDARD_WIDTHS = {
     },
 }
 
-# 4 fonts, includes bold, oblique andbold oblique variants
+# 4 fonts, includes bold, oblique and bold oblique variants
 STANDARD_WIDTHS[
     "Courier"
 ] = dict.fromkeys(STANDARD_WIDTHS["Times"], 600)  # fixed width
 STANDARD_WIDTHS["ZapfDingbats"] = dict.fromkeys(STANDARD_WIDTHS["Times"], 1000)  # 1 font
-STANDARD_WIDTHS["Symbol"] =dict.fromkeys(STANDARD_WIDTHS["Times"], 500)  # 1 font
+STANDARD_WIDTHS["Symbol"] = dict.fromkeys(STANDARD_WIDTHS["Times"], 500)  # 1 font
 # add aliases per table H.3 on page 1110 of the PDF 1.7 standard
 STANDARD_WIDTHS["CourierNew"] = STANDARD_WIDTHS["Courier"]
-STANDARD_WIDTHS["Arial"] =STANDARD_WIDTHS["Helvetica"]
+STANDARD_WIDTHS["Arial"] = STANDARD_WIDTHS["Helvetica"]
 STANDARD_WIDTHS["TimesNewRoman"] = STANDARD_WIDTHS["Times"]

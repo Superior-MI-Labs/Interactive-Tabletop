@@ -1,4 +1,4 @@
-fromtyping import Dict, List
+from typing import Dict, List
 
 from .adobe_glyphs import adobe_glyphs
 from .pdfdoc import _pdfdoc_encoding
@@ -7,7 +7,7 @@ from .symbol import _symbol_encoding
 from .zapfding import _zapfding_encoding
 
 
-def fill_from_encoding(enc: str)-> List[str]:
+def fill_from_encoding(enc: str) -> List[str]:
     lst: List[str] = []
     for x in range(256):
         try:
@@ -17,7 +17,7 @@ def fill_from_encoding(enc: str)-> List[str]:
     return lst
 
 
-def rev_encoding(enc: List[str]) -> Dict[str,int]:
+def rev_encoding(enc: List[str]) -> Dict[str, int]:
     rev: Dict[str, int] = {}
     for i in range(256):
         char = enc[i]
@@ -25,7 +25,7 @@ def rev_encoding(enc: List[str]) -> Dict[str,int]:
             continue
         assert char not in rev, f"{char} at {i} already at {rev[char]}"
         rev[char] = i
-    returnrev
+    return rev
 
 
 _win_encoding = fill_from_encoding("cp1252")
@@ -33,10 +33,10 @@ _mac_encoding = fill_from_encoding("mac_roman")
 
 
 _win_encoding_rev: Dict[str, int] = rev_encoding(_win_encoding)
-_mac_encoding_rev: Dict[str, int] =rev_encoding(_mac_encoding)
+_mac_encoding_rev: Dict[str, int] = rev_encoding(_mac_encoding)
 _symbol_encoding_rev: Dict[str, int] = rev_encoding(_symbol_encoding)
 _zapfding_encoding_rev: Dict[str, int] = rev_encoding(_zapfding_encoding)
-_pdfdoc_encoding_rev: Dict[str, int] =rev_encoding(_pdfdoc_encoding)
+_pdfdoc_encoding_rev: Dict[str, int] = rev_encoding(_pdfdoc_encoding)
 
 
 charset_encoding: Dict[str, List[str]] = {
@@ -44,7 +44,7 @@ charset_encoding: Dict[str, List[str]] = {
     "/WinAnsiEncoding": _win_encoding,
     "/MacRomanEncoding": _mac_encoding,
     "/PDFDocEncoding": _pdfdoc_encoding,
-"/Symbol": _symbol_encoding,
+    "/Symbol": _symbol_encoding,
     "/ZapfDingbats": _zapfding_encoding,
 }
 
@@ -55,7 +55,7 @@ __all__ = [
     "_std_encoding",
     "_symbol_encoding",
     "_win_encoding",
-"_zapfding_encoding",
+    "_zapfding_encoding",
     "adobe_glyphs",
     "charset_encoding",
 ]

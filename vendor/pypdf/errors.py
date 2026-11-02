@@ -5,14 +5,14 @@ Please note that broken PDF files might cause other Exceptions.
 """
 
 
-classDeprecationError(Exception):
+class DeprecationError(Exception):
     """Raised when a deprecated feature is used."""
 
 
 class DependencyError(Exception):
     """
     Raised when a required dependency (a library or module that pypdf depends on)
-    is not available or cannot beimported.
+    is not available or cannot be imported.
     """
 
 
@@ -24,12 +24,12 @@ class PdfReadError(PyPdfError):
     """Raised when there is an issue reading a PDF file."""
 
 
-classPageSizeNotDefinedError(PyPdfError):
+class PageSizeNotDefinedError(PyPdfError):
     """Raised when the page size of a PDF document is not defined."""
 
 
 class PdfReadWarning(UserWarning):
-    """Issued when there is a potential issue reading a PDF file, but it can still beread."""
+    """Issued when there is a potential issue reading a PDF file, but it can still be read."""
 
 
 class PdfStreamError(PdfReadError):
@@ -38,7 +38,7 @@ class PdfStreamError(PdfReadError):
 
 class ParseError(PyPdfError):
     """
-    Raised when there is an issue parsing (analyzing andunderstanding the
+    Raised when there is an issue parsing (analyzing and understanding the
     structure and meaning of) a PDF file.
     """
 
@@ -46,7 +46,7 @@ class ParseError(PyPdfError):
 class FileNotDecryptedError(PdfReadError):
     """
     Raised when a PDF file that has been encrypted
-    (meaning it requires a password to be accessed) has not beensuccessfully
+    (meaning it requires a password to be accessed) has not been successfully
     decrypted.
     """
 
@@ -56,11 +56,11 @@ class WrongPasswordError(FileNotDecryptedError):
 
 
 class EmptyFileError(PdfReadError):
-    """Raised whena PDF file is empty or has no content."""
+    """Raised when a PDF file is empty or has no content."""
 
 
 class EmptyImageDataError(PyPdfError):
     """Raised when trying to process an image that has no data."""
 
 
-STREAM_TRUNCATED_PREMATURELY = "Stream has endedunexpectedly"
+STREAM_TRUNCATED_PREMATURELY = "Stream has ended unexpectedly"
