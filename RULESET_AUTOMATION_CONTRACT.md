@@ -1,4 +1,4 @@
-# Ruleset and effect automation contract (v0.25 alpha)
+# Ruleset and effect automation contract (v0.26 alpha)
 
 ## Source of truth
 
@@ -16,7 +16,7 @@
 5. Only the final completed roll may consume a charge. If the effect expires first, discard its bonus.
 6. Ending the final charge is an effect-state mutation: render the Effects bar immediately from that state.
 
-Supported qualified SRD 2014 profiles in this alpha are **Cure Wounds (self healing)**, **Shield of Faith (derived AC)**, and **Guidance (single d4 on an ability check)**, **Resistance (single d4 on a saving throw)**, and **Bless (sustained d4 on self attacks and saves while concentrating)**. All other SRD spells stay reference-only, and custom or unrecognized mechanics remain manual. No inferred behavior, external executable rules code, or alternate character database is introduced.
+Supported qualified SRD 2014 profiles in this alpha are **Cure Wounds (self healing)**, **Healing Word (self healing, bonus action)**, **Shield of Faith (derived AC)**, and **Guidance (single d4 on an ability check)**, **Resistance (single d4 on a saving throw)**, and **Bless (sustained d4 on self attacks and saves while concentrating)**. All other SRD spells stay reference-only, and custom or unrecognized mechanics remain manual. No inferred behavior, external executable rules code, or alternate character database is introduced.
 
 ## Dice gesture contract
 
@@ -31,3 +31,9 @@ Regression gates: standalone d12 pickup; mixed d20+d4 cursor release; a short cl
 - Dice are prepared and associated with the originating roll by stable IDs. On settlement, the same effect instance and scope are validated again. Charged bonuses expire when spent; sustained bonuses apply repeatedly until concentration, expiry or manual end.
 - Bless automation only represents the character selecting themself as an eligible target. The SRD allows multiple targets, but applying it to allies still requires DM handling until a shared multi-character targeting contract exists.
 - The effect checkbox is UI for eligibility, not a duplicate source of truth. Importers, homebrew descriptions, and external APIs never execute arbitrary effect logic.
+
+## Qualified healing and action timing (v0.26)
+
+- Each automated profile declares its verified casting action (`action`, `bonus action` or `reaction`). Catalog validation rejects a mismatch with the spell reference casting time. No effect-type-to-action hardcoded mapping remains.
+- The existing heal executor supports vetted `d4` and `d8` first-level healing profiles, with one extra base die for each higher-level slot and a validated spellcasting modifier. Healing Word is self-target only, even though tabletop rules allow another visible creature.
+- A settled healing result still requires explicit HP application, and a canceled or blocked cast never spends a slot. The optional encounter tracker accounts for bonus action usage; complex bonus-action spellcasting restrictions and targeting others are not automated.

@@ -75,7 +75,7 @@ No Pathfinder, generic system-pack registry, native desktop rewrite, network syn
 
 ## v0.19 spell effect profiles
 
-`web/dnd-2014-reference.json` holds verified, edition-scoped effect metadata (five SRD 5.1 spells only). `web/reference-catalog.js` validates reference provenance; `web/dnd-action.js` plans, validates and commits the effect in the same existing action pipeline. `web/app.js` only displays opt-in, confirmation, roll and status. Character Vault stores the opt-in, active effects, pending concentration checks and live resources. Derived AC never mutates imported `character.ac`. See `DND_EFFECT_CAPABILITY_AUDIT.md` for full references and capability gates.
+`web/dnd-2014-reference.json` holds verified, edition-scoped effect metadata (six SRD 5.1 spells only). `web/reference-catalog.js` validates reference provenance; `web/dnd-action.js` plans, validates and commits the effect in the same existing action pipeline. `web/app.js` only displays opt-in, confirmation, roll and status. Character Vault stores the opt-in, active effects, pending concentration checks and live resources. Derived AC never mutates imported `character.ac`. See `DND_EFFECT_CAPABILITY_AUDIT.md` for full references and capability gates.
 
 ## v0.20 — Target and damage contract
 
@@ -120,3 +120,7 @@ Pact Magic / separate class-limited resources are intentionally excluded: they a
 `DndAction.planSpell` validates one edition-scoped `roll_bonus` profile (`roll_scopes`, `consumption`, `dice`) against its reference identity. `startEffect` writes the validated semantics and a unique effect instance into the single Character Vault. `compatibleBonuses` is a pure selector for `ability-check`, `attack`, or `save` operations; `resolveRollBonus` revalidates the same instance/scope at dice settlement and atomically spends a charge if applicable. Sustained Bless-style effects are never consumed by a single roll and may serve concurrent rolls. Legacy Guidance records with `bonus_scope` retain their semantics. No generic prose interpreter, extra database or new dice engine.
 
 Attack and saving throw action paths now tag their roll *type* explicitly. Target saving throws only qualify for a self buff when the target is the character; other encounter targets never inherit the player's Bless or Resistance. The same d20 role identity controls advantage/disadvantage and bonus dice composition.
+
+### v0.26 verified healing automation and activation
+
+Qualified spell profiles now declare an `activation` matched against their read-only SRD `casting_time` by the reference validator. The planner uses that validated timing, not a hardcoded mapping from effect type. Healing accepts the vetted `d4` / `d8` dice family with its configured per-slot scaling, using the existing self-heal roll/confirmation/pending-HP pipeline. Healing Word remains self-only; other creatures and bonus-action spellcasting restrictions beyond basic turn-economy tracking require DM adjudication. No new effect executor or character store is introduced.

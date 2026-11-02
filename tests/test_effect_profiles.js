@@ -21,6 +21,18 @@ assert.equal(c.hp.current,8);assert.equal(c.resources['Level 2 Spell Slots'].cur
 A.commitUsage(c,p);assert.equal(c.resources['Level 2 Spell Slots'].current,1);
 assert.equal(A.applyHealing(c,14),14);assert.equal(c.hp.current,22);assert.equal(c.hp.temp,4);
 assert.equal(A.planSpell(c,c.spells[0],1,ref(c,'Cure Wounds')).roll.expression,'1d8+4');
+const healingWord={id:'word',name:'Healing Word',level:1,source:'Cleric',prepared:true,casting_time:'1 bonus action',automation:'srd-2014'};
+const word=A.planSpell(c,healingWord,2,ref(c,'Healing Word'));
+assert.equal(word.roll.expression,'2d4+4');assert.equal(word.activation,'bonus action');assert.equal(word.effect,'heal');
+const tracked=mock();A.setEncounter(tracked,true);
+const wordTurn=A.planSpell(tracked,healingWord,1,ref(tracked,'Healing Word'));
+assert.equal(wordTurn.activation,'bonus action');
+A.commitUsage(tracked,wordTurn);
+assert.equal(A.combat(tracked).used.bonus,true);
+assert.equal(A.combat(tracked).used.action,false);
+assert.throws(()=>A.commitUsage(tracked,A.planSpell(tracked,healingWord,1,ref(tracked,'Healing Word'))),/bonus/);
+const unrelated=A.planSpell(tracked,tracked.spells[0],1,ref(tracked,'Cure Wounds'));
+assert.equal(unrelated.activation,'action');
 const shield=A.planSpell(c,c.spells[1],1,ref(c,'Shield of Faith'));
 assert.equal(shield.activation,'bonus action');assert.equal(shield.acBonus,2);assert.equal(shield.durationRounds,100);
 A.commitUsage(c,shield);A.startEffect(c,shield);

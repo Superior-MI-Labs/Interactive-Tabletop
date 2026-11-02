@@ -248,7 +248,8 @@
         "duration_rounds": 10,
         "concentration": true,
         "spell_id": "srd51:spell:bless",
-        "base_level": 1
+        "base_level": 1,
+        "activation": "action"
       }
     },
     {
@@ -387,7 +388,8 @@
         "dice_per_slot_above_base": 1,
         "modifier": "spellcasting",
         "spell_id": "srd51:spell:curewounds",
-        "base_level": 1
+        "base_level": 1,
+        "activation": "action"
       }
     },
     {
@@ -850,6 +852,7 @@
         "concentration": true,
         "spell_id": "srd51:spell:guidance",
         "base_level": 0,
+        "activation": "action",
         "charges": 1
       }
     },
@@ -899,7 +902,19 @@
       "duration": "Instantaneous",
       "concentration": false,
       "description": "Heals a visible creature for 1d4 plus your spellcasting ability modifier.",
-      "ritual": false
+      "ritual": false,
+      "automation": {
+        "schema": "srd51-spell-effect/1",
+        "type": "heal",
+        "target": "self",
+        "dice": "d4",
+        "base_dice": 1,
+        "dice_per_slot_above_base": 1,
+        "modifier": "spellcasting",
+        "spell_id": "srd51:spell:healingword",
+        "base_level": 1,
+        "activation": "bonus action"
+      }
     },
     {
       "id": "srd51:spell:heatmetal",
@@ -1444,6 +1459,7 @@
         "concentration": true,
         "spell_id": "srd51:spell:resistance",
         "base_level": 0,
+        "activation": "action",
         "charges": 1
       }
     },
@@ -1598,7 +1614,8 @@
         "duration_rounds": 100,
         "concentration": true,
         "spell_id": "srd51:spell:shieldoffaith",
-        "base_level": 1
+        "base_level": 1,
+        "activation": "bonus action"
       }
     },
     {

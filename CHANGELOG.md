@@ -1,3 +1,10 @@
+## v0.26.0 — Verified casting times and Healing Word self-healing
+
+- Qualify 2014 SRD Healing Word for explicitly confirmed, self-only healing: `1d4 + spellcasting modifier`, upcast +1d4 per slot, no allied HP changes.
+- Move automation action timing into each vetted reference profile and require exact agreement with the SRD casting time. Spell effects no longer hardcode whether they consume an action or bonus action.
+- Keep one shared planner and pending-healing pipeline, with no inferred homebrew behavior or automatic HP writes.
+- Extend unit/browser checks for action economy, slot consumption, successful roll settlement, manual/2024 guards and tampered catalog metadata. The full 2014 bonus-action spellcasting restriction still requires DM enforcement.
+
 ## v0.25.0 — Validated typed roll bonuses: Bless and Resistance
 
 - Qualify 2014 SRD Bless as a sustained concentration-linked d4 on self attack rolls and saving throws; automated ally targets remain unsupported.

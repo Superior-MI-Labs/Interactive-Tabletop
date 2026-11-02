@@ -36,4 +36,8 @@ assert.equal(JSON.stringify(state),before);
 const invalid=structuredClone(json);invalid.equipment.push({...invalid.equipment[0]});
 assert.throws(()=>Catalog.init(invalid),/duplicate/);
 Catalog.init(json);
+const tampered=structuredClone(require('../web/dnd-2014-reference.json'));
+tampered.spells.find(s=>s.name==='Healing Word').automation.activation='action';
+assert.throws(()=>Catalog.init(tampered),/activation/);
+Catalog.init(json);
 console.log('SRD catalog: 112 spells, 149 equipment, edition guards, ritual annotations, aliases, counts, exact match, non-SRD guards, edition fence, no mutation, duplicate validation PASS');

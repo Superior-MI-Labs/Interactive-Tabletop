@@ -1,4 +1,4 @@
-# D&D effect capability audit — v0.25
+# D&D effect capability audit — v0.26
 
 ## Architecture decision
 
@@ -6,7 +6,7 @@ The imported character PDF and DM edits are character truth. The versioned **SRD
 
 ## Core effect components and interactions
 
-| Component / contract | Present in v0.25 | Next required contract |
+| Component / contract | Present in v0.26 | Next required contract |
 |---|---|---|
 | Character vault and imported fields | Yes | Multi-edition source provenance per record |
 | Spell-slot resources and costs | Yes; confirmed and atomic | Distinguish feat/item free castings from slot castings |
@@ -32,6 +32,7 @@ The imported character PDF and DM edits are character truth. The versioned **SRD
 | Spell | Mechanics | Activation / target | End conditions |
 |---|---|---|
 | Cure Wounds | `1d8 + spellcasting modifier`, +1d8 per slot above 1st; apply to self after roll | Action / self | Instantaneous |
+| Healing Word | `1d4 + spellcasting modifier`, +1d4 per slot above 1st; apply to self after roll | Bonus action / self | Instantaneous |
 | Shield of Faith | Derived AC +2; concentrate up to 100 combat rounds | Bonus action / self | Concentration breaks, expiry or manual end |
 | Guidance | d4 once for an ability check; one charge | Action / self | Charge spent after throw, concentration ends, 10 rounds or manual end |
 | Resistance | d4 once for a saving throw; one charge | Action / self | Charge spent after throw, concentration ends, 10 rounds or manual end |
@@ -41,7 +42,7 @@ The imported character PDF and DM edits are character truth. The versioned **SRD
 
 ## Full reference coverage and review queue
 
-Exactly **112 2014 SRD spell reference records** are currently bundled. Only the five profiles above are executable; all other spell effects remain *reference-only*. The list below is a complete inventory of the current **catalog**, not of all officially published D&D spells. Non-SRD, 2024, and homebrew spells are outside this inventory.
+Exactly **112 2014 SRD spell reference records** are currently bundled. Only the six profiles above are executable; all other spell effects remain *reference-only*. The list below is a complete inventory of the current **catalog**, not of all officially published D&D spells. Non-SRD, 2024, and homebrew spells are outside this inventory.
 
 ### Cantrips — 16 references
 
@@ -89,7 +90,7 @@ Exactly **112 2014 SRD spell reference records** are currently bundled. Only the
 | Find Familiar | No | 1 hour | Reference-only · manual resolution |
 | Fog Cloud | Yes | 1 action | Reference-only · manual resolution |
 | Guiding Bolt | No | 1 action | Reference-only · manual resolution |
-| Healing Word | No | 1 bonus action | Reference-only · manual resolution |
+| Healing Word | No | 1 bonus action | **Opt-in self automation** |
 | Hex | Yes | 1 bonus action | Reference-only · manual resolution |
 | Hideous Laughter | Yes | 1 action | Reference-only · manual resolution |
 | Hunter's Mark | Yes | 1 bonus action | Reference-only · manual resolution |

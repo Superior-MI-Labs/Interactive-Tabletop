@@ -14,6 +14,9 @@ function validate(data){
   if(r.automation!==undefined){
    const a=r.automation;
    if(kind!=='spell'||a?.schema!=='srd51-spell-effect/1'||a.target!=='self'||a.spell_id!==r.id||a.base_level!==r.level||!['heal','ac_bonus','roll_bonus'].includes(a.type))throw Error('Invalid spell automation profile');
+   const timing=/^1\s+(action|bonus action|reaction)$/i.exec(String(r.casting_time||'').trim());
+   if(!timing||a.activation!==timing[1].toLowerCase())throw Error('Automation activation must match the verified SRD casting time.');
+   if(a.type==='heal'&&(r.level!==1||!['d4','d8'].includes(a.dice)||a.base_dice!==1||a.dice_per_slot_above_base!==1||a.modifier!=='spellcasting'))throw Error('Invalid healing profile');
    if(a.type==='roll_bonus' && (a.dice!=='1d4'||!Array.isArray(a.roll_scopes)||!a.roll_scopes.length||a.roll_scopes.some(scope=>!['ability-check','attack','save'].includes(scope))||
       new Set(a.roll_scopes).size!==a.roll_scopes.length||!['charge','sustained'].includes(a.consumption)||
       (a.consumption==='charge'&&a.charges!==1)||(a.consumption==='sustained'&&a.charges!==undefined)||

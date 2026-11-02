@@ -134,13 +134,14 @@ function planSpell(character,spell,slotLevel,profile=null){
   if(!profile||profile.schema!=='srd51-spell-effect/1'||profile.target!=='self'||
      profile.spell_id!=='srd51:spell:'+spellKey||profile.base_level!==level)
     throw Error('Matching 2014 SRD spell profile is unavailable.');
+  if(!['action','bonus action','reaction'].includes(profile.activation))throw Error('Unqualified automation activation.');
   automatic=true;
   target='self';
   switch(profile.type){
    case 'heal':{
-    if(profile.dice!=='d8'||profile.base_dice!==1||profile.dice_per_slot_above_base!==1||profile.modifier!=='spellcasting'||level!==1)throw Error('Unsupported healing profile.');
+    if(!['d4','d8'].includes(profile.dice)||profile.base_dice!==1||profile.dice_per_slot_above_base!==1||profile.modifier!=='spellcasting'||level!==1)throw Error('Unsupported healing profile.');
     const mod=castingModifier(character,spell);
-    roll=dice(`${slot}d8${mod>=0?'+':''}${mod}`);
+    roll=dice(`${slot}${profile.dice}${mod>=0?'+':''}${mod}`);
     effect='heal';break;
    }
    case 'ac_bonus':
@@ -166,7 +167,7 @@ function planSpell(character,spell,slotLevel,profile=null){
  const condition=effect==='condition'?String(spell.effect_condition||'').trim():'';
  if(effect==='condition'&&!CONDITIONS.has(condition))throw Error('Choose a supported self-condition.');
  return Object.freeze({kind:'spell',name:String(spell.name||'Spell'),sourceId:String(spell.id||spell.name||'spell'),resource,cost,roll,effect,
-  concentration,durationRounds:rounds,activation:String(automatic?(profile.type==='ac_bonus'?'bonus action':'action'):spell.casting_time||'special'),slotLevel:slot,condition,acBonus,bonusDice,bonusScopes,bonusMode,charges,target,automatic,damageType});
+  concentration,durationRounds:rounds,activation:String(automatic?profile.activation:spell.casting_time||'special'),slotLevel:slot,condition,acBonus,bonusDice,bonusScopes,bonusMode,charges,target,automatic,damageType});
 }
 function plan(character,action){
  if(!character||!action||action.archived)throw Error('Ability is not available.');
