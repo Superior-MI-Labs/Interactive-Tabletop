@@ -35,7 +35,7 @@ assert.equal(A.resolveConcentrationCheck(c,second.id,8).success,false);
 assert.equal(A.effectiveAC(c),17);assert.equal(A.activeEffects(c).length,0);
 const shield2=A.planSpell(c,c.spells[1],1,ref(c,'Shield of Faith'));A.startEffect(c,shield2);
 const guid=A.planSpell(c,c.spells[2],0,ref(c,'Guidance'));
-assert.equal(guid.cost,0);assert.equal(guid.effect,'check_bonus');assert.equal(guid.charges,1);
+assert.equal(guid.cost,0);assert.equal(guid.effect,'roll_bonus');assert.equal(guid.charges,1);
 A.commitUsage(c,guid);A.startEffect(c,guid);
 assert.equal(A.effectiveAC(c),17,'replacing concentration must remove AC bonus');
 assert.equal(A.activeEffects(c).length,1);

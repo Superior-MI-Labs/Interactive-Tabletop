@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.22.0
+# Interactive Tabletop architecture — v0.23.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -75,7 +75,7 @@ No Pathfinder, generic system-pack registry, native desktop rewrite, network syn
 
 ## v0.19 spell effect profiles
 
-`web/dnd-2014-reference.json` holds verified, edition-scoped effect metadata (three SRD 5.1 spells only). `web/reference-catalog.js` validates reference provenance; `web/dnd-action.js` plans, validates and commits the effect in the same existing action pipeline. `web/app.js` only displays opt-in, confirmation, roll and status. Character Vault stores the opt-in, active effects, pending concentration checks and live resources. Derived AC never mutates imported `character.ac`. See `DND_EFFECT_CAPABILITY_AUDIT.md` for full references and capability gates.
+`web/dnd-2014-reference.json` holds verified, edition-scoped effect metadata (five SRD 5.1 spells only). `web/reference-catalog.js` validates reference provenance; `web/dnd-action.js` plans, validates and commits the effect in the same existing action pipeline. `web/app.js` only displays opt-in, confirmation, roll and status. Character Vault stores the opt-in, active effects, pending concentration checks and live resources. Derived AC never mutates imported `character.ac`. See `DND_EFFECT_CAPABILITY_AUDIT.md` for full references and capability gates.
 
 ## v0.20 — Target and damage contract
 
@@ -98,3 +98,25 @@ The single `web/dnd-action.js` operation model now owns encounter targeting, typ
 Pact Magic / separate class-limited resources are intentionally excluded: they are not interchangeable names for standard spell slots, and their use requires an explicit future contract. Spell preparation and edition-specific effects are independent from resource identity.
 
 `DndAction.resolveD20` is the pure face-selection model for advantage/disadvantage. The shared dice table physically rolls either one or two d20s. `DndAction.criticalDamageExpression` transforms *only the dice count* when a completed natural-20 attack matches the same source and selected target. Hit, save, and critical outcomes are reports; HP changes still require a separate approved damage operation. Manually applied target conditions live inside the character's saved encounter and do not trigger inferred rules.
+
+## v0.23 — Effect-local bonus roll orchestration
+
+- `DndAction.compatibleBonuses(character, rollKind, reservedIds)` is a **pure selector**. It reads active effect records in the Character Vault and recognizes only explicitly supported roll kinds. The existing 2014 Guidance charge defaults to `ability-check`.
+- `DndAction.setAutoUse` toggles a property on the effect record, not a second preference or per-user state. `auto_use!==false` preserves compatibility with legacy effects.
+- The UI calls `queueRoll` with an explicit `ability-check` kind for skills and ability scores. Attack and save routes never infer compatibility from roll labels.
+- `queueRoll` adds bonus dice to the same pending physical group without spending charges; `startDiceGroup` owns stable die IDs, primary count, bonus attribution and character ID. Render-layer sorting does not reorder results.
+- `finishRollIfSettled` resolves the base d20 (including advantage/disadvantage) independently of bonus dice, then commits each still-active bonus once. In-flight IDs reserve effects against a second roll. If an effect ends before resolution, the bonus isn't counted.
+- Neither the vault schema version nor the 2014 SRD spell source is changed. No added rules engine or independent dice simulation.
+
+
+### v0.24 input and rules contracts
+
+- A pending cursor-follow roll captures the next tabletop pointer gesture even when the cursor lies between its dice, before any sheet control handles the event. Only prepared dice in that group are thrown.
+- Completed rolls repaint active-effect controls whenever charges change; last-charge consumption ends concentration and removes the corresponding token.
+- `character.rules_profile` is the single character-level ruleset selection. `srd-2014` only selects catalog-validated profiles; an explicit `spell.automation="manual"` overrides it. Imported text and 2024 content cannot gain unverified 2014 automation.
+
+### v0.25 typed roll bonuses
+
+`DndAction.planSpell` validates one edition-scoped `roll_bonus` profile (`roll_scopes`, `consumption`, `dice`) against its reference identity. `startEffect` writes the validated semantics and a unique effect instance into the single Character Vault. `compatibleBonuses` is a pure selector for `ability-check`, `attack`, or `save` operations; `resolveRollBonus` revalidates the same instance/scope at dice settlement and atomically spends a charge if applicable. Sustained Bless-style effects are never consumed by a single roll and may serve concurrent rolls. Legacy Guidance records with `bonus_scope` retain their semantics. No generic prose interpreter, extra database or new dice engine.
+
+Attack and saving throw action paths now tag their roll *type* explicitly. Target saving throws only qualify for a self buff when the target is the character; other encounter targets never inherit the player's Bless or Resistance. The same d20 role identity controls advantage/disadvantage and bonus dice composition.

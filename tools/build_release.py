@@ -5,7 +5,7 @@ ROOT=Path(__file__).resolve().parents[1]
 VERSION=(ROOT/'VERSION').read_text().strip()
 NAME=f'SkyBlueEyes-Tabletop-v{VERSION}'
 DEST=ROOT/'docs'/'downloads'/f'{NAME}.zip'
-FILES=['VERSION','INSTALL.sh','README.md','CHANGELOG.md','ARCHITECTURE.md','RULES_REFERENCE_DESIGN.md','NOTICE-SRD.md','DND_EFFECT_CAPABILITY_AUDIT.md','LICENSE','main.py','desktop.py','RUN-LINUX.sh','RUN-WINDOWS.bat','RUN-DESKTOP-LINUX.sh','RUN-DESKTOP-WINDOWS.bat']
+FILES=['VERSION','INSTALL.sh','README.md','CHANGELOG.md','ARCHITECTURE.md','RULES_REFERENCE_DESIGN.md','RULESET_AUTOMATION_CONTRACT.md','NOTICE-SRD.md','DND_EFFECT_CAPABILITY_AUDIT.md','LICENSE','main.py','desktop.py','RUN-LINUX.sh','RUN-WINDOWS.bat','RUN-DESKTOP-LINUX.sh','RUN-DESKTOP-WINDOWS.bat']
 folders=['web','vendor']
 # Ship the exact source tests CI discovers; never hand-maintain test filenames.
 test_paths=sorted((ROOT/'tests').glob('test_*.js'))+sorted((ROOT/'tests').glob('test_*.py'))

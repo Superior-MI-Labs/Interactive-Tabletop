@@ -4,20 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171b22">
-  <title>Character Tabletop v0.10.0</title>
+  <title>Interactive Tabletop v0.25.0</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./solar-crest.png">
+  <script src="./dnd-slots.js" defer></script>
   <script>window.__STATIC_TABLETOP__ = true;</script>
   <script src="./character-import.js" defer></script>
+  <script src="./vault-store.js" defer></script>
+  <script src="./dnd-action.js" defer></script>
+  <script src="./reference-catalog.js" defer></script>
   <script src="./browser-pdf.js" defer></script>
   <script src="./dice-physics.js" defer></script>
   <script src="./app.js" defer></script>
-<meta name="description" content="Phoenix Tabletop — early alpha. Import a D&D Beyond PDF and play with interactive sheets, spells, abilities and dice. Local-first, free and experimental.">
+<meta name="description" content="Phoenix Tabletop — early alpha. Import a D&D Beyond PDF and play with an interactive sheet and dice.">
 </head>
 <body>
   <div id="shell">
     <header class="topbar">
-      <div class="brand"><img class="sunmark" src="./solar-crest.png" alt="" aria-hidden="true"><div><small>EARLY ALPHA · DICE & CHARACTER SHEETS</small><strong>Character Tabletop</strong></div></div>
-      <div class="top-actions"><a class="button subtle" href="./downloads/SkyBlueEyes-Tabletop-v0.10.0.zip" download>Download desktop ZIP</a>
+      <div class="brand"><img class="sunmark" src="./solar-crest.png" alt="" aria-hidden="true"><div><small>EARLY ALPHA · DICE & CHARACTER SHEETS</small><strong>Interactive Tabletop</strong></div></div>
+      <div class="top-actions"><a class="button subtle" href="./downloads/SkyBlueEyes-Tabletop-v0.25.0.zip" download>Download desktop ZIP</a><button type="button" class="button subtle" id="about-open">About & licenses</button><button class="button subtle" id="vault-open" type="button" title="Choose or manage characters">Characters <span id="vault-count"></span></button>
         <span id="save-state" class="save-state">Opening…</span>
         <label class="button subtle" for="pdf-file">Import PDF</label>
         <input id="pdf-file" type="file" accept=".pdf,application/pdf" hidden>
@@ -42,14 +48,16 @@
                 <button data-die="4">d4</button><button data-die="6">d6</button><button data-die="8">d8</button>
                 <button data-die="10">d10</button><button data-die="12">d12</button><button data-die="20">d20</button><button data-die="100">d100</button>
               </div>
+              <div class="dice-roll-options"><label for="d20-mode">d20 mode</label><select id="d20-mode" class="input" aria-label="d20 roll mode"><option value="normal">Normal</option><option value="advantage">Advantage (highest)</option><option value="disadvantage">Disadvantage (lowest)</option></select></div>
               <div class="throw-row"><input class="input" id="custom-roll" value="1d20+0" aria-label="Dice expression" spellcheck="false" placeholder="2d6+3">
                 <button class="button primary" data-action="custom-roll" title="Prepare dice">Prepare</button>
                 <button class="button" data-action="auto-throw">Throw</button>
                 <button class="button subtle" data-action="clear-table">Clear</button></div>
               <div id="last-result" class="table-result" aria-live="polite">Choose a die and flick it across the table.</div>
+              <div id="roll-effect" class="roll-effect" aria-live="polite"></div>
               <details class="table-history"><summary>Roll history <span id="history-count">0</span></summary>
                 <ul id="table-history" class="history"></ul><button class="button mini subtle" data-action="clear-history">Clear history</button></details>
-              <div class="tray-help" id="tray-help">Dice can roll across the sheet and the tabletop.</div>
+              <div class="tray-help" id="tray-help">Grab dice anywhere, even over the sheet. Flick and release, or right-click to release.</div>
             </div>
           </details>
           <canvas id="dice-canvas" aria-label="Rendered three-dimensional dice over the table and character sheet"></canvas>
@@ -59,5 +67,7 @@
     <div id="status-msg" role="status" aria-live="polite" class="status-msg">Ready</div>
   </div>
   <div id="dialog-layer" hidden></div>
+  <div id="vault-layer" hidden></div>
+  <div id="reference-layer" hidden></div>
 </body>
 </html>

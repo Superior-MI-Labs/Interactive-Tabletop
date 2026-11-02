@@ -1,4 +1,4 @@
-# D&D effect capability audit — v0.19
+# D&D effect capability audit — v0.25
 
 ## Architecture decision
 
@@ -6,7 +6,7 @@ The imported character PDF and DM edits are character truth. The versioned **SRD
 
 ## Core effect components and interactions
 
-| Component / contract | Present in v0.19 | Next required contract |
+| Component / contract | Present in v0.25 | Next required contract |
 |---|---|---|
 | Character vault and imported fields | Yes | Multi-edition source provenance per record |
 | Spell-slot resources and costs | Yes; confirmed and atomic | Distinguish feat/item free castings from slot castings |
@@ -34,12 +34,14 @@ The imported character PDF and DM edits are character truth. The versioned **SRD
 | Cure Wounds | `1d8 + spellcasting modifier`, +1d8 per slot above 1st; apply to self after roll | Action / self | Instantaneous |
 | Shield of Faith | Derived AC +2; concentrate up to 100 combat rounds | Bonus action / self | Concentration breaks, expiry or manual end |
 | Guidance | d4 once for an ability check; one charge | Action / self | Charge spent after throw, concentration ends, 10 rounds or manual end |
+| Resistance | d4 once for a saving throw; one charge | Action / self | Charge spent after throw, concentration ends, 10 rounds or manual end |
+| Bless | d4 on each self attack and save while active; sustained | Action / self (other targets manual) | Concentration ends, 10 rounds or manual end |
 
 **Important limits:** Manual/DM-approved overrides remain authoritative. These are the 2014 SRD versions, not default behavior for 2024 D&D. Self-target support does not authorize automatic changes to an ally. Spell-specific targets and components still require table adjudication. Spellcasting modifier is inferred from an explicit class/ability source, or the player sets an override.
 
 ## Full reference coverage and review queue
 
-Exactly **112 2014 SRD spell reference records** are currently bundled. Only the three profiles above are executable; all other spell effects remain *reference-only*. The list below is a complete inventory of the current **catalog**, not of all officially published D&D spells. Non-SRD, 2024, and homebrew spells are outside this inventory.
+Exactly **112 2014 SRD spell reference records** are currently bundled. Only the five profiles above are executable; all other spell effects remain *reference-only*. The list below is a complete inventory of the current **catalog**, not of all officially published D&D spells. Non-SRD, 2024, and homebrew spells are outside this inventory.
 
 ### Cantrips — 16 references
 
@@ -55,7 +57,7 @@ Exactly **112 2014 SRD spell reference records** are currently bundled. Only the
 | Mending | No | 1 minute | Reference-only · manual resolution |
 | Minor Illusion | No | 1 action | Reference-only · manual resolution |
 | Prestidigitation | No | 1 action | Reference-only · manual resolution |
-| Resistance | Yes | 1 action | Reference-only · manual resolution |
+| Resistance | Yes | 1 action | **Opt-in self automation** |
 | Sacred Flame | No | 1 action | Reference-only · manual resolution |
 | Shocking Grasp | No | 1 action | Reference-only · manual resolution |
 | Spare the Dying | No | 1 action | Reference-only · manual resolution |
@@ -69,7 +71,7 @@ Exactly **112 2014 SRD spell reference records** are currently bundled. Only the
 | Alarm | No | 1 minute | Reference-only · manual resolution |
 | Animal Friendship | No | 1 action | Reference-only · manual resolution |
 | Bane | Yes | 1 action | Reference-only · manual resolution |
-| Bless | Yes | 1 action | Reference-only · manual resolution |
+| Bless | Yes | 1 action | **Opt-in self automation** |
 | Burning Hands | No | 1 action | Reference-only · manual resolution |
 | Charm Person | No | 1 action | Reference-only · manual resolution |
 | Command | No | 1 action | Reference-only · manual resolution |

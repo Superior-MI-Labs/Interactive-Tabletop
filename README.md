@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.22.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.25.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.22.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.25.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -23,6 +23,23 @@
 4. **Export JSON** regularly to back up HP, spell preparation, custom abilities, items, notes and resources.
 
 No signup or application server is needed. The hosted version parses PDF fields in your browser and stores a multi-character vault in IndexedDB. Previously saved single-character localStorage data is migrated without deleting the recovery copy. PDF.js code is downloaded from a pinned jsDelivr URL when importing a PDF; the **PDF itself is not intentionally uploaded to any server**. Do not assume local browser storage is permanent, private on shared computers, or synchronized across devices.
+
+
+### Character-level rulesets and dice gesture improvements (v0.24+)
+
+Select **Rules → D&D 2014 SRD** on the character sheet to enable all currently **qualified** 2014 effect profiles in one action. Cure Wounds, Shield of Faith, Guidance, Resistance and Bless are presently qualified (self effects only); unsupported spells remain manual. An individual spell may still select **Use manual rules**. A 2024-edition character is not eligible for 2014 automation.
+
+When a requested roll follows the mouse cursor, click anywhere on the tabletop—even between the d20 and d4 or over a sheet control—to pick up the whole group. Drag and release to throw, or click to throw immediately. Press Esc to leave follow mode without consuming effects. When Guidance uses its final charge, its buff token disappears as soon as the roll settles.
+
+See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the data, edition, qualification and gesture contracts.
+
+### Qualified typed automatic bonus dice (v0.23–v0.25)
+
+- Charged effects like **Guidance** appear in the Effects rail with an individual **Auto** checkbox, on by default. Turn it off to keep the charge for later; this setting is saved with the character. Older saved Guidance effects also default to on without rewriting their vault entries.
+- When Auto is on, the next explicitly classified **ability check** or **skill check** prepares a d20 plus a d4 together. Advantage/disadvantage prepares two d20s plus the d4; the final total uses the chosen d20, its modifier, and the bonus.
+- The effect is consumed **once the physical roll settles**, not when you prepare the dice. Abandoned rolls consume nothing. Already-rolling groups reserve their charge, so another roll cannot claim it. If concentration ends during the throw, the bonus is discarded.
+- Saving throws, attacks, concentration saves, raw tabletop dice, spellcasting and damage **do not** automatically consume 2014 Guidance. Resistance adds a d4 to one saving throw, and Bless adds a sustained d4 to eligible self attacks and saves while concentration lasts. Each effect has its own Auto checkbox. Homebrew never gains inferred modifiers from its name.
+- The typed roll-bonus contract is restricted to explicitly verified 2014 SRD profiles and self targets; it does not interpret arbitrary rules text.
 
 ## Character vault (v0.11+)
 
@@ -50,14 +67,14 @@ No signup or application server is needed. The hosted version parses PDF fields 
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.22.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.25.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.22.0.zip" SkyBlueEyes-Tabletop-v0.22.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.25.0.zip" SkyBlueEyes-Tabletop-v0.25.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
@@ -66,7 +83,7 @@ Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP
 
 The `VERSION` file is authoritative for release metadata. The CI checks every `tests/test_*.js` automatically, alongside Python and asset-contract tests, before building the Pages site and desktop ZIP from `web/`. Generated `docs/` are not a second source of UI truth.
 
-The release publisher refuses to overwrite dirty or unrelated clones and checks the source version. To publish from Linux, download the source ZIP and run `bash PUBLISH-LINUX.sh` from the matching extracted release folder. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
+The release publisher refuses to overwrite dirty or unrelated clones and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.25.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 
 ## Development and architecture
 
@@ -93,7 +110,7 @@ python3 tools/build_site.py
 
 ## Verified D&D 2014 self-effect profiles (opt-in)
 
-Cure Wounds, Shield of Faith, and Guidance are the first vetted SRD 5.1 profiles. Expand a spell, choose **Enable 2014 effect**, and confirm. Cure Wounds offers self-healing after rolling (1d8 + explicit spellcasting modifier, +1d8 per higher slot); Shield of Faith creates a concentration-linked AC +2 buff; Guidance creates a concentration-linked one-use d4 bonus for an ability check. The buffs panel displays duration, charges, end controls and pending concentration-save DCs. These do not overwrite base statistics or imported rules.
+Cure Wounds, Shield of Faith, Guidance, Resistance and Bless have vetted SRD 5.1 self-target profiles. Expand a spell, choose **Enable 2014 effect**, and confirm. Cure Wounds offers self-healing after rolling (1d8 + explicit spellcasting modifier, +1d8 per higher slot); Shield of Faith creates a concentration-linked AC +2 buff; Guidance creates a concentration-linked one-use d4 bonus for an ability check. The buffs panel displays duration, charges, end controls and pending concentration-save DCs. Resistance supplies one d4 to a saving throw and expires after use. Bless supplies 1d4 on self attacks and saving throws repeatedly for its concentration duration, without spending a charge; other Bless targets require DM handling. These do not overwrite base statistics or imported rules.
 
 This does **not** implement all spell effects. Other spells continue to require manual/DM resolution. The opt-in is specific to the 2014 SRD and does not apply 2024 spell rules. See [D&D effect capability audit](DND_EFFECT_CAPABILITY_AUDIT.md) for all 112 indexed spells and the component roadmap.
 

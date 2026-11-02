@@ -1,3 +1,30 @@
+## v0.25.0 — Validated typed roll bonuses: Bless and Resistance
+
+- Qualify 2014 SRD Bless as a sustained concentration-linked d4 on self attack rolls and saving throws; automated ally targets remain unsupported.
+- Qualify 2014 SRD Resistance as a single d4 on a saving throw; its final charge ends the effect and concentration.
+- Move Guidance to the same data-driven `roll_bonus` schema. Retain compatibility for old Guidance buff records and saves.
+- Generalize typed roll scopes and settlement-time effect validation, including recast protection and sustained bonuses for concurrent rolls.
+- Route self attacks, self saving throws, and concentration saves through explicit roll types; reject applying self bonuses to other encounter targets.
+- Test contract qualification, charges, concentration, stale effects, UI roll composition, and damage-independent compatibility.
+
+## v0.24.0 — Rules profiles and dice cursor fixes
+
+- Fixed mixed-dice cursor follow: click between dice grabs the entire prepared group instead of clicking the sheet.
+- Pointer capture, drag/release, right-click and Escape are handled in the shared table controller.
+- Effect bar re-renders when Guidance consumes its last charge.
+- Per-character Rules selector enables all **qualified** D&D 2014 SRD spell automation profiles; unsupported spells remain manual.
+- Preserves per-spell manual overrides and the rules profile during PDF reimports.
+- No rules inferred from arbitrary descriptive text.
+
+## v0.23.0 — Effect-local auto-use bonus dice
+
+- Move charged roll bonuses from a separate Use button into a per-effect checkbox, enabled by default for active effects including legacy saves.
+- Bind extra dice to the originating skill/ability-check roll, including physical d20+d4 and advantage/disadvantage (2d20+d4).
+- Consume once after the dice settle, with in-flight charge reservation; preparing, replacing or canceling an unthrown roll never spends the charge.
+- Explicit roll compatibility: only ability and skill checks use the current Guidance bonus, never attacks or saves.
+- Keep die roles stable using die IDs across depth sorting, with separate base and bonus totals in roll history.
+- Add Node contract and browser simulation regressions covering toggles, 2014 Guidance compatibility, legacy saves, in-flight throws and double consumption.
+
 ## v0.22.0 — consolidated release and compatibility gates
 
 - Bundle v0.19–v0.21 combat, effect, roll, and slot fixes into one deployable update over public v0.18.

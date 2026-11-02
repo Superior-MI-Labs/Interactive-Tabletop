@@ -234,7 +234,22 @@
       "duration": "Concentration, up to 1 minute",
       "concentration": true,
       "description": "Up to three creatures add 1d4 to attack rolls and saving throws.",
-      "ritual": false
+      "ritual": false,
+      "automation": {
+        "schema": "srd51-spell-effect/1",
+        "type": "roll_bonus",
+        "target": "self",
+        "dice": "1d4",
+        "roll_scopes": [
+          "attack",
+          "save"
+        ],
+        "consumption": "sustained",
+        "duration_rounds": 10,
+        "concentration": true,
+        "spell_id": "srd51:spell:bless",
+        "base_level": 1
+      }
     },
     {
       "id": "srd51:spell:blur",
@@ -824,14 +839,18 @@
       "ritual": false,
       "automation": {
         "schema": "srd51-spell-effect/1",
-        "type": "check_bonus",
+        "type": "roll_bonus",
         "target": "self",
         "dice": "1d4",
-        "charges": 1,
+        "roll_scopes": [
+          "ability-check"
+        ],
+        "consumption": "charge",
         "duration_rounds": 10,
         "concentration": true,
         "spell_id": "srd51:spell:guidance",
-        "base_level": 0
+        "base_level": 0,
+        "charges": 1
       }
     },
     {
@@ -1411,7 +1430,22 @@
       "duration": "Concentration, up to 1 minute",
       "concentration": true,
       "description": "A willing target adds 1d4 to one saving throw.",
-      "ritual": false
+      "ritual": false,
+      "automation": {
+        "schema": "srd51-spell-effect/1",
+        "type": "roll_bonus",
+        "target": "self",
+        "dice": "1d4",
+        "roll_scopes": [
+          "save"
+        ],
+        "consumption": "charge",
+        "duration_rounds": 10,
+        "concentration": true,
+        "spell_id": "srd51:spell:resistance",
+        "base_level": 0,
+        "charges": 1
+      }
     },
     {
       "id": "srd51:spell:revivify",

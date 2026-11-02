@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One-ZIP Phoenix Tabletop installer. Run via:
-# unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.22.0.zip" SkyBlueEyes-Tabletop-v0.22.0/INSTALL.sh | bash
+# unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.25.0.zip" SkyBlueEyes-Tabletop-v0.25.0/INSTALL.sh | bash
 set -Eeuo pipefail
 
-VERSION='v0.22.0'
+VERSION='v0.25.0'
 ROOT_NAME="SkyBlueEyes-Tabletop-$VERSION"
 DOWNLOADS="${SKY_DOWNLOADS_DIR:-$HOME/Downloads}"
 ZIP="$DOWNLOADS/$ROOT_NAME.zip"
@@ -116,7 +116,7 @@ discard_old() {
 [[ -z "$PREVIOUS" ]] || discard_old "$PREVIOUS"
 for folder in "$DOWNLOADS" "$PARENT"; do
     [[ -d "$folder" ]] || continue
-    for version in v0.20.0 v0.19.0 v0.18.0 v0.17.0 v0.16.0 v0.15.0 v0.14.0 v0.13.0 v0.12.0 v0.11.0 v0.1 v0.2 v0.3 v0.4 v0.5 v0.6 v0.7 v0.7.1 v0.8 v0.9 v0.9.1 v0.9.2 v0.10.0; do
+    for version in v0.24.0 v0.23.0 v0.22.0 v0.21.0 v0.20.0 v0.19.0 v0.18.0 v0.17.0 v0.16.0 v0.15.0 v0.14.0 v0.13.0 v0.12.0 v0.11.0 v0.1 v0.2 v0.3 v0.4 v0.5 v0.6 v0.7 v0.7.1 v0.8 v0.9 v0.9.1 v0.9.2 v0.10.0; do
         discard_old "$folder/SkyBlueEyes-Tabletop-$version"
         discard_old "$folder/SkyBlueEyes-Tabletop-$version.zip"
     done

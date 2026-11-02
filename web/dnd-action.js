@@ -9,6 +9,7 @@ const ALLOWED=new Set([4,6,8,10,12,20,100]);
 const CONDITIONS=new Set(['Blinded','Charmed','Deafened','Exhaustion','Frightened','Grappled',
  'Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious']);
 const deepcopy=value=>JSON.parse(JSON.stringify(value));
+let nextEffectInstance=0;
 function combat(character){
  if(!character.effects||typeof character.effects!=='object')character.effects={};
  const c=character.effects.combat;
@@ -123,11 +124,11 @@ function planSpell(character,spell,slotLevel,profile=null){
  let effect=spell.effect_kind||'none';
  if(!['none','heal','condition','damage'].includes(effect))throw Error('Unsupported spell effect.');
  let roll=dice(spell.roll||'');
- let acBonus=0,bonusDice='',charges=0,automatic=false;
+ let acBonus=0,bonusDice='',bonusScopes=[],bonusMode='',charges=0,automatic=false;
  let target='self';
  let rounds=duration(spell.duration_rounds);
  let concentration=typeof spell.concentration==='boolean'?spell.concentration:/\bconcentration\b/i.test(String(spell.duration||''));
- if(spell.automation==='srd-2014'){
+ if(spell.automation==='srd-2014'||(spell.automation!== 'manual' && !spell.automation && character.rules_profile==='srd-2014')){
   if(character.system_edition&&/2024|5\.5|srd.?5\.2/i.test(String(character.system_edition)))throw Error('2014 automation is not enabled for a 2024 edition character.');
   const spellKey=String(spell.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   if(!profile||profile.schema!=='srd51-spell-effect/1'||profile.target!=='self'||
@@ -145,13 +146,19 @@ function planSpell(character,spell,slotLevel,profile=null){
    case 'ac_bonus':
     if(profile.amount!==2||profile.duration_rounds!==100||!profile.concentration)throw Error('Unsupported armor profile.');
     effect='ac_bonus';acBonus=profile.amount;rounds=profile.duration_rounds;concentration=true;roll=null;break;
-   case 'check_bonus':
-    if(profile.dice!=='1d4'||profile.charges!==1||profile.duration_rounds!==10||!profile.concentration)throw Error('Unsupported check-bonus profile.');
-    effect='check_bonus';bonusDice=profile.dice;charges=profile.charges;rounds=profile.duration_rounds;concentration=true;roll=null;break;
+   case 'roll_bonus':{
+    const scopes=profile.roll_scopes;
+    if(profile.dice!=='1d4'||!Array.isArray(scopes)||!scopes.length||scopes.some(x=>!['ability-check','attack','save'].includes(x))||new Set(scopes).size!==scopes.length||
+       !['charge','sustained'].includes(profile.consumption)||(profile.consumption==='charge'&&profile.charges!==1)||
+       (profile.consumption==='sustained'&&profile.charges!==undefined)||profile.duration_rounds!==10||profile.concentration!==true)
+     throw Error('Unsupported roll-bonus profile.');
+    effect='roll_bonus';bonusDice=profile.dice;bonusScopes=[...scopes];bonusMode=profile.consumption;
+    charges=profile.consumption==='charge'?1:0;rounds=profile.duration_rounds;concentration=true;roll=null;break;
+   }
    default:throw Error('Unsupported SRD automation profile.');
   }
  }
- if(!['none','heal','condition','damage','ac_bonus','check_bonus'].includes(effect))throw Error('Unsupported spell effect.');
+ if(!['none','heal','condition','damage','ac_bonus','roll_bonus'].includes(effect))throw Error('Unsupported spell effect.');
  if(effect==='heal'&&!roll)throw Error('Healing needs a configured dice expression.');
  if(effect==='damage'&&!roll)throw Error('Damage needs a configured dice expression.');
  const damageType=effect==='damage'?String(spell.damage_type||'untyped').toLowerCase():'untyped';
@@ -159,7 +166,7 @@ function planSpell(character,spell,slotLevel,profile=null){
  const condition=effect==='condition'?String(spell.effect_condition||'').trim():'';
  if(effect==='condition'&&!CONDITIONS.has(condition))throw Error('Choose a supported self-condition.');
  return Object.freeze({kind:'spell',name:String(spell.name||'Spell'),sourceId:String(spell.id||spell.name||'spell'),resource,cost,roll,effect,
-  concentration,durationRounds:rounds,activation:String(automatic?(profile.type==='ac_bonus'?'bonus action':'action'):spell.casting_time||'special'),slotLevel:slot,condition,acBonus,bonusDice,charges,target,automatic,damageType});
+  concentration,durationRounds:rounds,activation:String(automatic?(profile.type==='ac_bonus'?'bonus action':'action'):spell.casting_time||'special'),slotLevel:slot,condition,acBonus,bonusDice,bonusScopes,bonusMode,charges,target,automatic,damageType});
 }
 function plan(character,action){
  if(!character||!action||action.archived)throw Error('Ability is not available.');
@@ -207,7 +214,7 @@ function endEffect(character,id){
  return true;
 }
 function startEffect(character,validated){
- if(!validated||(!validated.concentration&&!validated.durationRounds&&!validated.condition&&!validated.acBonus&&!validated.charges))return null;
+ if(!validated||(!validated.concentration&&!validated.durationRounds&&!validated.condition&&!validated.acBonus&&!validated.charges&&!validated.bonusDice))return null;
  const effects=activeEffects(character);
  // Remove old concentration with the same cleanup as manual ending and expiration.
  if(validated.concentration)for(const effect of [...effects])if(effect.concentration)endEffect(character,effect.id);
@@ -220,7 +227,12 @@ function startEffect(character,validated){
  const row={id,name:validated.name,concentration:Boolean(validated.concentration),
   rounds_remaining:validated.durationRounds||null,ac_bonus:validated.acBonus||0,
   modifiers:validated.acBonus?[{stat:'ac',amount:validated.acBonus}]:[],
-  stack_key:'spell:'+String(validated.name||validated.sourceId).toLowerCase().replace(/[^a-z0-9]/g,''),charges:validated.charges||0,bonus_dice:validated.bonusDice||'',target:validated.target||'self',...(condition?{condition,condition_owned:owned}:{})};
+  stack_key:'spell:'+String(validated.name||validated.sourceId).toLowerCase().replace(/[^a-z0-9]/g,''),charges:validated.charges||0,bonus_dice:validated.bonusDice||'',
+  bonus_scope:validated.charges&&validated.bonusDice&&!validated.bonusScopes?.length?'ability-check':null,
+  bonus_scopes:Array.isArray(validated.bonusScopes)?[...validated.bonusScopes]:undefined,
+  bonus_mode:validated.bonusMode||(validated.charges?'charge':null),auto_use:true,
+  instance_id:++nextEffectInstance,
+  target:validated.target||'self',...(condition?{condition,condition_owned:owned}:{})};
  activeEffects(character).push(row);
  return row;
 }
@@ -248,13 +260,58 @@ function effectiveAC(character,targetId='self'){
  if(!Number.isFinite(base))throw Error('Target armor class is unavailable.');
  return base+modifierTotal(character,'ac',targetId);
 }
+// One typed roll-bonus contract for limited charges and sustained buffs.
+// Legacy Guidance saves using bonus_scope remain compatible. No arbitrary
+// spell prose executes and no target other than the character is inferred.
+function bonusScopes(effect){
+ return Array.isArray(effect.bonus_scopes)&&effect.bonus_scopes.length?effect.bonus_scopes:
+  [effect.bonus_scope||'ability-check'];
+}
+function bonusEligible(effect,rollKind){
+ return effect.target==='self'&&effect.bonus_dice&&effect.auto_use!==false&&
+   (effect.bonus_mode==='sustained'||(Number.isSafeInteger(effect.charges)&&effect.charges>0))&&
+   bonusScopes(effect).includes(rollKind);
+}
+function compatibleBonuses(character,rollKind,reservedIds=[]){
+ if(!['ability-check','attack','save'].includes(rollKind))return [];
+ const reserved=new Set(reservedIds),sources=new Set();
+ return activeEffects(character).filter(e=>{
+   if(!bonusEligible(e,rollKind))return false;
+   if(e.bonus_mode!=='sustained'&&reserved.has(e.id))return false;
+   const source=e.stack_key||e.id;
+   if(sources.has(source))return false; // Repeated same-name spells never stack.
+   sources.add(source);return true;
+ }).map(e=>{
+   const roll=dice(e.bonus_dice);
+   return {effectId:e.id,name:e.name,expression:roll.expression,count:roll.count,sides:roll.sides,
+     ...(e.instance_id!==undefined?{instanceId:e.instance_id}:{})};
+ });
+}
+function setAutoUse(character,id,enabled){
+ const e=activeEffects(character).find(e=>e.id===id);
+ if(!e||!e.bonus_dice||(e.bonus_mode!=='sustained'&&!(e.charges>0)))throw Error('The effect cannot automatically apply to rolls.');
+ e.auto_use=Boolean(enabled);return e.auto_use;
+}
+// Settlement must validate the SAME effect instance and roll scope again,
+// after concentration, expiry, and checkbox changes. This is the only place
+// a charged buff is spent; sustained buffs can serve concurrent rolls.
+function resolveRollBonus(character,id,rollKind,instanceId){
+ const e=activeEffects(character).find(x=>x.id===id);
+ if(!e||!bonusEligible(e,rollKind)||(instanceId!==undefined&&e.instance_id!==instanceId))
+  throw Error('Roll bonus expired, changed or no longer qualifies.');
+ const roll=dice(e.bonus_dice);
+ if(e.bonus_mode!=='sustained'){
+  e.charges--;
+  if(!e.charges)endEffect(character,id);
+ }
+ return roll;
+}
 function consumeCharge(character,id){
  const e=activeEffects(character).find(x=>x.id===id);
  if(!e||!Number.isSafeInteger(e.charges)||e.charges<1||!e.bonus_dice)throw Error('No charged bonus available.');
- const bonus=dice(e.bonus_dice); // Validate before changing character state.
- e.charges--;
- if(!e.charges)endEffect(character,id);
- return bonus;
+ const roll=dice(e.bonus_dice);
+ e.charges--;if(!e.charges)endEffect(character,id);
+ return roll;
 }
 function concentrationDC(damage){
  if(!Number.isSafeInteger(damage)||damage<0)throw Error('Damage must be nonnegative.');
@@ -487,6 +544,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={dice,resolveD20,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -567,6 +567,7 @@ button,select,input,textarea {min-width:0}
 body.dice-dragging .dice-stage{cursor:grabbing}
 
 .dice-stage.die-hover{cursor:grab}
+.dice-stage.dice-following,.dice-stage.dice-following *{cursor:grab!important;touch-action:none}
 
 /* SRD reference material stays in a read-only, visually separate pane. */
 .reference-pill{display:inline-flex;align-items:center;gap:3px;margin:7px 0;padding:4px 9px;border-radius:20px;background:#243b45;color:#d0e5ee;border:1px solid #658697;cursor:pointer;font-size:11px;font-weight:700}
@@ -667,3 +668,12 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 .target-conditions{display:flex;flex-wrap:wrap;gap:4px;padding:5px 0}
 .target-conditions button{font-size:11px;min-height:26px;border:1px solid #59616b;background:#1d2730;color:#ded4c3;border-radius:4px;padding:3px 6px}
 .target-conditions button[aria-pressed="true"]{border-color:#daa25b;background:#55422d;color:#ffdfaa}
+
+/* Per-effect automatic charge opt-in, part of the existing buff token. */
+#page .effect-auto-toggle{display:inline-flex;align-items:center;gap:4px;cursor:pointer;border-radius:4px;padding:2px 3px;color:#ffe0a6;font:600 11px system-ui,sans-serif;white-space:nowrap}
+#page .effect-auto-toggle input{accent-color:#e6b670;cursor:pointer;margin:0;width:14px;height:14px}
+#page .effect-auto-toggle:focus-within{outline:2px solid #e6b670;outline-offset:2px}
+
+/* v0.24: per-character rules selection, not a separate rules database. */
+#page .ruleset-control{display:flex;flex:0 0 auto;align-items:center;gap:5px;color:#d5c09e;font-size:11px;white-space:nowrap}
+#page .ruleset-control select{width:auto;min-width:108px;max-width:160px;padding:5px 6px;font-size:11px;background:#202d37}

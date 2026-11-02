@@ -64,11 +64,29 @@ with sync_playwright() as p:
  guide.get_by_role('button',name='Cast spell').click();page.locator('#dlg-yes').click()
  assert page.evaluate('Action.effectiveAC(character)')==17
  assert page.evaluate('character.effects.active[0].charges')==1
- page.locator('.buff-token').filter(has_text='Guidance').get_by_role('button',name='Use').click()
- page.locator('#dlg-yes').click()
- assert page.evaluate('character.effects.active[0].charges')==1,'Charge should only spend after physical roll settles'
- assert page.evaluate('pendingRoll.expression')=='1d4'
+ auto=page.locator('.buff-token').filter(has_text='Guidance').get_by_role('checkbox',name='Automatically use Guidance')
+ assert auto.is_checked()
+ # Untyped rolls and saves never consume Guidance.
+ assert page.evaluate("queueRoll('1d20+5','test saving throw')")
+ assert page.evaluate('pendingRoll.bonuses.length')==0
+ assert page.evaluate('character.effects.active[0].charges')==1
+ # Pausing preserves the charge and makes skill checks normal.
+ auto.focus();page.keyboard.press("Space")
+ assert page.evaluate("character.effects.active[0].auto_use") is False
+ page.get_by_role('tab',name='Actions').click()
+ page.get_by_role('button',name='Medicine',exact=False).focus();page.keyboard.press('Enter')
+ assert page.evaluate('pendingRoll.bonuses.length')==0
+ auto=page.get_by_role('checkbox',name='Automatically use Guidance')
+ auto.focus();page.keyboard.press("Space")
+ assert page.evaluate("character.effects.active[0].auto_use") is True
+ page.get_by_role('button',name='Medicine',exact=False).focus();page.keyboard.press('Enter')
+ assert page.evaluate('pendingRoll.bonuses[0].expression')=='1d4'
+ assert page.evaluate('pendingRoll.count')==2
+ assert page.evaluate('pendingRoll.primaryCount')==1
+ assert page.evaluate('character.effects.active[0].charges')==1,'Charge must spend only after roll settles'
  page.evaluate('''()=>{beginThrow();for(const die of dice.filter(d=>activeRoll.diceIds.includes(d.id)))die.sleeping=true;finishRollIfSettled();}''')
+ assert page.evaluate('lastResult.bonuses[0].name')=='Guidance'
+ assert page.evaluate('lastResult.total === lastResult.baseTotal + lastResult.bonuses[0].total')
  assert page.evaluate('character.effects.active.length')==0
  # Verify concentration damage prompts and manual roll availability.
  page.get_by_role('tab',name='Spells').click()

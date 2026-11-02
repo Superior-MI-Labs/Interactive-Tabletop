@@ -13,7 +13,11 @@ function validate(data){
   if(r.aliases!==undefined&&(!Array.isArray(r.aliases)||r.aliases.some(a=>typeof a!=='string'||!a.trim())))throw Error('Invalid reference aliases');
   if(r.automation!==undefined){
    const a=r.automation;
-   if(kind!=='spell'||a?.schema!=='srd51-spell-effect/1'||a.target!=='self'||a.spell_id!==r.id||a.base_level!==r.level||!['heal','ac_bonus','check_bonus'].includes(a.type))throw Error('Invalid spell automation profile');
+   if(kind!=='spell'||a?.schema!=='srd51-spell-effect/1'||a.target!=='self'||a.spell_id!==r.id||a.base_level!==r.level||!['heal','ac_bonus','roll_bonus'].includes(a.type))throw Error('Invalid spell automation profile');
+   if(a.type==='roll_bonus' && (a.dice!=='1d4'||!Array.isArray(a.roll_scopes)||!a.roll_scopes.length||a.roll_scopes.some(scope=>!['ability-check','attack','save'].includes(scope))||
+      new Set(a.roll_scopes).size!==a.roll_scopes.length||!['charge','sustained'].includes(a.consumption)||
+      (a.consumption==='charge'&&a.charges!==1)||(a.consumption==='sustained'&&a.charges!==undefined)||
+      a.duration_rounds!==10||a.concentration!==true))throw Error('Invalid typed roll-bonus profile');
   }
   seen.add(r.id);
  }

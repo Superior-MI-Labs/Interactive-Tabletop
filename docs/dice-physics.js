@@ -76,6 +76,32 @@
     shape.faces.forEach((f,i)=>{const z=rotate(d.q,f.normal)[2];if(z>up){up=z;face=i;}});
     return d.sides===100?(face*10):face+1; // d100: 00,10,...,90, 00 maps to 100 for a full percentile die
   }
+  // Mouse/touch targeting must agree with the very same projected faces
+  // used by drawDie(), including the d12's irregular visible silhouette.
+  function hitTest(d,x,y,width,height,padding=12){
+    const shape=mesh(d.sides);
+    const perspective=Math.max(.80,Math.min(1.25,1+(d.y-height*.5)*.0005+d.z*.0004));
+    const size=d.r*perspective,sy=d.y-d.z*.45;
+    const inside=(points)=>{
+      let found=false;
+      for(let i=0,j=points.length-1;i<points.length;j=i++){
+        const a=points[i],b=points[j];
+        if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])found=!found;
+      }
+      return found;
+    };
+    const edgeDistance=(a,b)=>{
+      const vx=b[0]-a[0],vy=b[1]-a[1];
+      const t=Math.max(0,Math.min(1,((x-a[0])*vx+(y-a[1])*vy)/(vx*vx+vy*vy||1)));
+      return Math.hypot(x-a[0]-t*vx,y-a[1]-t*vy);
+    };
+    for(const f of shape.faces){
+      if(rotate(d.q,f.normal)[2]<.02)continue;
+      const pts=f.indices.map(i=>{const v=rotate(d.q,shape.v[i]);return [d.x+size*v[0],sy-size*v[1]+size*.20*v[2]];});
+      if(inside(pts)||pts.some((p,i)=>edgeDistance(p,pts[(i+1)%pts.length])<=padding))return true;
+    }
+    return false;
+  }
   function makeDie(sides,x,y,r=26){
     const d={sides,x,y,z:r*1.2,r,q:orientation(),v:[0,0,0],w:[0,0,0],sleeping:true,restTime:0,rolling:false,held:false,id:0,group:0};
     d.z=height(d)+.05;
@@ -150,5 +176,5 @@
         a.w=add(a.w,scale(cross(n,a.v),-.0008));b.w=add(b.w,scale(cross(n,b.v),.0008));}
     }
   }
-  return {mesh,rotate,advance,orientation,faceValue,makeDie,launch,step,collide,height,random};
+  return {mesh,rotate,advance,orientation,faceValue,makeDie,launch,step,collide,height,hitTest,random};
 });

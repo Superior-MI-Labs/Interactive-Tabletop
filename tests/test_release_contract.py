@@ -9,7 +9,8 @@ class ReleaseContract(unittest.TestCase):
         self.assertRegex(version,r'^0\.\d+\.\d+$')
         self.assertIn('v'+version,(ROOT/'INSTALL.sh').read_text())
         builder=ROOT/'tools/build_release.py'
-        # Desktop ZIPs contain runtime files and tests, but not source build tools.
+        # Source trees include release builders; the desktop distribution
+        # intentionally contains runtime files and tests, not build tools.
         if builder.is_file():
             self.assertIn("VERSION=(ROOT/'VERSION').read_text().strip()",builder.read_text())
         else:
