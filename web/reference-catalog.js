@@ -11,6 +11,10 @@ function validate(data){
  for(const [kind,records] of [['spell',data.spells],['equipment',data.equipment]])for(const r of records){
   if(!r||r.kind!==kind||r.edition!==data.edition||r.source_id!==data.source.id||!r.name||!r.id||seen.has(r.id)||!r.id.startsWith('srd51:'))throw Error('Invalid or duplicate reference record');
   if(r.aliases!==undefined&&(!Array.isArray(r.aliases)||r.aliases.some(a=>typeof a!=='string'||!a.trim())))throw Error('Invalid reference aliases');
+  if(r.automation!==undefined){
+   const a=r.automation;
+   if(kind!=='spell'||a?.schema!=='srd51-spell-effect/1'||a.target!=='self'||a.spell_id!==r.id||a.base_level!==r.level||!['heal','ac_bonus','check_bonus'].includes(a.type))throw Error('Invalid spell automation profile');
+  }
   seen.add(r.id);
  }
  return data;

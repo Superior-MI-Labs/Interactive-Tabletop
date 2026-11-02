@@ -1,13 +1,52 @@
-# v0.18.0 — SRD comparison and safe gameplay templates
+## v0.22.0 — consolidated release and compatibility gates
+
+- Bundle v0.19–v0.21 combat, effect, roll, and slot fixes into one deployable update over public v0.18.
+- Correct an unmigrated, duplicate spell-slot alias display to use the conservative remaining count, matching the casting validation path. No extra slot pool or source of truth.
+- Centralize the release number in `VERSION` for CI/build/publishing; retain the bootstrap installer version inside its own extracted archive.
+- Make CI execute all JavaScript `tests/test_*.js` without a manually maintained list.
+- Add asset/import-order and release metadata regression tests to prevent broken Pages publication.
+- Ensure the publisher checks both Python and JavaScript tests before preparing a Git commit.
+
+# v0.22.0 — Shared spell-slot identity, d20 roll modes and critical damage (local candidate)
+
+- **Root cause:** older Sky Blue Eyes saves used `First-level Spell Slots`, while the current casting engine only recognized `Level 1 Spell Slots`. Both previously rendered but only one could be spent. A single `web/dnd-slots.js` module now identifies standard spell slots by level and is used by the PDF importer, vault normalization/reimport, spellbook listing, and spell planning. This applies to levels 1–9 and documented legacy labels.
+- Migration normalizes legacy aliases and conservatively merges duplicate labels for the same pool (never adds their totals). Spent slots carry forward across reimports, without silently granting extra resources; normal spells and other resource pools are not reclassified as spell slots.
+- Added physical d20 roll modes in the Dice panel: normal, advantage, disadvantage. The resolver selects the correct die face for total and natural 1/20; other dice remain ordinary summed rolls.
+- Added validated critical damage dice calculation for a *resolved* critical attack on the same selected target and imported weapon. It doubles only base dice, not flat modifiers, and consumes the critical association once. Extra feature dice, multipliers, and DM rulings remain manual.
+- Added manually toggled conditions on encounter targets, using the existing combat-state model; no duration or automatic saves are invented.
+- Regression tests cover the v0.9 starter save alias, 1st–9th-level parsing, duplicates, upcasting, reimport preservation, canceled casts, browser advantage/critical flows, and legacy save migration, alongside old gameplay suites.
+- This is a local release candidate, **not** a claim that the public GitHub Pages alpha has been updated.
+
+# v0.20.0 — Typed damage, encounter targets and safe resolution (local candidate)
+
+- Extended the **existing** `DndAction` model with explicit encounter targets (per-character saved combat state), six saving throw bonuses, current/max/temp HP and configurable damage resistance, vulnerability and immunity. This is a small manual roster, not a second character database or monster rules engine.
+- Added purely evaluated 2014-style attack hit/critical and save-versus-DC results. A roll never applies damage automatically; the player must preview and confirm the proposed target HP change.
+- Added validated damage planning for explicit 13 D&D damage types or untyped damage. Saving throw half/negates policies are opt-in, resistance/vulnerability are applied once each, immunities prevent damage, and temporary HP absorbs before current HP. Damage into concentration prompts a check via the existing effect engine.
+- Added typed effect modifiers on tracked buffs, with same-source stacking protection and compatible reading of legacy `ac_bonus` records. Imported base AC is never edited.
+- Added **Undo last damage** with stale-state guard, deleted-target guard, and cleanup of still-pending concentration checks. Any subsequent saved mutation invalidates that undo.
+- Connected manual/configured spell and ability damage rolls to the shared physical dice result pipeline, with target selection captured before the throw. No spell effect is inferred from narrative text or reference summaries.
+- Extended vault reimport to preserve an explicitly configured spell `damage_type` and the entire active encounter state. No live character data or PDFs are included in this release.
+- Added target model, save, damage, undo, stacking and browser smoke tests, with older gameplay test gates retained. No new database, physics engine, framework or RPG rules package.
+
+# v0.19.0 — D&D effect capability milestone (local release candidate)
+
+- Three verified 2014 SRD spell profiles, explicitly opt-in: Cure Wounds (self healing/upcast), Shield of Faith (+2 derived AC, concentration), Guidance (one-use d4 charge).
+- Compact buff/debuff strip with effect durations, charge control, end effect, pending concentration saves; imported AC is unchanged.
+- Concentration DC is max(10, half damage rounded up), and uses the existing physical dice system; failures expire the linked buff.
+- Presets stored in the canonical offline catalog; pure D&D planner executes all effects. Reimport keeps spell opt-in and modifier overrides.
+- New pure-model and browser interaction tests and full 112-reference capability audit.
+- This does not automate every D&D spell or other editions; no live deployment is claimed.
+
+# v0.18.0 — SRD comparison and safe gameplay templates (release candidate)
 
 - Added source-pure comparison of imported spell level, casting time, range, components, and duration with matched 2014 SRD references. Missing fields are labeled as such and never auto-corrected.
 - Added navigation from matched reference spells to the authoritative imported spell editor instead of generating duplicate spell entries.
 - Added an explicitly confirmed, inert **custom action draft** for SRD spell references absent from the character spellbook. No spell is granted, no slot is spent, and no roll/effect/resource cost is guessed.
 - Blocked duplicate reference drafts and cross-edition 2024 draft suggestions. Kept full SRD attribution and the bundled offline catalog.
 - Fixed the reference/confirmation overlay order; extended model and browser interaction tests, including cancellation and resource preservation.
-- Canonical `web/` source builds both the GitHub Pages site and desktop archive; existing vault and dice systems remain unchanged.
+- Canonical `web/` source continues to build both the GitHub Pages site and desktop archive; existing vault and dice systems remain unchanged.
 
-# v0.18.0 — Expanded 2014 SRD reference and safer lookup (release candidate)
+# v0.17.0 — Expanded 2014 SRD reference and safer lookup (release candidate)
 
 - Extended the bundled 2014-compatible SRD catalog from 35 to **112 spells**, retaining all 149 equipment records. No 2024 material or non-SRD premium spells were added.
 - Added casting level, school, timing, range, components, ritual and concentration fields for the new entries, with concise summaries and visible source/attribution.
@@ -24,7 +63,7 @@
 - Bundled catalog in PWA offline shell; added validation, edition guards, license notice and tests.
 - Catalog remains partial and 2014-only; no external API dependency or 2024 cross-edition mixing.
 
-## v0.16.0 — Accurate dice grabbing and overlapping physical throws (release candidate)
+## v0.15.0 — Accurate dice grabbing and overlapping physical throws (release candidate)
 
 - Centralized hit testing in the existing dice physics module, using the actual projected polygonal faces, including d12 and dice hovering above form controls.
 - Capture dice at the tabletop ancestor before buttons and inputs; preserve ordinary controls when no die is hit.

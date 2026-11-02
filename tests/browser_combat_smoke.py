@@ -24,7 +24,7 @@ with sync_playwright() as pw:
  return new Response(JSON.stringify(window.testVault),{status:200});}
  if(url==='./theme-assets.json')return new Response('{"version":1,"assets":{}}',{status:200});
  return new Response('{}',{status:404});};}''',char)
- for name in ['character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
+ for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(R/'web'/name).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="QA Monk"')
  # Encounter starts in Actions; a homebrew 1-action condition consumes Ki and the action.

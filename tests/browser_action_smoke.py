@@ -28,7 +28,7 @@ with sync_playwright() as p:
     return new Response('{}',{status:404});
    };
  }''',character)
- for f in ['character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
+ for f in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/f).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="Example Hero"')
  page.locator('.work-entry').filter(has_text='Approved Healing').locator('summary').click()

@@ -14,14 +14,5 @@ jobs:
         with:
           node-version: '22'
       - run: python -I -S -m unittest discover -s tests -p 'test_*.py' -v
-      - run: node --check web/reference-catalog.js && node --check web/app.js && node --check web/vault-store.js && node --check web/dnd-action.js && node --check web/service-worker.js && node --check web/character-import.js && node --check web/browser-pdf.js && node --check web/dice-physics.js
-      - run: node tests/test_import_model.js
-      - run: node tests/test_dice_physics.js
-      - run: node tests/test_dice_interaction.js
-      - run: node tests/test_vault.js
-      - run: node tests/test_dnd_action.js
-      - run: node tests/test_spell_actions.js
-      - run: node tests/test_combat_state.js
-      - run: node tests/test_pwa.js
-      - run: node tests/test_reference_catalog.js
-      - run: node tests/test_reference_comparison.js
+      - run: node --check web/dnd-slots.js && node --check web/reference-catalog.js && node --check web/app.js && node --check web/vault-store.js && node --check web/dnd-action.js && node --check web/service-worker.js && node --check web/character-import.js && node --check web/browser-pdf.js && node --check web/dice-physics.js
+      for test in tests/test_*.js; do node "$test"; done

@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171b22">
-  <title>Interactive Tabletop v0.18.0</title>
+  <title>Interactive Tabletop v0.22.0</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./solar-crest.png">
+  <script src="./dnd-slots.js" defer></script>
   <script src="./character-import.js" defer></script>
   <script src="./vault-store.js" defer></script>
   <script src="./dnd-action.js" defer></script>
@@ -45,6 +46,7 @@
                 <button data-die="4">d4</button><button data-die="6">d6</button><button data-die="8">d8</button>
                 <button data-die="10">d10</button><button data-die="12">d12</button><button data-die="20">d20</button><button data-die="100">d100</button>
               </div>
+              <div class="dice-roll-options"><label for="d20-mode">d20 mode</label><select id="d20-mode" class="input" aria-label="d20 roll mode"><option value="normal">Normal</option><option value="advantage">Advantage (highest)</option><option value="disadvantage">Disadvantage (lowest)</option></select></div>
               <div class="throw-row"><input class="input" id="custom-roll" value="1d20+0" aria-label="Dice expression" spellcheck="false" placeholder="2d6+3">
                 <button class="button primary" data-action="custom-roll" title="Prepare dice">Prepare</button>
                 <button class="button" data-action="auto-throw">Throw</button>

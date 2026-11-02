@@ -8,7 +8,8 @@ A.commit(c,plan);assert.equal(c.resources.Ki.current,2);assert.equal(A.applyHeal
 assert.equal(A.applyHealing(c,40),2,'clamp to max');assert.equal(c.hp.temp,2,'healing never changes temp HP');
 assert.throws(()=>A.plan(c,{...heal,cost:3}),/Not enough/);
 assert.throws(()=>A.plan(c,{...heal,roll:'4d3'}),/Unsupported dice/);
-assert.throws(()=>A.plan(c,{...heal,effect_kind:'damage'}),/Unsupported ability effect/);
+assert.equal(A.plan(c,{...heal,effect_kind:'damage',damage_type:'fire'}).damageType,'fire');
+assert.throws(()=>A.plan(c,{...heal,effect_kind:'instant_kill'}),/Unsupported ability effect/);
 assert.throws(()=>A.plan(c,{...heal,cost:-1}),/Invalid ability/);
 assert.throws(()=>A.plan(c,{...heal,resource:'Unknown'}),/Resource not found/);
 assert.throws(()=>A.plan(c,{...heal,roll:''}),/Healing requires/);

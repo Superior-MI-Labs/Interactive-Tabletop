@@ -31,7 +31,7 @@ with sync_playwright() as playwright:
    return new Response('{}',{status:404});
   };
  }''',hero)
- for file in ['character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
+ for file in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/file).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="Test Caster"')
  page.get_by_role('tab',name='Spells').click()
@@ -68,7 +68,7 @@ with sync_playwright() as playwright:
  page.get_by_role('button',name='Next turn').click()
  assert page.evaluate('character.effects.active[0].rounds_remaining') is None
  # End concentration manually.
- page.get_by_role('button',name='End',exact=True).click()
+ page.locator('.buff-token [data-action=effect-end]').first.click()
  assert page.evaluate('character.effects.active.length')==0
  # Healing at a higher slot; must wait for roll and explicit HP application.
  page.get_by_role('tab',name='Spells').click()

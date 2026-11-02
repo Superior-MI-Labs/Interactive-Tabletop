@@ -36,7 +36,7 @@ with sync_playwright() as p:
         return new Response('{}',{status:404});
       };
     }''',old)
-    for f in ['character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
+    for f in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
         page.add_script_tag(content=(root/'web'/f).read_text())
     page.wait_for_function('document.querySelector(".page-title")?.textContent==="Sky Blue Eyes"')
     assert page.locator('#vault-count').inner_text()=='(1)'

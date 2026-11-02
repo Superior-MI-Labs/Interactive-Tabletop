@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.18.0
+# Interactive Tabletop architecture — v0.22.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -29,7 +29,7 @@ No Pathfinder, generic system-pack registry, native desktop rewrite, network syn
 - `web/dnd-action.js` is a small **pure D&D action planner**, not a second character store. It validates configured roll expressions and resource costs before a use is confirmed.
 - The browser controller owns confirmation, dice movement and user-visible effects. The action planner owns resource debiting and bounded healing only.
 - PDF prose never configures an automated healing effect on its own. Only an explicitly edited `effect_kind=heal` on a character action enables the **Apply to HP** control after a settled roll.
-- No automated damage, target HP, concentration or duration inference; the DM/player remains responsible.
+- Damage and target HP handling were added later under the explicit v0.20 contract below; no mechanics are inferred from PDFs or SRD summaries.
 - `web/manifest.webmanifest` and `web/service-worker.js` provide a cacheable installable **UI shell**. IndexedDB owns characters. PDF.js currently loads from a pinned CDN on first use; offline PDF import remains network-dependent.
 
 ## Deployment source of truth
@@ -72,3 +72,29 @@ No Pathfinder, generic system-pack registry, native desktop rewrite, network syn
 ## v0.18 reference-to-character boundary
 
 `ReferenceCatalog.compareSpell()` is a pure field-level comparison; it never writes to the vault. For an SRD spell matched to an imported spell, the UI navigates to the existing spellbook entry. Only catalog spells absent from the character may produce a confirmed **inert** `source:manual` action draft, with no configured dice, resource cost, spell preparation, or effect. This is a manual homebrew note, not a duplicated spellbook record. Edition guards and explicit provenance remain enforced.
+
+## v0.19 spell effect profiles
+
+`web/dnd-2014-reference.json` holds verified, edition-scoped effect metadata (three SRD 5.1 spells only). `web/reference-catalog.js` validates reference provenance; `web/dnd-action.js` plans, validates and commits the effect in the same existing action pipeline. `web/app.js` only displays opt-in, confirmation, roll and status. Character Vault stores the opt-in, active effects, pending concentration checks and live resources. Derived AC never mutates imported `character.ac`. See `DND_EFFECT_CAPABILITY_AUDIT.md` for full references and capability gates.
+
+## v0.20 — Target and damage contract
+
+The single `web/dnd-action.js` operation model now owns encounter targeting, typed damage evaluation and derived modifiers. **There is no new target engine or parallel action/spell pipeline.** `character.effects.targets[]` is a small manual target roster scoped to one character vault entry. Its `id`, name, AC, `hp` (current/max/temp), six saving-throw modifiers and explicit damage traits are saved alongside the player's encounter state. The hero itself is addressed by the reserved `self` ID and uses the existing authoritative `character.hp` and `character.ac`.
+
+- `planDamage(character,targetId,spec)` is a read-only preview of raw damage, optional explicit save rule, damage type, immunity, resistance, vulnerability and temp HP. Do not guess enemy traits, saving-throw results, or spell damage from names or imported prose.
+- `commitDamage` revalidates that entire preview immediately before mutation. It changes exactly one target's HP and, for self, queues the existing concentration check from damage that was actually taken. An explicit `undoLastDamage` is available only while the target HP has not changed and no later saved mutation has invalidated the snapshot.
+- `evaluateAttack` and `evaluateSave` return outcomes from the actual settled dice result. Natural 1/20 auto fail/hit applies to attack rolls only, not 2014 saving throws. Critical damage is **not** automatically doubled; damage application remains a player/DM decision.
+- Active effects may contain `modifiers: [{stat:'ac', amount:2}]` and `stack_key`. Derived AC combines different explicit sources and suppresses duplicate instances of the same named effect. Legacy `ac_bonus` remains readable; imported base AC is not rewritten. Other statistic modifier types require their own vetted rule contracts.
+- `web/app.js` contains only target display, user confirmation, physical dice routing, and error reporting. The pending damage/saving throw UI is **ephemeral**; only the confirmed HP and target roster are persisted. Pending damage is scoped to the originating character and target so switching vault entries or removing a target cannot transfer it to another character.
+- The 2014 reference catalog remains read-only and licenses unchanged. The user must explicitly configure `effect_kind=damage`, a supported formula, and `damage_type` for generic spell or homebrew damage automation; no SRD descriptions grant powers or slots.
+
+**Known limits:** no automatic multi-target spell damage, monster statblock importer, terrain, advantage/disadvantage adjudication, automatic critical doubling, death-save workflow, comprehensive condition effects, or background initiative order. The user is responsible for entering correct manual target stats and validating rules with the DM. This D&D-only release does not add other TTRPG rules.
+
+
+## v0.21 — Spell-slot identity and roll resolution
+
+`web/dnd-slots.js` is the **single semantic resolver** for standard D&D Spellcasting resource names. It maps the user's old `First-level Spell Slots` and new `Level 1 Spell Slots` to *one* pool identity. PDF import writes canonical labels; vault read/reconciliation normalizes older labels; `DndAction.spellSlots` and `planSpell` call the same resolver. The planner returns the actual resource key that `commitUsage` spends. A normalized vault never duplicates 1st-level slots under two aliases. Conservative migration selects the smaller remaining count when duplicate aliases exist; it never sums them.
+
+Pact Magic / separate class-limited resources are intentionally excluded: they are not interchangeable names for standard spell slots, and their use requires an explicit future contract. Spell preparation and edition-specific effects are independent from resource identity.
+
+`DndAction.resolveD20` is the pure face-selection model for advantage/disadvantage. The shared dice table physically rolls either one or two d20s. `DndAction.criticalDamageExpression` transforms *only the dice count* when a completed natural-20 attack matches the same source and selected target. Hit, save, and critical outcomes are reports; HP changes still require a separate approved damage operation. Manually applied target conditions live inside the character's saved encounter and do not trigger inferred rules.

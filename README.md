@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.18.0 public alpha.** This is experimental software. Back up your Character Vault before upgrades, and verify PDF-imported values and DM-approved rules.
+> **v0.22.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.18.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.22.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -44,26 +44,35 @@ No signup or application server is needed. The hosted version parses PDF fields 
 | Spellbook with prepared and available filters | Persistent rolls and roll history |
 | Inventory, notes and JSON import/export | Hideable sheet, expandable dice controls |
 
+**v0.21 gameplay:** Older saves with `First-level Spell Slots` work with the same casting controls as modern imports. The Dice panel offers normal/advantage/disadvantage d20 rolls. A resolved natural-20 attack prepares doubled weapon damage dice (flat damage stays unchanged), and encounter targets have manually toggled conditions. Imported spell preparation still matters and is not bypassed.
+
 **Test coverage:** Synthetic automated parser tests plus private QA against three D&D Beyond exports (Fighter 1, Bard 19, Monk 19 / Cleric 1). This is not a guarantee that every class, rules edition, spell, or homebrew field imports correctly.
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.18.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.22.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.18.0.zip" SkyBlueEyes-Tabletop-v0.18.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.22.0.zip" SkyBlueEyes-Tabletop-v0.22.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
+
+## Release and publishing
+
+The `VERSION` file is authoritative for release metadata. The CI checks every `tests/test_*.js` automatically, alongside Python and asset-contract tests, before building the Pages site and desktop ZIP from `web/`. Generated `docs/` are not a second source of UI truth.
+
+The release publisher refuses to overwrite dirty or unrelated clones and checks the source version. To publish from Linux, download the source ZIP and run `bash PUBLISH-LINUX.sh` from the matching extracted release folder. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 
 ## Development and architecture
 
 - `web/` — canonical vanilla JavaScript/CSS app and UI assets.
 - `docs/` — built GitHub Pages site. **Do not edit generated UI assets here manually.**
+- `web/dnd-slots.js` — single resource-identity contract for standard spell slots, including legacy labels and migration. Pact Magic remains separate until reviewed.
 - `web/character-import.js` — shared D&D Beyond field normalization for browser and desktop imports.
 - `web/vault-store.js` — single vault contract, conservative PDF reconciliation, IndexedDB and desktop storage adapters.
 - `web/browser-pdf.js` — browser-only PDF.js field extraction.
@@ -80,7 +89,21 @@ node tests/test_dice_physics.js
 python3 tools/build_site.py
 ```
 
-**GitHub Pages:** Repository **Settings → Pages → Deploy from a branch → `main` → `/docs`**. The live URL works only once Pages has actually deployed. The site is static: no Python API is running on GitHub Pages.
+**GitHub Pages:** Repository **Settings → Pages → Source: GitHub Actions** (the included `pages.yml` builds `docs/` from `web/`). The live URL works only once Pages has actually deployed. The site is static: no Python API is running on GitHub Pages.
+
+## Verified D&D 2014 self-effect profiles (opt-in)
+
+Cure Wounds, Shield of Faith, and Guidance are the first vetted SRD 5.1 profiles. Expand a spell, choose **Enable 2014 effect**, and confirm. Cure Wounds offers self-healing after rolling (1d8 + explicit spellcasting modifier, +1d8 per higher slot); Shield of Faith creates a concentration-linked AC +2 buff; Guidance creates a concentration-linked one-use d4 bonus for an ability check. The buffs panel displays duration, charges, end controls and pending concentration-save DCs. These do not overwrite base statistics or imported rules.
+
+This does **not** implement all spell effects. Other spells continue to require manual/DM resolution. The opt-in is specific to the 2014 SRD and does not apply 2024 spell rules. See [D&D effect capability audit](DND_EFFECT_CAPABILITY_AUDIT.md) for all 112 indexed spells and the component roadmap.
+
+## Encounter targets and damage (v0.20 candidate)
+
+Open **Actions → Encounter targets**. Add a manually configured creature with a name, AC and HP, or select **Self**. You can enter the target's six save modifiers and explicit damage resistances, vulnerabilities and immunities. The shared tabletop rolls actual dice for attacks and saving throws; a result indicates hit/miss or save success/failure **without changing HP**. Damage rolls produce a **Review & apply** option in the Dice panel, where you approve the target, damage type, and optional save reduction before HP changes. You can undo the most recently applied damage until another saved action intervenes.
+
+Damage calculation uses 2014-style resistance, vulnerability, immunity and temporary HP behavior. A single named spell buff cannot contribute its AC modifier more than once. The target roster is stored in the same per-character vault `effects` object; PDF reimports preserve it. To configure custom spell damage, use **Edit sheet** and set an explicit damage roll and damage type—the reference catalog will not auto-grant spell mechanics.
+
+**This is manual player/DM resolution, not an automatic monster simulator.** Your DM decides whether an attack hits under unusual conditions, what damage is rolled on a critical, whether a creature has a damage trait, and how class, spell, or monster exceptions apply. No 2024-specific automation is claimed.
 
 ## Known limitations and privacy
 

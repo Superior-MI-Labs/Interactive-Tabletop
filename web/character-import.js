@@ -4,6 +4,8 @@
  */
 (function(root){'use strict';
 const numeric=(v,fallback=0)=>{const m=String(v??'').replace(/,/g,'').match(/-?\d+/);return m?Number(m[0]):fallback;};
+const SlotPools=root.DndSlots||(typeof require==='function'?require('./dnd-slots.js'):null);
+if(!SlotPools)throw Error('D&D slot module was not loaded.');
 const skillKeys={'Acrobatics':'Acrobatics','Animal Handling':'Animal','Arcana':'Arcana','Athletics':'Athletics','Deception':'Deception','History':'History','Insight':'Insight','Intimidation':'Intimidation','Investigation':'Investigation','Medicine':'Medicine','Nature':'Nature','Perception':'Perception','Performance':'Performance','Persuasion':'Persuasion','Religion':'Religion','Sleight of Hand':'SleightofHand','Stealth':'Stealth','Survival':'Survival'};
 const abb=['STR','DEX','CON','INT','WIS','CHA'];
 const names=['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma'];
@@ -91,7 +93,7 @@ function fromFields(f){
  }
  for(let lvl=1;lvl<=9;lvl++){
   const hdr=f['spellSlotHeader'+lvl];const count=numeric(String(hdr||'').match(/(\d+)\s+Slots?/i)?.[1]||'');
-  if(count>0)resources[`Level ${lvl} Spell Slots`]={current:count,max:count,reset:'long rest'};
+  if(count>0)resources[SlotPools.canonical(lvl)]={current:count,max:count,reset:'long rest'};
  }
  const isSky=normName(name)==='skyblueeyes'&&/monk\s+19/i.test(classLevel);
  const initiative=numeric(f.Init);

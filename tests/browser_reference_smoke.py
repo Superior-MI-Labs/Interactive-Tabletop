@@ -36,7 +36,7 @@ with sync_playwright() as p:
    return new Response('{}',{status:404});
   };
  }''',[hero,catalog])
- for file in ['character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
+ for file in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/file).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="Test Adventurer" && window.ReferenceCatalog.ready()')
  page.get_by_role('button',name='About & licenses').click()

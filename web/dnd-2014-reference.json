@@ -362,7 +362,18 @@
       "duration": "Instantaneous",
       "concentration": false,
       "description": "Heals a creature for 1d8 plus your spellcasting ability modifier; scales by slot level.",
-      "ritual": false
+      "ritual": false,
+      "automation": {
+        "schema": "srd51-spell-effect/1",
+        "type": "heal",
+        "target": "self",
+        "dice": "d8",
+        "base_dice": 1,
+        "dice_per_slot_above_base": 1,
+        "modifier": "spellcasting",
+        "spell_id": "srd51:spell:curewounds",
+        "base_level": 1
+      }
     },
     {
       "id": "srd51:spell:darkness",
@@ -810,7 +821,18 @@
       "duration": "Concentration, up to 1 minute",
       "concentration": true,
       "description": "A willing creature adds 1d4 to one ability check before the spell ends.",
-      "ritual": false
+      "ritual": false,
+      "automation": {
+        "schema": "srd51-spell-effect/1",
+        "type": "check_bonus",
+        "target": "self",
+        "dice": "1d4",
+        "charges": 1,
+        "duration_rounds": 10,
+        "concentration": true,
+        "spell_id": "srd51:spell:guidance",
+        "base_level": 0
+      }
     },
     {
       "id": "srd51:spell:guidingbolt",
@@ -1533,7 +1555,17 @@
       "duration": "Concentration, up to 10 minutes",
       "concentration": true,
       "description": "A chosen creature gains +2 AC for the duration.",
-      "ritual": false
+      "ritual": false,
+      "automation": {
+        "schema": "srd51-spell-effect/1",
+        "type": "ac_bonus",
+        "target": "self",
+        "amount": 2,
+        "duration_rounds": 100,
+        "concentration": true,
+        "spell_id": "srd51:spell:shieldoffaith",
+        "base_level": 1
+      }
     },
     {
       "id": "srd51:spell:shockinggrasp",

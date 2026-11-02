@@ -1,4 +1,4 @@
-/* Interactive Tabletop v0.15.0 — offline and local-first.
+/* Interactive Tabletop v0.22.0 — offline and local-first.
  * The versioned character JSON is the only source of character truth.
  */
 'use strict';
@@ -21,6 +21,7 @@ const DP=globalThis.DicePhysics;
 let history=[],pendingRoll=null,dice=[],activeRolls=[],activeRoll=null,pointer=null,frame=0,lastFrame=0,accumulator=0,canvas=null,ctx=null;
 let lastDimensions={w:0,h:0},nextDieId=0;
 let queuedEffect=null,pendingHealing=null;
+let pendingDamage=[],lastSaveOutcome=null,selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
 let pointerPosition=null,following=false,hoverDieId=null; // stage-local cursor, not a second dice scene
 
 const panelState=new Map();
@@ -39,6 +40,7 @@ function save(options={}){
  if(!character||!activeId)return;
  // Undo is only valid immediately after advancing; later mutations must not be reversed by it.
  if(!options.preserveUndo&&character.effects?.combat?.undo_turn)delete character.effects.combat.undo_turn;
+ if(!options.preserveDamageUndo&&character.effects?.combat?.last_damage_undo)delete character.effects.combat.last_damage_undo;
  Vault.upsert(vaultData,activeId,character);
  vaultDirty=true;
  $('#save-state').textContent='Saving…';
@@ -57,7 +59,7 @@ function selectLoadedCharacter(){
   character.system_id=character.system_id||'dnd5e';
   character.system_edition=character.system_edition||'unspecified';
   history=character.roll_history;
-  queuedEffect=null;pendingHealing=null;
+  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastSaveOutcome=null;lastAttackOutcome=null;selectedTargetId='self';
   setView('overview');
  }else{history=[];showWelcome();}
  showVaultCount();
@@ -186,11 +188,21 @@ function rollRows(kind,mode='compact'){
  const entries=kind==='ability'?Object.entries(character.abilities||{}).map(([key,v])=>[key+' check',v.modifier,key]):Object.entries(character[kind]||{}).map(([key,v])=>[kind==='saves'?key+' save':key,v,key]);
  return entries.map(([label,modifier,key])=>`<div data-filter-row="${esc(label.toLowerCase())}">${rollButton(label,modifier,`1d20${sgn(modifier)}`,mode==='detailed'||mode==='editable'?kind:'',key)}</div>`).join('');
 }
-function effectTracker(){
- const list=Action.activeEffects(character);
- return `<div class="effect-tracker" aria-label="Active timed effects">${list.some(e=>e.concentration)?button('CON save','concentration-save','','button mini subtle'):''}${list.length?list.map(e=>
-  `<div class="effect-row"><span class="effect-label">${e.concentration?'◉ ':''}${esc(e.name)}${e.condition?' · '+esc(e.condition):''}</span><small>${e.rounds_remaining==null?'until ended':`${esc(e.rounds_remaining)} rounds`}</small>${button('End','effect-end',e.id,'button mini subtle')}</div>`).join(''):
-  '<p class="subtle-note">No active effects. Timers advance with Next turn.</p>'}</div>`;
+function buffBar(){
+ if(!character)return '';
+ const active=Action.activeEffects(character),checks=character.effects?.pending_concentration||[],conditions=character.conditions||[];
+ if(!active.length&&!checks.length&&!conditions.length)return '';
+ return `<section class="buff-bar" aria-label="Active buffs, debuffs and concentration checks">
+ <span class="buff-caption">EFFECTS</span>
+ ${active.map(effect=>`<div class="buff-token" data-tip="${esc(effect.name)}${effect.concentration?' · Concentration':''}${effect.ac_bonus?' · AC +'+effect.ac_bonus:''}${effect.charges?' · '+effect.charges+' charge(s)':''}">
+  <strong>${effect.concentration?'◉ ':'✦ '}${esc(effect.name)}</strong>
+  ${effect.ac_bonus?`<span>AC +${esc(effect.ac_bonus)}</span>`:''}
+  ${effect.charges?`<span>${esc(effect.charges)} × ${esc(effect.bonus_dice)}</span>${button('Use','effect-charge',effect.id,'button mini')}`:''}
+  <small>${effect.rounds_remaining==null?'Until ended':`${esc(effect.rounds_remaining)} rounds`}</small>
+  ${button('×','effect-end',effect.id,'button mini subtle')}</div>`).join('')}
+ ${conditions.map(name=>`<div class="buff-token debuff-token" data-tip="${esc(name)} · active condition"><strong>! ${esc(name)}</strong></div>`).join('')}
+ ${checks.map(check=>`<div class="buff-token buff-check"><strong>Concentration DC ${esc(check.dc)}</strong>${button('Roll CON save','concentration-check',check.id,'button mini primary')}</div>`).join('')}
+ </section>`;
 }
 function combatActions(){
  const state=Action.combat(character);
@@ -210,7 +222,7 @@ function identityRibbon(){
  <div class="sheet-portrait avatar-glyph" aria-hidden="true">✦</div>
  <div class="identity-copy"><small class="sheet-eyebrow">CHARACTER SHEET</small><h1 class="page-title">${esc(character.name)}</h1><div class="identity-sub">${esc(character.class_level)} · ${esc(character.species)} · ${esc(character.background)}</div></div>
  <div class="status-chips" aria-label="Character statistics">
- ${stat('AC',character.ac,'Armor class')}${stat('INIT',sgn(character.initiative),character.initiative_note||'Initiative')}${stat('PROF',sgn(character.proficiency),'Proficiency bonus')}${stat('MOVE',move,'Walk / fly / climb in feet')}
+ ${stat('AC',Action.effectiveAC(character),Action.effectiveAC(character)===num(character.ac)?'Armor class':'Base '+character.ac+' + active buffs')}${stat('INIT',sgn(character.initiative),character.initiative_note||'Initiative')}${stat('PROF',sgn(character.proficiency),'Proficiency bonus')}${stat('MOVE',move,'Walk / fly / climb in feet')}
  </div>
  <button type="button" class="button mini subtle edit-mode-button" data-action="edit-mode" aria-pressed="${editMode}">${editMode?'Done editing':'Edit sheet'}</button>
  ${editMode?`<details class="identity-editor"><summary class="edit-details" title="Edit character identity and primary statistics" aria-label="Edit primary character information">✎ <span>Edit</span></summary>
@@ -225,11 +237,46 @@ function workspaceTabs(){
  const items=[['overview','Actions'],['spells','Spells'],['inventory','Inventory'],['features','Features'],['background','Background'],['notes','Notes'],['reference','Reference']];
  return `<nav class="workspace-tabs" aria-label="Character gameplay pages" role="tablist">${items.map(([key,label])=>`<button type="button" role="tab" aria-selected="${view===key}" class="nav ${view===key?'active':''}" data-view="${key}">${label}</button>`).join('')}</nav>`;
 }
+// One encounter target list under the saved character; the UI has no combat stats of its own.
+function currentTargetId(){
+ return Action.targetById(character,selectedTargetId)?selectedTargetId:'self';
+}
+function targetPicker(){
+ const selected=currentTargetId();
+ return `<label class="target-label">Target <select class="input" id="combat-target" aria-label="Selected encounter target">
+ <option value="self" ${selected==='self'?'selected':''}>${esc(character.name)} (self)</option>
+ ${Action.targets(character).map(t=>`<option value="${esc(t.id)}" ${t.id===selected?'selected':''}>${esc(t.name)} · AC ${esc(Action.effectiveAC(character,t.id))} · HP ${esc(t.hp.current)}/${esc(t.hp.max)}</option>`).join('')}
+ </select></label>`;
+}
+function encounterTargets(){
+ const selected=currentTargetId(),entity=Action.targetById(character,selected);
+ const traits=Action.targetTraits(character,selected);
+ const saves=selected==='self'?Object.fromEntries(Action.ABILITIES.map((k,i)=>[k,character.saves?.[{'STR':'Strength','DEX':'Dexterity','CON':'Constitution','INT':'Intelligence','WIS':'Wisdom','CHA':'Charisma'}[k]]??0])):entity.saves;
+ return `<details class="encounter-targets" data-panel="Encounter targets" ${panelState.get('Encounter targets')?'open':''}><summary>Encounter targets <small>${Action.targets(character).length} tracked · self or manual targets</small></summary>
+ <div class="target-toolbar"><label>Damage type <select class="input" id="damage-type" aria-label="Damage type">${Action.DAMAGE_TYPES.map(type=>`<option value="${type}" ${selectedDamageType===type?'selected':''}>${type}</option>`).join('')}</select></label></div>
+ <div class="target-summary">${esc(entity.name)} · AC ${esc(Action.effectiveAC(character,selected))} · ${esc(entity.hp.current)}/${esc(entity.hp.max)} HP ${entity.hp.temp?`(+${esc(entity.hp.temp)} temp)`:''}</div>
+ <div class="target-conditions" aria-label="Manual target conditions">${[...Action.CONDITIONS].map(n=>`<button type="button" data-action="target-condition" data-arg="${esc(n)}" aria-pressed="${(entity.conditions||[]).includes(n)}" title="Manually toggle ${esc(n)} on ${esc(entity.name)}">${esc(n)}</button>`).join('')}</div>
+ <div class="target-traits">${['resistances','vulnerabilities','immunities'].map(k=>`<label>${k}<input class="input" data-target-trait="${k}" value="${esc(traits[k].join(', '))}" placeholder="e.g. fire, poison"></label>`).join('')}</div>
+ <div class="target-saves">${Action.ABILITIES.map(k=>`<label>${k} save ${selected==='self'?`<span>${esc(sgn(saves[k]||0))}</span>`:`<input class="input" type="number" data-target-stat="saves.${k}" value="${esc(saves[k]||0)}" aria-label="${k} save bonus">`}</label>`).join('')}</div>
+ <div class="target-toolbar"><label>Save <select class="input" id="target-save-ability">${Action.ABILITIES.map(k=>`<option value="${k}">${k}</option>`).join('')}</select></label>
+ <label>DC <input id="target-save-dc" class="input" type="number" min="0" max="99" value="15" aria-label="Saving throw difficulty"></label>
+ ${button('Roll target save','target-roll-save','','button mini')}
+ <label>Damage <input class="input" id="target-manual-damage" type="number" min="0" value="5" aria-label="Manual damage amount"></label>
+ ${button('Preview damage','target-manual-damage','','button mini subtle')}
+ ${Action.combat(character).last_damage_undo?button('Undo last damage','undo-last-damage','','button mini subtle'):''}
+ ${selected!=='self'?button('Remove target','target-remove',selected,'button mini warn'):''}</div>
+ ${selected!=='self'?`<div class="target-toolbar">${[['AC','ac',entity.ac],['Current HP','hp.current',entity.hp.current],['Max HP','hp.max',entity.hp.max],['Temp HP','hp.temp',entity.hp.temp]].map(([name,key,value])=>`<label>${name}<input type="number" class="input" data-target-stat="${key}" value="${esc(value)}" aria-label="${name}"></label>`).join('')}</div>`:''}
+ <form class="target-add-form" id="target-add-form"><strong>Add another target</strong><input class="input" name="name" maxlength="70" required placeholder="Creature name" aria-label="New target name">
+ <input class="input" name="ac" type="number" min="0" max="99" value="12" required aria-label="New target AC">
+ <input class="input" name="hp" type="number" min="1" value="20" required aria-label="New target HP"><button class="button mini" type="submit">Add target</button></form>
+ <p class="target-note">Only manually supplied creature statistics are used. Saving throws report success/failure; no damage or condition is applied until you approve it. For 2014 rules, configure resistances and vulnerabilities explicitly.</p>
+ </details>`;
+}
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
  const specialFilter=actionFilter==='all'||actionFilter==='action';
  const entries=(character.actions||[]).map((a,i)=>({...a,index:i})).filter(a=>!a.archived);
- return `<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
+ return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
  ${editMode?button('+ Custom ability','add-action','','button mini'):''}</div>
  ${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
@@ -243,10 +290,11 @@ function actionWorkspace(){
    ${editMode?`<div class="action-editor"><div class="entry-pair">${field('Name',`actions.${a.index}.name`,a.name)}${field('Activation',`actions.${a.index}.activation`,a.activation||'')}</div>
    <div class="entry-pair">${field('Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
-   <label class="field"><span class="field-label">Effect after roll (DM-approved only)</span><select class="input" data-input="actions.${a.index}.effect_kind"><option value="none" ${a.effect_kind!=='heal'?'selected':''}>No automatic effect</option><option value="heal" ${a.effect_kind==='heal'?'selected':''}>Offer HP healing after roll</option><option value="condition" ${a.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
+   <label class="field"><span class="field-label">Effect after roll (DM-approved only)</span><select class="input" data-input="actions.${a.index}.effect_kind"><option value="none" ${(a.effect_kind||'none')==='none'?'selected':''}>No automatic effect</option><option value="heal" ${a.effect_kind==='heal'?'selected':''}>Offer HP healing after roll</option><option value="damage" ${a.effect_kind==='damage'?'selected':''}>Offer damage to selected target</option><option value="condition" ${a.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
    <label class="field"><span class="field-label">Self-condition (only when effect is condition)</span><select class="input" data-action-condition="${a.index}"><option value="">Choose condition</option>${[...Action.CONDITIONS].map(n=>`<option value="${n}" ${a.effect_condition===n?'selected':''}>${n}</option>`).join('')}</select></label>
    <div class="entry-pair">${field('Duration (rounds, 0 = untimed)',`actions.${a.index}.duration_rounds`,a.duration_rounds??0,'number')}
    <label class="field"><span class="field-label">Concentration (DM approved)</span><input type="checkbox" data-action-concentration="${a.index}" ${a.concentration?'checked':''}></label></div>
+   <label class="field">Damage type (when configured)<select class="input" data-input="actions.${a.index}.damage_type">${Action.DAMAGE_TYPES.map(t=>`<option value="${t}" ${(a.damage_type||'untyped')===t?'selected':''}>${t}</option>`).join('')}</select></label>
    ${field('Description / DM ruling',`actions.${a.index}.description`,a.description||'')}
    ${button('Archive ability','archive-action',String(a.index),'button mini subtle')}</div>`:''}</div></details>`;
  }).join('')}</div></div>`:''}`;
@@ -262,7 +310,7 @@ function overview(){
   `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
   <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- return identityRibbon()+
+ return identityRibbon()+buffBar()+
  `<section class="vitals-panel" aria-label="Hit points and conditions">
  <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
  ${heartMeter(hp)}
@@ -275,7 +323,7 @@ function overview(){
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
  <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
  <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
- <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}${panel('Conditions',conditionRail())}${panel('Active effects',effectTracker(),true)}</div>
+ <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}${panel('Conditions',conditionRail())}</div>
  <div class="hud-zone hud-main">${workspacePane()}</div>
  </div>`;
 }
@@ -362,7 +410,7 @@ function spells(){
    if(spellFilter==='available')return sp.available!==false&&!sp.prepared&&!sp.always_prepared&&sp.level!==0;
    return true;
  });
- return `<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
+ return `<div class="target-toolbar target-quick">${targetPicker()}</div><div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
  <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells"></div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
@@ -374,18 +422,23 @@ function spells(){
  const slotOptions=sp.level===0?[{level:0,current:1}]:slots.filter(s=>Number.isInteger(sp.level)&&s.level>=sp.level);
  const selectedSlot=slotOptions.find(s=>s.current>0)?.level??slotOptions[0]?.level??null;
  const concentration=typeof sp.concentration==='boolean'?sp.concentration:/\bconcentration\b/i.test(sp.duration||'');
+ const ref=References?.match('spell',sp.name,character.system_edition);
+ const preset=ref?.automation;
+ const presetActive=preset&&sp.automation==='srd-2014';
  return `<div class="spell-entry" data-spell-name="${esc((sp.name||'').toLowerCase())}"><details class="work-entry" data-spell-id="${esc(sp.id||sp.index)}"><summary><span class="entry-title">${esc(sp.name)}</span><span class="entry-meta">${badge} · ${state}</span></summary>
  <div class="entry-details"><div><b>Source:</b> ${esc(sp.source||'Unknown')}</div><div><b>Casting:</b> ${esc(sp.casting_time||'Unknown')} · ${esc(sp.range||'')}</div><div><b>Duration:</b> ${esc(sp.duration||'Unknown')}</div>
- <div><b>Components:</b> ${esc(sp.components||'')}</div><div><b>Save / attack:</b> ${esc(sp.save||'—')}</div>${sp.notes?`<p>${esc(sp.notes)}</p>`:''}${sourceBadge(References?.match('spell',sp.name,character.system_edition))}
+ <div><b>Components:</b> ${esc(sp.components||'')}</div><div><b>Save / attack:</b> ${esc(sp.save||'—')}</div>${sp.notes?`<p>${esc(sp.notes)}</p>`:''}${sourceBadge(ref)}
+ ${preset?`<div class="srd-preset">${presetActive?`<strong>2014 SRD self-targeted effect enabled</strong> ${button('Use manual rules','spell-preset-off',String(sp.index),'button mini subtle')}`:`<span>Verified 2014 SRD effect available (self only).</span> ${button('Enable 2014 effect','spell-preset-on',String(sp.index),'button mini')}`}</div>`:''}
  <div class="controls-row spell-cast-controls">${slotOptions.length?`<label>Slot <select class="input" data-slot-choice="${sp.index}" aria-label="Cast ${esc(sp.name)} at spell slot level">${slotOptions.map(s=>`<option value="${s.level}" ${s.level===selectedSlot?'selected':''} ${s.current<1?'disabled':''}>${s.level===0?'Cantrip':`Level ${s.level} · ${s.current} left`}</option>`).join('')}</select></label>`:''}
  ${button('Cast spell','cast-spell',String(sp.index),'button mini primary')}${!ready?'<small>Prepare this spell first</small>':''}${sp.level==null?'<small>Set level in Edit sheet</small>':''}</div>
  ${editMode?`<div class="spell-execution-editor"><div class="entry-pair"><label class="field"><span class="field-label">Spell level</span><select class="input" data-spell-level="${sp.index}">${['Unknown',...Array.from({length:10},(_,n)=>n)].map((level,i)=>`<option value="${i-1}" ${level===sp.level||(level==='Unknown'&&sp.level==null)?'selected':''}>${level}</option>`).join('')}</select></label>
- ${field('Optional dice expression',`spells.${sp.index}.roll`,sp.roll||'')}</div>
- <div class="entry-pair"><label class="field"><span class="field-label">Effect after dice (DM approved)</span><select class="input" data-spell-effect="${sp.index}"><option value="none" ${sp.effect_kind!=='heal'?'selected':''}>No automated effect</option><option value="heal" ${sp.effect_kind==='heal'?'selected':''}>Offer HP healing</option><option value="condition" ${sp.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
+ ${field('Optional dice expression',`spells.${sp.index}.roll`,sp.roll||'')}<label class="field">Damage type (when configured)<select class="input" data-input="spells.${sp.index}.damage_type">${Action.DAMAGE_TYPES.map(t=>`<option value="${t}" ${(sp.damage_type||'untyped')===t?'selected':''}>${t}</option>`).join('')}</select></label></div>
+ ${preset&&editMode?`<label class="field">Spellcasting modifier for Cure Wounds (optional override)<input type="number" class="input" data-spell-modifier="${sp.index}" value="${sp.spellcasting_modifier??''}" placeholder="Auto from spell source" /></label>`:''}
+ <div class="entry-pair"><label class="field"><span class="field-label">Effect after dice (DM approved)</span><select class="input" data-spell-effect="${sp.index}"><option value="none" ${(sp.effect_kind||'none')==='none'?'selected':''}>No automated effect</option><option value="heal" ${sp.effect_kind==='heal'?'selected':''}>Offer HP healing</option><option value="damage" ${sp.effect_kind==='damage'?'selected':''}>Offer damage to selected target</option><option value="condition" ${sp.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
  <label class="field"><span class="field-label">Self-condition</span><select class="input" data-spell-condition="${sp.index}"><option value="">Choose condition</option>${[...Action.CONDITIONS].map(n=>`<option value="${n}" ${sp.effect_condition===n?'selected':''}>${n}</option>`).join('')}</select></label>
  ${field('Duration in rounds (0 = untimed)',`spells.${sp.index}.duration_rounds`,sp.duration_rounds??0,'number')}</div>
  <label class="field"><input type="checkbox" data-spell-concentration="${sp.index}" ${concentration?'checked':''}> Track concentration (based on PDF duration; editable)</label></div>`:''}
- <p class="subtle-note">Casting spends a slot only after confirmation. Effects and healing require explicit configuration. Timers advance when you press Next turn.</p></div></details>
+ <p class="subtle-note">2014 SRD presets require opt-in; imported/DM-edited rules stay unchanged. Self-target effects only. Casting spends slots after confirmation; healing is applied after dice settle.</p></div></details>
  <label class="prepared-control" data-tip="${esc(sp.name)} · ${state}"><input type="checkbox" data-prep="${sp.index}" ${sp.prepared||locked?'checked':''} ${locked?'disabled':''} aria-label="Prepare ${esc(sp.name)}"><span>${locked?'Ready':'Prep'}</span></label></div>`;
  }).join('')}</div>`;
 }
@@ -426,7 +479,7 @@ function setPath(path,value){
  let obj=character;
  for(const p of parts.slice(0,-1)){if(!obj||!Object.prototype.hasOwnProperty.call(obj,p))return;obj=obj[p];}
  const key=parts.at(-1);
- if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll)$/.test(path)))return;
+ if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type)$/.test(path)))return;
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
  obj[key]=value;
  if(/^(?:actions|spells)\.\d+\.duration_rounds$/.test(path))obj[key]=Math.max(0,Math.min(999,Math.floor(num(value))));
@@ -444,14 +497,22 @@ function dialog(heading,message,onConfirm){
 }
 function applyDamage(kind){
  const amount=Math.max(0,Math.min(999999,Math.floor(num($('#hp-amount')?.value,0))));
- if(kind==='heal')character.hp.current=Math.min(character.hp.max,character.hp.current+amount);
- else {
-   const soak=Math.min(character.hp.temp,amount);
-   character.hp.temp-=soak;
-   character.hp.current=Math.max(0,character.hp.current-(amount-soak));
- }
- save();render();
- if(kind==='damage'&&amount>0&&Action.activeEffects(character).some(e=>e.concentration))toast('Concentration active: ask DM for a CON save (DC normally 10 or half damage, whichever is higher).');
+ if(kind==='heal'){Action.applyHealing(character,amount);save();render();return;}
+ try{
+  const result=Action.commitDamage(character,Action.planDamage(character,'self',{amount,type:'untyped'}));
+  save({preserveDamageUndo:true});render();
+  if(result.concentrationCheck)toast('Concentration check required: DC '+result.concentrationCheck.dc+'. Use the Effects bar to roll.');
+ }catch(e){toast(e.message);}
+}
+function damagePreview(details){
+ const p=Action.planDamage(character,details.targetId,details);
+ const target=Action.targetById(character,p.targetId);
+ const reasons=[p.immune?'immune':null,p.resistant?'resistant':null,p.vulnerable?'vulnerable':null,p.saveOutcome!=='none'?`save ${p.saveOutcome} (${p.savePolicy})`:null].filter(Boolean).join(', ')||'normal';
+ dialog('Apply damage to '+target.name+'?',`${p.raw} ${p.type} damage → ${p.amount} after modifiers (${reasons}); ${p.absorbed} temporary HP absorbed, ${p.hpLoss} current HP lost. This cannot be automatically undone.`,()=>{
+  try{const result=Action.commitDamage(character,p);save({preserveDamageUndo:true});render();updateTableResults();
+   toast(`${target.name}: ${result.amount} damage applied${result.concentrationCheck?' · concentration DC '+result.concentrationCheck.dc:''}.`);
+  }catch(e){toast('Damage not applied: '+e.message);}
+ });
 }
 function doRest(kind){
  if(kind==='long')character.hp.current=character.hp.max;
@@ -465,8 +526,66 @@ function doRest(kind){
 function handleAction(action,arg){
  switch(action){
   case 'edit-mode':editMode=!editMode;if(!editMode)editRollModifiers=false;render();break;
+  case 'undo-last-damage':try{if(Action.undoLastDamage(character)){save();render();toast('Last damage application undone.');}else toast('Nothing to undo.');}catch(e){toast(e.message);}break;
+  case 'target-remove':dialog('Remove encounter target?',`Remove ${Action.targetById(character,arg)?.name||'this target'} from this character's encounter notes?`,()=>{
+   Action.removeTarget(character,arg);selectedTargetId='self';pendingDamage=pendingDamage.filter(x=>x.targetId!==arg);save();render();updateTableResults();
+  });break;
+  case 'target-condition':{try{const id=currentTargetId(),entity=Action.targetById(character,id);Action.setTargetCondition(character,id,arg,!entity.conditions?.includes(arg));save();render();}catch(e){toast(e.message);}break;}
+  case 'target-roll-save':{
+   const target=currentTargetId(),abb=$('#target-save-ability')?.value||'CON',dc=Number($('#target-save-dc')?.value);
+   const bonus=target==='self'?num(character.saves?.[{STR:'Strength',DEX:'Dexterity',CON:'Constitution',INT:'Intelligence',WIS:'Wisdom',CHA:'Charisma'}[abb]]):num(Action.targetById(character,target)?.saves?.[abb]);
+   try{Action.evaluateSave(0,dc);if(!queueRoll(`1d20${sgn(bonus)}`,`${Action.targetById(character,target).name} ${abb} save (DC ${dc})`,{kind:'target-save',characterId:activeId,targetId:target,dc}))throw Error('Cannot prepare dice.');}
+   catch(e){toast('Cannot roll target save: '+e.message);}break;
+  }
+  case 'target-manual-damage':{
+   try{damagePreview({targetId:currentTargetId(),amount:Number($('#target-manual-damage')?.value),type:selectedDamageType});}
+   catch(e){toast('Cannot preview damage: '+e.message);}break;
+  }
+  case 'apply-target-damage':{
+   const entry=pendingDamage.find(x=>x.id===arg&&x.characterId===activeId);
+   if(!entry){toast('Damage roll no longer available.');break;}
+   const policy=$(`[data-pending-save="${arg}"]`)?.value||'none';
+   const last=entry.saveOutcome;
+   if(policy!=='none'&&!last){toast('Roll a saving throw for this target first.');break;}
+   try{const p=Action.planDamage(character,entry.targetId,{amount:entry.amount,type:entry.type,
+     saveOutcome:policy==='none'?'none':last,savePolicy:policy});
+    const target=Action.targetById(character,entry.targetId);
+    dialog('Apply rolled damage?',`${entry.source}: apply ${p.amount} ${p.type} damage to ${target.name} (${p.absorbed} temp HP, ${p.hpLoss} HP)?`,()=>{
+     try{const result=Action.commitDamage(character,p);pendingDamage=pendingDamage.filter(x=>x.id!==arg);save({preserveDamageUndo:true});render();updateTableResults();
+      toast(`Applied ${result.amount} ${result.type} damage to ${target.name}${result.concentrationCheck?' · concentration DC '+result.concentrationCheck.dc:''}.`);
+     }catch(e){toast('Damage not applied: '+e.message);}
+    });
+   }catch(e){toast('Damage not applied: '+e.message);}break;
+  }
+  case 'dismiss-target-damage':pendingDamage=pendingDamage.filter(x=>x.id!==arg);updateTableResults();break;
   case 'action-filter':actionFilter=arg;render();break;
   case 'spell-filter':spellFilter=arg;render();break;
+  case 'spell-preset-on':{
+   const sp=character.spells?.[num(arg)],ref=sp&&References?.match('spell',sp.name,character.system_edition);
+   if(!ref?.automation){toast('No verified 2014 spell profile.');break;}
+   dialog('Enable 2014 SRD effect?',`Use the 2014 SRD self-targeted rules for ${sp.name}? This does not change the imported spell, and can be disabled anytime. Confirm your table uses 2014 rules and that your base AC excludes any existing buff.`,()=>{
+    sp.automation='srd-2014';save();render();toast('2014 SRD effect enabled for '+sp.name);
+   });break;
+  }
+  case 'spell-preset-off':{const sp=character.spells?.[num(arg)];if(sp){delete sp.automation;save();render();}break;}
+  case 'effect-charge':{
+   const effect=Action.activeEffects(character).find(e=>e.id===arg);
+   if(!effect){toast('Buff has already expired.');break;}
+   const spec=Action.dice(effect.bonus_dice);
+   if(!canPrepareDice(spec.count,spec.sides)){toast('Free dice space before using the charge.');break;}
+   if(queuedEffect?.kind==='charge'&&queuedEffect.effectId===arg||activeRolls.some(g=>g.effect?.kind==='charge'&&g.effect.effectId===arg)){toast('That bonus die is already prepared.');break;}
+   dialog('Use '+effect.name+'?',`Roll ${effect.bonus_dice} for your next ability check. This consumes one charge and may end concentration.`,()=>{
+    try{if(!queueRoll(effect.bonus_dice,effect.name+' bonus',{kind:'charge',effectId:arg,characterId:activeId}))throw Error('Dice could not be prepared.');
+     toast('Bonus die ready; throw it to spend the charge. Add the result to your ability check.');
+    }catch(e){toast('Could not use bonus: '+e.message);}
+   });break;
+  }
+  case 'concentration-check':{
+   const check=(character.effects?.pending_concentration||[]).find(x=>x.id===arg);
+   if(!check){toast('No pending concentration save.');break;}
+   const bonus=num(character.saves?.Constitution,0),expression=`1d20${sgn(bonus)}`;
+   if(queueRoll(expression,`Concentration DC ${check.dc}`,{kind:'concentration',characterId:activeId,checkId:check.id}))toast('Roll CON save against DC '+check.dc);break;
+  }
   case 'catalog-kind':catalogKind=['all','spell','equipment'].includes(arg)?arg:'all';if(catalogKind==='equipment')catalogLevel='all';render();break;
   case 'reference-open':{const [kind,...parts]=arg.split(':');const id=parts.join(':');const ref=References?.list(kind).find(r=>r.id===id);if(ref)showReference(ref);break;}
   case 'reference-edit-spell':{
@@ -517,7 +636,7 @@ function handleAction(action,arg){
      if(p.roll&&!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough space for this throw. Clear unused dice first.');
      const confirmed=Action.plan(character,a);
      Action.commitUsage(character,confirmed);Action.startEffect(character,confirmed);save();render();
-     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{characterId:activeId,name:confirmed.name}:null);
+     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:confirmed.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:currentTargetId(),damageType:confirmed.damageType,source:confirmed.name}:null);
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
@@ -525,18 +644,19 @@ function handleAction(action,arg){
   case 'cast-spell':{
    const sp=character.spells?.[num(arg)];if(!sp)break;
    const choice=$(`[data-slot-choice="${num(arg)}"]`);
-   let planned;try{planned=Action.planSpell(character,sp,choice?Number(choice.value):undefined);}catch(e){toast('Cannot cast '+sp.name+': '+e.message);break;}
+   const ref=References?.match('spell',sp.name,character.system_edition);
+   let planned;try{planned=Action.planSpell(character,sp,choice?Number(choice.value):undefined,ref?.automation);}catch(e){toast('Cannot cast '+sp.name+': '+e.message);break;}
    if(planned.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,planned);}catch(e){toast(e.message);break;}
    const activeConcentration=Action.activeEffects(character).find(e=>e.concentration);
-   const info=[planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.roll?`roll ${planned.roll.expression}`:'manual resolution',planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
+   const info=[planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.charges?`${planned.charges} × ${planned.bonusDice}`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
    dialog('Cast '+planned.name+'?',info.join(' · ')+'. Spell effects still require your table’s rulings.',()=>{
     try{
      // Other dice groups can be in flight; a new roll only needs free resting dice.
-     const fresh=Action.planSpell(character,sp,planned.slotLevel);
+     const fresh=Action.planSpell(character,sp,planned.slotLevel,ref?.automation);
      if(fresh.roll&&!canPrepareDice(fresh.roll.count,fresh.roll.sides))throw Error('Not enough room for dice.');
      Action.commitUsage(character,fresh);Action.startEffect(character,fresh);save();render();
-     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,fresh.effect==='heal'?{characterId:activeId,name:fresh.name}:null);
+     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:fresh.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:currentTargetId(),damageType:fresh.damageType,source:fresh.name}:null);
      else toast('Cast '+fresh.name+'; resolve spell effects with your DM.');
     }catch(e){toast('Could not cast spell: '+e.message);}
    });break;
@@ -551,7 +671,14 @@ function handleAction(action,arg){
    const bonus=num(character.saves?.Constitution,0);
    queueRoll(`1d20${sgn(bonus)}`,'Concentration (CON) save · compare against DM DC');break;
   }
-  case 'action-roll':case 'action-damage':{queuedEffect=null;const a=character.actions?.[num(arg)];if(a){const expression=action==='action-roll'?a.roll:a.damage;if(expression)queueRoll(expression,a.name+(action==='action-roll'?' roll':' damage'));}break;}
+  case 'action-roll':case 'action-damage':{
+   const a=character.actions?.[num(arg)];if(!a)break;
+   const expression=action==='action-roll'?a.roll:a.damage;if(!expression)break;
+   const targetId=currentTargetId(),target=Action.targetById(character,targetId);
+   const effect=action==='action-roll'?{kind:'target-attack',characterId:activeId,targetId}:
+     {kind:'target-damage',characterId:activeId,targetId,damageType:selectedDamageType,source:a.name};
+   queueRoll(expression,`${a.name} ${action==='action-roll'?'attack':'damage'} vs ${target.name}`,effect);break;
+  }
   case 'dismiss-roll-heal':pendingHealing=null;updateTableResults();break;
   case 'apply-roll-heal':{
    if(!pendingHealing||pendingHealing.characterId!==activeId){toast('No healing roll for this character.');break;}
@@ -562,8 +689,15 @@ function handleAction(action,arg){
   case 'toggle-archived':showArchived=!showArchived;render();break;
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check');break;}
-  case 'attack':{const a=character.attacks[num(arg)];if(a)queueRoll(`1d20${sgn(a.bonus)}`,a.name+' attack');break;}
-  case 'damage':{const a=character.attacks[num(arg)];if(a){const ex=/\d+d\d+(?:[+-]\d+)?/i.exec(a.damage);if(ex)queueRoll(ex[0],a.name+' damage');else toast('Could not parse damage dice: '+a.damage);}break;}
+  case 'attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId();
+   queueRoll(`1d20${sgn(a.bonus)}`,a.name+' attack vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg)});}break;}
+  case 'damage':{const a=character.attacks[num(arg)];if(a){const ex=/\d+d\d+(?:[+-]\d+)?/i.exec(a.damage);
+   if(ex){const targetId=currentTargetId(),explicit=Action.DAMAGE_TYPES.filter(t=>t!=='untyped'&&new RegExp('\\b'+t+'\\b','i').test(a.damage));
+    const damageType=explicit.length===1?explicit[0]:selectedDamageType;
+    const critical=lastAttackOutcome?.critical&&lastAttackOutcome.targetId===targetId&&lastAttackOutcome.sourceId==='attack-'+num(arg);
+    const expression=critical?Action.criticalDamageExpression(ex[0]):ex[0];
+    if(queueRoll(expression,a.name+(critical?' critical':'')+' damage vs '+Action.targetById(character,targetId).name,{kind:'target-damage',characterId:activeId,targetId,damageType,source:a.name}))lastAttackOutcome=null;}
+   else toast('Could not parse damage dice: '+a.damage);}break;}
   case 'clear-history':history.length=0;lastResult=null;updateTableResults();save();break;
   case 'clear-table':if(activeRolls.length||pointer?.down){toast('Finish the active dice first.');break;}dice=[];pendingRoll=null;queuedEffect=null;pointer=null;following=false;updateTableResults();toast('Table cleared');break;
   case 'stance':{
@@ -640,7 +774,11 @@ function canPrepareDice(count,sides){
 function queueRoll(expr,label,effect=null){
  try{
    const p=parseExpression(expr);
-   prepareDice(Array(p.count).fill(p.sides),p.modifier,label,p.expression,true);
+   const choice=$('#d20-mode')?.value||'normal';
+   const mode=p.sides===20&&p.count===1?choice:'normal';
+   const totalCount=mode==='normal'?p.count:2;
+   prepareDice(Array(totalCount).fill(p.sides),p.modifier,label,p.expression,true);
+   if(pendingRoll)pendingRoll.d20Mode=mode;
    queuedEffect=pendingRoll?effect:null; // The effect belongs to exactly this prepared roll.
    return Boolean(pendingRoll);
  }catch(e){toast(e.message);return false;}
@@ -691,6 +829,13 @@ function acceptVaultBackup(raw){
   catch(ex){toast('Vault restore failed: '+ex.message);}
  });
 }
+document.addEventListener('submit',e=>{
+ if(e.target.id!=='target-add-form')return;
+ e.preventDefault();const form=e.target;
+ try{const t=Action.addTarget(character,{name:form.elements.namedItem('name').value,ac:form.elements.namedItem('ac').value,hp:form.elements.namedItem('hp').value});
+  selectedTargetId=t.id;save();render();toast('Target added: '+t.name);
+ }catch(error){toast('Cannot add target: '+error.message);}
+});
 document.addEventListener('click',e=>{
  const nav=e.target.closest('[data-view]');if(nav){setView(nav.dataset.view);return;}
  const roll=e.target.closest('[data-roll]');if(roll){queueRoll(roll.dataset.roll,roll.dataset.rollLabel);return;}
@@ -699,6 +844,11 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
  const el=e.target;
+ if(el.id==='combat-target'){selectedTargetId=Action.targetById(character,el.value)?el.value:'self';render();return;}
+ if(el.id==='damage-type'){selectedDamageType=el.value;return;}
+ if(el.dataset.targetStat){try{Action.updateTargetStat(character,currentTargetId(),el.dataset.targetStat,el.value);save();render();}catch(e){toast(e.message);render();}return;}
+ if(el.dataset.targetTrait){try{Action.setTargetTraits(character,currentTargetId(),el.dataset.targetTrait,el.value);save();render();}catch(e){toast(e.message);render();}return;}
+
  if(el.id==='catalog-level'){catalogLevel=el.value;filterCatalogEntries();return;}
  if(el.dataset.resourceEdit){const r=character.resources?.[el.dataset.resourceEdit];if(r){r.current=Math.min(r.max,Math.max(0,Math.floor(num(el.value))));save();render();}return;}
  if(el.dataset.modType){
@@ -719,6 +869,10 @@ document.addEventListener('change',e=>{
   render();
  }
  if(el.dataset.actionConcentration!==undefined){const a=character.actions?.[num(el.dataset.actionConcentration)];if(a){a.concentration=el.checked;a.source='manual';save();}return;}
+ if(el.dataset.spellModifier!==undefined){const sp=character.spells?.[num(el.dataset.spellModifier)];if(sp){
+  if(el.value.trim()==='')delete sp.spellcasting_modifier;
+  else if(Number.isSafeInteger(Number(el.value))&&Math.abs(Number(el.value))<=30)sp.spellcasting_modifier=Number(el.value);
+  save();}return;}
  if(el.dataset.spellConcentration!==undefined){const sp=character.spells?.[num(el.dataset.spellConcentration)];if(sp){sp.concentration=el.checked;save();}return;}
  if(el.dataset.actionCondition!==undefined){const a=character.actions?.[num(el.dataset.actionCondition)];if(a){a.effect_condition=el.value;save();}return;}
  if(el.dataset.spellCondition!==undefined){const sp=character.spells?.[num(el.dataset.spellCondition)];if(sp){sp.effect_condition=el.value;save();}return;}
@@ -936,7 +1090,7 @@ function startDiceGroup(selected,p,vx,vy,shake,effect){
   d.held=false;d.ready=false;d.rolling=true;
   DP.launch(d,vx+(DP.random()-.5)*170,vy+(DP.random()-.5)*150,shake);
  });
- const group={diceIds:selected.map(d=>d.id),modifier:p.modifier,label:p.label,expression:p.expression,effect};
+ const group={diceIds:selected.map(d=>d.id),modifier:p.modifier,label:p.label,expression:p.expression,effect,d20Mode:p.d20Mode||'normal'};
  activeRolls.push(group);activeRoll=activeRolls.at(-1)||null;
  $('#tray-help').textContent='Rolling · grab another die at any time';
  return true;
@@ -960,10 +1114,44 @@ function finishRollIfSettled(){
      const face=DP.faceValue(d);
      return d.sides===100&&face===0?100:face;
    });
-   const result={label:group.label,total:values.reduce((s,n)=>s+n,0)+group.modifier,parts:values,modifier:group.modifier,expression:group.expression};
+   const selectedD20=group.d20Mode&&group.d20Mode!=='normal'?Action.resolveD20(values,group.modifier,group.d20Mode):null;
+   const result={label:group.label,total:selectedD20?selectedD20.total:values.reduce((s,n)=>s+n,0)+group.modifier,parts:values,modifier:group.modifier,expression:group.expression,
+    ...(selectedD20?{mode:selectedD20.mode,natural:selectedD20.natural}:{})};
    lastResult=result;history.unshift(result);history.splice(60);
-   if(group.effect?.characterId===activeId&&result.total>=0)
-     pendingHealing={characterId:activeId,name:group.effect.name,amount:result.total};
+   if(group.effect?.characterId===activeId){
+     if(group.effect.kind==='heal'&&result.total>=0)pendingHealing={characterId:activeId,name:group.effect.name,amount:result.total};
+     if(group.effect.kind==='target-attack'){
+       try{const target=Action.targetById(character,group.effect.targetId);
+        if(target){const verdict=Action.evaluateAttack(result.total,Action.effectiveAC(character,group.effect.targetId),
+         group.expression.startsWith('1d20')?(selectedD20?selectedD20.natural:result.parts[0]):null);
+         result.outcome=verdict.critical?'CRITICAL HIT':verdict.hit?'HIT':'MISS';
+         lastAttackOutcome={targetId:group.effect.targetId,sourceId:group.effect.sourceId||null,critical:verdict.critical,hit:verdict.hit};
+         toast(`${target.name}: ${result.outcome} vs AC ${verdict.targetAC}. Roll damage separately and confirm before applying.`);
+        }
+       }catch(e){toast('Attack outcome: '+e.message);}
+     }
+     if(group.effect.kind==='target-save'){
+       try{const verdict=Action.evaluateSave(result.total,group.effect.dc);
+        lastSaveOutcome={targetId:group.effect.targetId,outcome:verdict.success?'success':'failure',dc:verdict.dc};
+        result.outcome=verdict.success?'SAVE SUCCEEDED':'SAVE FAILED';
+        toast(`${Action.targetById(character,group.effect.targetId)?.name||'Target'}: ${result.outcome} vs DC ${verdict.dc}.`);
+       }catch(e){toast('Save result: '+e.message);}
+     }
+     if(group.effect.kind==='target-damage'&&result.total>=0){
+       const targetId=group.effect.targetId;
+       if(Action.targetById(character,targetId))pendingDamage.push({id:String(++nextResolutionId),characterId:activeId,targetId,
+         source:group.effect.source||group.label,type:group.effect.damageType||'untyped',amount:result.total,
+         saveOutcome:lastSaveOutcome?.targetId===targetId?lastSaveOutcome.outcome:null});
+     }
+     if(group.effect.kind==='charge'){
+       try{Action.consumeCharge(character,group.effect.effectId);save();render();toast('Guidance charge spent: '+result.total+' bonus to your ability check.');}
+       catch(e){toast('Could not spend charge: '+e.message);}
+     }
+     if(group.effect.kind==='concentration'){
+       const resolution=Action.resolveConcentrationCheck(character,group.effect.checkId,result.total);
+       if(resolution){toast(resolution.success?'Concentration maintained.':'Concentration broken: '+resolution.effectName);render();}
+     }
+   }
    completed.push(group);
    $('#tray-help').textContent=`${group.label}: ${values.join(' + ')} ${group.modifier?sgn(group.modifier):''} = ${result.total}`;
  }
@@ -974,12 +1162,22 @@ function finishRollIfSettled(){
 function updateTableResults(){
  const result=$('#last-result'),list=$('#table-history'),count=$('#history-count'),collapsed=$('#collapsed-result');
  if(!result)return;
- result.innerHTML=lastResult?`<strong>${esc(lastResult.total)}</strong> <span>${esc(lastResult.label)} · ${esc(lastResult.parts.join(' + '))} ${lastResult.modifier?sgn(lastResult.modifier):''}</span>`:
+ result.innerHTML=lastResult?`<strong>${esc(lastResult.total)}</strong> <span>${esc(lastResult.label)} · ${esc(lastResult.parts.join(' + '))} ${lastResult.modifier?sgn(lastResult.modifier):''} ${lastResult.mode&&lastResult.mode!=='normal'?`· ${esc(lastResult.mode)} (${esc(lastResult.natural)})`:''} ${lastResult.outcome?`· ${esc(lastResult.outcome)}`:''}</span>`:
  'Pick a die, drag to shake, then release. Dice remain on the table.';
  if(collapsed)collapsed.textContent=lastResult?`${lastResult.total} · ${lastResult.label}`:'Ready';
  count.textContent=String(history.length);
  list.innerHTML=history.slice(0,30).map(h=>`<li>${esc(h.label)} <b>${esc(h.total)}</b> <small>${esc(h.expression)}</small></li>`).join('');
- const effect=$('#roll-effect');if(effect)effect.innerHTML=pendingHealing&&pendingHealing.characterId===activeId?`<span>${esc(pendingHealing.name)}: ${esc(pendingHealing.amount)} HP healing ready</span> ${button('Apply to HP','apply-roll-heal','','button primary mini')} ${button('Dismiss','dismiss-roll-heal','','button mini subtle')}`:'';
+ const effect=$('#roll-effect');if(effect){
+  const heal=pendingHealing&&pendingHealing.characterId===activeId?`<div class="pending-resolution"><span>${esc(pendingHealing.name)}: ${esc(pendingHealing.amount)} HP healing ready</span> ${button('Apply to HP','apply-roll-heal','','button primary mini')} ${button('Dismiss','dismiss-roll-heal','','button mini subtle')}</div>`:'';
+  const damages=pendingDamage.filter(x=>x.characterId===activeId).map(d=>{
+   const target=Action.targetById(character,d.targetId);
+   return target?`<div class="pending-resolution"><strong>${esc(d.amount)} ${esc(d.type)} → ${esc(target.name)}</strong>
+     <label>Save rule <select class="input" data-pending-save="${esc(d.id)}"><option value="none">No save reduction</option>
+     ${d.saveOutcome?`<option value="half">${d.saveOutcome} · half on success</option><option value="negates">${d.saveOutcome} · negates on success</option>`:''}</select></label>
+     ${button('Review & apply','apply-target-damage',d.id,'button mini primary')} ${button('Dismiss','dismiss-target-damage',d.id,'button mini subtle')}</div>`:'';
+  }).join('');
+  effect.innerHTML=heal+damages+(lastSaveOutcome?`<p class="save-result-note">Last save: ${esc(lastSaveOutcome.outcome)} vs DC ${lastSaveOutcome.dc} (${esc(Action.targetById(character,lastSaveOutcome.targetId)?.name||'removed target')})</p>`:'');
+ }
 }
 function renderTray(W,H){
  if(!ctx)return;

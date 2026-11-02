@@ -12,7 +12,7 @@ with sync_playwright() as p:
  page.add_style_tag(content=(ROOT/'web/styles.css').read_text())
  cat=json.loads((ROOT/'web/dnd-2014-reference.json').read_text())
  page.evaluate('''([hero,cat])=>{window.__testVault={schema_version:1,active_id:'hero',characters:[{id:'hero',character:hero,updated_at:'2026'}]};window.fetch=async(url,init={})=>{if(url==='/api/vault'){if(init.method==='POST'){window.__testVault=JSON.parse(init.body);return new Response('{"saved":true}',{status:200});}return new Response(JSON.stringify(window.__testVault),{status:200});}if(url==='./theme-assets.json')return new Response('{"version":1,"assets":{}}',{status:200});if(url==='./dnd-2014-reference.json')return new Response(JSON.stringify(cat),{status:200});return new Response('{}',{status:404});}}''',[hero,cat])
- for f in ['character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
+ for f in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/f).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Synthetic Cleric' && ReferenceCatalog.ready()")
  page.get_by_role('tab',name='Spells').click()

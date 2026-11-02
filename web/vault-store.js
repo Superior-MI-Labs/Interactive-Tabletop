@@ -3,6 +3,8 @@
  * Future systems can use the same vault contract without introducing rules here.
  */
 (function(root){'use strict';
+const SlotPools=root.DndSlots||(typeof require==='function'?require('./dnd-slots.js'):null);
+if(!SlotPools)throw Error('D&D slot module was not loaded.');
 const VERSION=1, DB='smi-interactive-tabletop', STORE='data', KEY='vault';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const canonical=x=>String(x??'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -15,7 +17,7 @@ function normalize(raw){
  const characters=raw.characters.map(entry=>{
   if(typeof entry?.id!=='string'||!entry.id||ids.has(entry.id)||!validCharacter(entry.character))throw Error('Invalid or duplicate character in vault.');
   ids.add(entry.id);
-  return {id:entry.id,character:copy(entry.character),updated_at:entry.updated_at||new Date().toISOString()};
+  return {id:entry.id,character:{...copy(entry.character),resources:SlotPools.normalize(entry.character.resources)},updated_at:entry.updated_at||new Date().toISOString()};
  });
  return {schema_version:VERSION,active_id:ids.has(raw.active_id)?raw.active_id:(characters[0]?.id||null),characters};
 }
@@ -40,8 +42,8 @@ function findMatch(vault,fresh){return vault.characters.find(c=>identityMatches(
 function keyFor(record){return [canonical(record.name),canonical(record.level??''),canonical(record.source??'')].join('|');}
 function reconcile(old,fresh){
  if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot reconcile invalid characters.');
- const next=copy(fresh);
- const before=copy(old);
+ const next=copy(fresh);next.resources=SlotPools.normalize(next.resources);
+ const before=copy(old);before.resources=SlotPools.normalize(before.resources);
  const merged={...next,system_id:'dnd5e',system_edition:old.system_edition||'unspecified'};
  // Latest PDF owns published maximums, stats and attacks; gameplay state stays live.
  merged.hp.current=Math.max(0,Math.min(next.hp.max,Number(before.hp.current)||0));
@@ -64,7 +66,7 @@ function reconcile(old,fresh){
  merged.spells=(next.spells||[]).map(s=>{
   const prev=oldSpells.get(keyFor(s));
   return prev?{...s,prepared:prev.prepared,available:prev.available,notes:prev.notes||s.notes,
-   ...Object.fromEntries(['roll','effect_kind','effect_condition','duration_rounds','concentration'].filter(k=>Object.prototype.hasOwnProperty.call(prev,k)).map(k=>[k,prev[k]]))}:s;
+   ...Object.fromEntries(['roll','effect_kind','effect_condition','damage_type','duration_rounds','concentration','automation','spellcasting_modifier'].filter(k=>Object.prototype.hasOwnProperty.call(prev,k)).map(k=>[k,prev[k]]))}:s;
  });
  for(const sp of before.spells||[])if((sp.id||'').startsWith('custom-')&&!merged.spells.some(s=>keyFor(s)===keyFor(sp)))merged.spells.push(sp);
  const inventoryByName=new Map();

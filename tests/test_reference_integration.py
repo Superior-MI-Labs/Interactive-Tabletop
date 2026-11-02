@@ -24,5 +24,6 @@ class TestReferenceIntegration(unittest.TestCase):
   self.assertIn("['reference','Reference']",js)
   self.assertIn('function showAbout()',js)
   self.assertIn("sourceBadge(References?.match('equipment'",js)
-  self.assertIn("sourceBadge(References?.match('spell'",js)
+  self.assertIn("sourceBadge(ref)",js)
+  self.assertIn("References?.match('spell'",js)
 if __name__=='__main__':unittest.main()
