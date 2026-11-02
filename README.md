@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.30.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.31.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.30.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.31.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -63,6 +63,8 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 **v0.28 release gates:** Python, Node and all 18 real-browser gameplay smoke tests run on every push and PR. Pages deployment waits for those checks to succeed. The spell planner also refuses 2014 automation unless the character has an explicitly confirmed D&D 2014 edition; manual play is unaffected. To run the same checks locally, install `tools/requirements-qa.txt` plus Chromium and run `bash tools/qualify.sh`.
 
+**v0.31 safety:** The optional Deflect Missiles counterthrow now spends Ki when you actually throw the prepared dice, not when you confirm or prepare them. Switching characters clears prepared dice; in-flight results never affect another character's history or HP. Existing action economy and verified rules are unchanged.
+
 **v0.30 attack permissions:** A DM-approved **Flurry of Blows (2014)** template is available in Edit sheet → Ability template. It requires a confirmed 2014 character, a completed Attack action immediately beforehand, 1 Ki, and an unused bonus action. It grants two **unarmed-only** bonus strikes, not another Attack action or two extra-action units. In Edit sheet, mark the relevant attack as **Unarmed** (classification is explicit, not inferred from its name). Bonus Strike buttons appear on that attack and consume grants only when their physical dice launch. This permission system also supports scoped homebrew bonus strikes; manual mode keeps player-controlled accounting. Any ambiguous imported attack classification stays unqualified. Current limitations: the app tracks declared actions on the character's own turn, not movement timing, other creatures' turns, or every 2014 reaction exception.
 
 **v0.29 configurable combat economy:** The Actions tab now supports automatic or manual action counting, DM-approved action/bonus/reaction pool capacities, attacks per Attack action, custom resources with rest/turn resets, and explicit abilities that consume multiple action units, require a prior Attack action, grant points, or grant scoped extra actions. Weapon Attack actions are charged when the physical dice **launch**, not when prepared. Two attacks from Extra Attack still consume a single Attack action; Haste-style grants permit one extra attack, while unrestricted Action Surge-style grants permit a new action. All custom effects and resource mechanics require confirmation; no features are inferred from imported text. You can configure three action points as a basis for other game systems, but Pathfinder rules themselves are **not yet implemented**.
@@ -77,14 +79,14 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.30.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.31.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.30.0.zip" SkyBlueEyes-Tabletop-v0.30.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.31.0.zip" SkyBlueEyes-Tabletop-v0.31.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
@@ -93,7 +95,7 @@ Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP
 
 The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh` (Python, JavaScript and 18 actual Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same command is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
 
-The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.30.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
+The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.31.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 
 ## Development and architecture
 

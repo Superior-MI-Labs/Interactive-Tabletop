@@ -20,6 +20,11 @@ A.advanceTurn(c);
 flow=A.beginWorkflow(c,plan(c),5);
 assert.deepEqual(A.resolveWorkflow(c,flow.id,10),{remaining:0,eligible:true});
 assert.equal(A.pendingWorkflow(c).status,'optional-followup');
+const snapshot=JSON.stringify(c);
+assert.deepEqual(A.previewWorkflowFollowup(c,flow.id,{catchable:true,freeHand:true}),
+ {label:'Return missile',roll:'1d20+6',sourceId:'deflect'});
+assert.equal(JSON.stringify(c),snapshot,'Preparing an optional attack never charges Ki or mutates encounter state');
+assert.throws(()=>A.previewWorkflowFollowup(c,flow.id,{catchable:true,freeHand:false}),/Confirm/);
 assert.throws(()=>A.finishWorkflow(c,flow.id,{catchable:true,freeHand:false}),/Confirm/);
 assert.equal(c.resources.Ki.current,2);
 const originalSpend=A.combat(c).economy.spent.reaction;

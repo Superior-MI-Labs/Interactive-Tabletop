@@ -452,16 +452,25 @@ function resolveWorkflow(character,id,reduction){
  entry.status='optional-followup';entry.remaining=0;
  return {remaining:0,eligible:true};
 }
-function finishWorkflow(character,id,{catchable=false,freeHand=false}={}){
- const state=combat(character),entry=state.pending_workflow;
+// A follow-up can be prepared and canceled without spending optional resources.
+// The exact same qualification is checked at launch; a stale or declined
+// sequence must never debit Ki, and the parent reaction is never charged twice.
+function previewWorkflowFollowup(character,id,{catchable=false,freeHand=false}={}){
+ const entry=combat(character).pending_workflow;
  if(!entry||entry.id!==id||entry.status!=='optional-followup')throw Error('The follow-up is unavailable or already resolved.');
  if(!catchable||!freeHand)throw Error('Confirm the missile can be caught and a hand is free.');
  const {resource,cost,roll}=entry.followup,pool=character.resources?.[resource];
- if(!pool||!Number.isSafeInteger(Number(pool.current))||Number(pool.current)<cost)throw Error('Not enough '+resource+' for optional counterattack.');
- // This step is part of the initial reaction; never spend another action.
- pool.current=Number(pool.current)-cost;
- delete state.pending_workflow;
+ if(!pool||!Number.isSafeInteger(Number(pool.current))||Number(pool.current)<cost)
+  throw Error('Not enough '+resource+' for optional counterattack.');
  return {label:entry.followup.label,roll,sourceId:entry.sourceId};
+}
+function finishWorkflow(character,id,confirmation={}){
+ const attack=previewWorkflowFollowup(character,id,confirmation);
+ const state=combat(character),entry=state.pending_workflow;
+ character.resources[entry.followup.resource].current-=entry.followup.cost;
+ delete state.pending_workflow;
+ delete state.undo_turn;
+ return attack;
 }
 function declineWorkflow(character,id){
  const state=combat(character),entry=state.pending_workflow;
@@ -853,6 +862,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

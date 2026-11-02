@@ -50,7 +50,15 @@ function save(options={}){
 function showVaultCount(){const n=$('#vault-count');if(n)n.textContent=`(${vaultData.characters.length})`;}
 function selectLoadedCharacter(){
  const entry=vaultData.characters.find(x=>x.id===vaultData.active_id);
- activeId=entry?.id||null;
+ const nextId=entry?.id||null;
+ if(activeId!==nextId&&pendingRoll){
+  // Prepared dice are UI state and cannot be committed to a different sheet.
+  for(const die of dice)if(pendingRoll.diceIds?.includes(die.id)){die.ready=false;die.held=false;}
+  pendingRoll=null;queuedEffect=null;following=false;pointer=null;
+  $('#dice-stage')?.classList.remove('dice-following');
+  document.body.classList.remove('dice-dragging');
+ }
+ activeId=nextId;
  character=entry?.character||null;
  if(character){
   character.actions=character.actions||[];
@@ -59,7 +67,7 @@ function selectLoadedCharacter(){
   character.system_id=character.system_id||'dnd5e';
   character.system_edition=character.system_edition||'unspecified';
   history=character.roll_history;
-  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastSaveOutcome=null;lastAttackOutcome=null;selectedTargetId='self';
+  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastSaveOutcome=null;lastAttackOutcome=null;lastResult=null;selectedTargetId='self';
   setView('overview');
  }else{history=[];showWelcome();}
  showVaultCount();
@@ -731,10 +739,20 @@ function handleAction(action,arg){
    if(!flow||flow.id!==arg||flow.status!=='optional-followup'){toast('No eligible follow-up.');break;}
    if(pendingRoll){toast('Finish the prepared dice first.');break;}
    dialog('Catch and return missile?',`Confirm with the DM: damage was reduced to zero; the projectile is small enough to catch, one hand is free, and the return target is within range. Spend ${flow.followup.cost} ${flow.followup.resource} ONLY if you choose to throw back. No second reaction is spent.`,()=>{
-    try{const cfg=Action.dice(flow.followup.roll);if(!canPrepareDice(cfg.count,cfg.sides))throw Error('Not enough room for return dice.');
-     const attack=Action.finishWorkflow(character,arg,{catchable:true,freeHand:true});save();render();
-     queueRoll(attack.roll,attack.label+' vs '+Action.targetById(character,currentTargetId()).name,
-      {kind:'target-attack',characterId:activeId,targetId:currentTargetId(),sourceId:attack.sourceId},'attack');}
+    try{
+     const attack=Action.previewWorkflowFollowup(character,arg,{catchable:true,freeHand:true});
+     const cfg=Action.dice(attack.roll);
+     if(!canPrepareDice(cfg.count,cfg.sides))throw Error('Not enough room for return dice.');
+     const targetId=currentTargetId(),target=Action.targetById(character,targetId);
+     if(!target)throw Error('Choose a valid return-attack target.');
+     if(queueRoll(attack.roll,attack.label+' vs '+target.name,
+      {kind:'target-attack',characterId:activeId,targetId,sourceId:attack.sourceId},'attack')){
+      pendingRoll.workflowId=arg;
+      pendingRoll.workflowConfirmation={catchable:true,freeHand:true};
+      render();
+      toast('Return dice ready. Ki will be spent only when thrown.');
+     }
+    }
     catch(error){toast(error.message);}
    },'Spend & throw','Decline');break;
   }
@@ -908,6 +926,7 @@ function queueRoll(expr,label,effect=null,rollKind='untyped'){
    // Do not replace a prepared roll or reserve an effect if there isn't room.
    if(specs.length>20)throw Error('Too many dice for one throw.');
    if(!prepareDice(specs,p.modifier,label,p.expression,true))return false;
+   pendingRoll.characterId=activeId;
    pendingRoll.d20Mode=mode;
    pendingRoll.primaryCount=primaryCount;
    pendingRoll.bonuses=bonuses;
@@ -1256,6 +1275,15 @@ function initDiceCanvas(){
 }
 function startDiceGroup(selected,p,vx,vy,shake,effect){
  if(!selected.length)return false;
+ // Prepared combat rolls belong to the character that created them.
+ if((p.combatAttack||p.workflowId)&&p.characterId!==activeId){
+  toast('This roll belongs to a different character. Prepare it again.');return false;
+ }
+ // Committing an optional staged follow-up occurs at throw, not preparation.
+ if(p.workflowId){
+  try{Action.finishWorkflow(character,p.workflowId,p.workflowConfirmation);save();render();}
+  catch(error){toast(error.message);return false;}
+ }
  // An Attack action is spent only when its physical dice actually launch.
  // Canceling/replacing prepared dice never consumes an action or attack.
  if(p.combatAttack){
@@ -1289,6 +1317,11 @@ function finishRollIfSettled(){
  for(const group of activeRolls){
    const selected=group.diceIds.map(id=>dice.find(d=>d.id===id)).filter(Boolean);
    if(!selected.length||selected.length!==group.diceIds.length||!selected.every(d=>d.sleeping&&!d.held))continue;
+   if(group.characterId!==activeId){
+    // Never credit old character rolls to another character's history or effects.
+    completed.push(group);
+    continue;
+   }
    const values=selected.map(d=>{
      const face=DP.faceValue(d);
      return d.sides===100&&face===0?100:face;

@@ -49,12 +49,30 @@ with sync_playwright() as pw:
  assert button.is_enabled()
  button.click()
  page.get_by_role('button',name='Spend & throw').click()
- assert page.evaluate('character.resources.Ki.current')==0
+ assert page.evaluate('character.resources.Ki.current')==1, 'Preparation is not a spend'
  assert page.evaluate('character.effects.combat.economy.spent.reaction')==1
- assert page.evaluate('Action.pendingWorkflow(character)') is None
+ assert page.evaluate("Action.pendingWorkflow(character)?.status")=='optional-followup'
  assert page.evaluate('pendingRoll.expression')=='1d20+6'
- # Explicitly convert the incorrect imported upfront-Ki entry; do not infer from its name.
+ assert page.evaluate('pendingRoll.workflowId') is not None
+ # An ordinary prepared roll can replace the continuation without costing Ki.
+ assert page.evaluate("queueRoll('1d6','unrelated')") is True
+ assert page.evaluate('character.resources.Ki.current')==1
+ assert page.evaluate("Action.pendingWorkflow(character)?.status")=='optional-followup'
+ page.evaluate("()=>{pendingRoll=null;following=false;dice.forEach(d=>d.ready=false)}")
+ page.get_by_role('button',name='Throw captured missile · 1 Ki').click()
+ page.get_by_role('button',name='Spend & throw').click()
+ # Resource changes after preview are re-validated at actual dice launch.
+ page.evaluate("character.resources.Ki.current=0")
+ page.evaluate("beginThrow()")
+ assert page.evaluate('character.resources.Ki.current')==0
+ assert page.evaluate('pendingRoll.workflowId') is not None
+ assert page.evaluate("Action.pendingWorkflow(character)?.status")=='optional-followup'
+ page.evaluate("character.resources.Ki.current=1")
  page.evaluate('''()=>{beginThrow();for(const d of dice.filter(d=>activeRoll?.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();}''')
+ assert page.evaluate('character.resources.Ki.current')==0
+ assert page.evaluate('Action.pendingWorkflow(character)') is None
+ assert page.evaluate('character.effects.combat.economy.spent.reaction')==1
+ # Explicitly convert the incorrect imported upfront-Ki entry; do not infer from its name.
  page.get_by_role('button',name='Edit sheet').click()
  assert page.evaluate('editMode')
  entry=page.locator('.action-entry').filter(has_text='Imported Deflect Missiles');entry.locator('summary').click()

@@ -1,3 +1,9 @@
+## v0.31.0 — Deferred optional-roll charges and vault-scoped dice ownership
+
+- Counterthrow confirmation for a configured staged reaction now **previews** and prepares physical attack dice without spending the optional Ki/resource. The existing `DndAction.finishWorkflow` becomes the single final debit at **actual dice launch**, revalidating the same pending sequence, catch/free-hand confirmation and available resource. Replacing/canceling prepared dice, failed revalidation and stale/declined sequences never consume the optional resource. The initial reaction remains spent when first activated, and the follow-up never spends a second reaction.
+- A prepared combat roll records its originating character vault ID. Switching characters discards prepared dice state instead of allowing a later throw to charge a different character. Rolls still in flight are removed from the physical pending queue at settlement **without** entering another character's history, damage, concentration, bonus effects, or HP; the original character's spent action is not refunded.
+- Strengthen unit + Chromium tests for cancellation, resource depletion between preparation and launch, stale sequence resolution and two-character switching (including in-flight rolls). One shared action engine, one vault, one physical dice table, and the existing full-browser CI gate remain authoritative.
+
 ## v0.30.0 — Scoped bonus attacks and verified Flurry prerequisites
 
 - Extend the *existing* `effects.combat.economy` ledger with restricted bonus-attack grants. No separate action store or class-feature interpreter is introduced.

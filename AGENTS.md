@@ -51,3 +51,9 @@ No UI operation may assign directly to `character.effects.active` to end effects
 - `grant_attacks` and `grant_attack_scope` are explicit configured feature metadata, never inferred from spell/class/attack names. User-approved attack classification is `attack_type`, with ambiguous PDF reimport matches rejected safely.
 - `Flurry of Blows (2014)` requires a completed Attack action immediately before the bonus-action/1-Ki activation. Never charge Ki before prerequisites pass or spend another bonus action for the two strikes.
 - Test all three combat modes, old vaults, action-grant contention, multiple attacks per action, late/duplicate activations, unarmed-vs-weapon scope, prepared-but-unthrown dice, turn reset, undo, and imported attack identities. See `tests/test_attack_permissions.js` and `tests/browser_attack_permissions_smoke.py`.
+
+## Physical roll ownership and optional follow-ups (v0.31)
+
+- Keep `DndAction.previewWorkflowFollowup` and `finishWorkflow` as the shared eligibility and commit boundary. The browser only prepares/throws dice; optional costs are **not** spent until launch. A stale, declined or underfunded sequence must fail without affecting resources or turn accounting. The initial reaction is still spent on activation.
+- Every combat roll must be associated with the active vault character. On character switches, clear prepared rolls and never resolve previous-character physical rolls into the new character's history/effects/HP. Do not create cross-vault sync by convenience.
+- Regression gates: `tests/test_staged_abilities.js`, `tests/browser_staged_smoke.py`, `tests/browser_roll_ownership_smoke.py`; keep browser-test coverage count and the unified qualification command current.

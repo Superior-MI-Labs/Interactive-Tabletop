@@ -165,3 +165,9 @@ An ability may declare `grant_attacks` (1–4), `grant_attack_scope`, `requires_
 The PDF reimport merges attack classifications only on unique, unambiguous name matches. The incoming PDF remains authoritative for attack bonuses and dice. Classification is an explicit player/DM decision shown in the existing attack editor.
 
 Remaining boundaries: the implementation does not yet model full initiative timing, movement between actions, off-turn interruptions, or every edition-specific attack activity. The 2014 'immediately after' constraint is enforced against tracked abilities/spells and Attack-action completion; the UI cannot observe out-of-band movement/DM narration. Pathfinder profiles remain future work.
+
+## v0.31 — Physical-roll transaction boundary and character ownership
+
+The existing `DndAction` staged workflow holds the only pending reaction sequence. `previewWorkflowFollowup` is a non-spending eligibility check; `finishWorkflow` revalidates and debits optional class points **when the physical prepared dice launch**. The browser prepares dice through its existing `queueRoll` and carries the pending workflow ID to `startDiceGroup`; a replaced or canceled throw cannot commit. `beginWorkflow` continues to charge the **initial** reaction on confirmed activation. The optional follow-up remains part of that original reaction and cannot be used twice.
+
+`pendingRoll.characterId` tracks the prepared roll's originating character. Changing the vault selection clears the pending dice linkage; in-flight groups can finish animating but are discarded at resolution if their owner is no longer active. This prevents effect charges, target damage, HP healing and roll history from leaking into another sheet. We intentionally do not invent cross-character result routing or a second global dice store. Existing attack action costs still commit at throw. The UI's dice animation is not a gameplay source of truth.
