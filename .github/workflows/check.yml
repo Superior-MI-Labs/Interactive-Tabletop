@@ -15,4 +15,5 @@ jobs:
           node-version: '22'
       - run: python -I -S -m unittest discover -s tests -p 'test_*.py' -v
       - run: node --check web/dnd-slots.js && node --check web/reference-catalog.js && node --check web/app.js && node --check web/vault-store.js && node --check web/dnd-action.js && node --check web/service-worker.js && node --check web/character-import.js && node --check web/browser-pdf.js && node --check web/dice-physics.js
-      for test in tests/test_*.js; do node "$test"; done
+      - run: |
+          for test in tests/test_*.js; do node "$test"; done
