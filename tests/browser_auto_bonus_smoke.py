@@ -39,20 +39,21 @@ with sync_playwright() as pw:
  assert page.evaluate('pendingRoll.primaryCount')==2
  assert page.evaluate('pendingRoll.count')==3
  assert page.evaluate('pendingRoll.bonuses[0].expression')=='1d4'
- # Mouse grabbing can alter display order; group die IDs preserve roll roles.
+ # Holding a die preserves an in-flight group; sorting does not change die roles.
  page.evaluate('''()=>{
    beginThrow();const group=activeRolls[0];
    const faces=group.diceIds.map(id=>dice.find(d=>d.id===id));
-   for(let i=0;i<faces.length;i++){faces[i].sleeping=true;faces[i].y=1000-i*100;}
+   for(let i=0;i<faces.length;i++){faces[i].held=true;faces[i].sleeping=true;faces[i].y=1000-i*100;}
    dice.sort((a,b)=>a.y-b.y);
  }''')
- # Same effect is reserved while first physical group is still rolling.
+ # Keep the first group unresolved until after the second roll is prepared.
+ # A settled first group would legitimately release the Guidance reservation.
  # This assertion tests bonus reservation, not keyboard focus. Trigger the control
  # directly so an in-flight dice animation cannot steal browser focus.
  skill.evaluate('(element)=>element.click()')
  page.wait_for_function('pendingRoll !== null')
  assert page.evaluate('pendingRoll.bonuses.length')==0
- page.evaluate('''()=>{beginThrow();for(const d of dice)if(!d.held)d.sleeping=true;finishRollIfSettled();}''')
+ page.evaluate('''()=>{beginThrow();for(const d of dice){d.held=false;d.sleeping=true;}finishRollIfSettled();}''')
  outcome=page.evaluate('''()=>history.find(r=>r.bonuses?.some(b=>b.name==='Guidance'))''')
  assert outcome and len(outcome['bonuses'])==1,outcome
  assert outcome['total']==outcome['baseTotal']+outcome['bonuses'][0]['total'],outcome
