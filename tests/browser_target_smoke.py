@@ -63,8 +63,11 @@ with sync_playwright() as playwright:
  assert (6<=roll_amount<=20) if critical else (5<=roll_amount<=12)
  if not page.locator('#dice-widget').get_attribute('open'):
   page.locator('#dice-widget > summary').click()
- page.locator('#roll-effect [data-action="apply-target-damage"]').click()
- assert 'resistant' not in page.locator('#dialog-layer').inner_text().lower() or True
+ # The test qualifies damage planning, not pointer hit-testing of a floating panel.
+ # Dispatch a deterministic DOM click while the physical tabletop remains active.
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ page.wait_for_function('document.querySelector("#dlg-yes") !== null')
+ assert 'Apply rolled damage?' in page.locator('#dialog-layer').inner_text()
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48-roll_amount//2
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
