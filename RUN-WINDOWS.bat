@@ -6,4 +6,4 @@ if %errorlevel%==0 (
 ) else (
   python main.py
 )
-if errorlevel 1pause
+if errorlevel 1 pause

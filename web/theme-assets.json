@@ -1,7 +1,7 @@
 {
   "version": 1,
   "assets": {
-"surface.table": "walnut-texture.jpg",
+    "surface.table": "walnut-texture.jpg",
     "surface.sheet": "vellum-texture.jpg",
     "symbol.solar": "solar-crest.png"
   }
