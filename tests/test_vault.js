@@ -15,6 +15,11 @@ const incoming=char('Sample Hero','Monk 20');incoming.hp={max:250,current:250,te
 const updated=Vault.reconcile(legacy.characters[0].character,incoming);
 assert.equal(updated.hp.max,250);assert.equal(updated.hp.current,70);assert.equal(updated.hp.temp,3);
 assert.equal(updated.resources.Ki.current,4,'preserve spent 16/19 Ki across level-up');
+const oldAttack=char('Attack QA');oldAttack.attacks=[{name:'Unarmed Strike',bonus:5,damage:'1d4+3',attack_type:'unarmed'}];
+const newAttack=char('Attack QA');newAttack.attacks=[{name:'Unarmed Strike',bonus:8,damage:'1d6+4'}];
+assert.deepEqual(Vault.reconcile(oldAttack,newAttack).attacks,[{name:'Unarmed Strike',bonus:8,damage:'1d6+4',attack_type:'unarmed'}]);
+newAttack.attacks.push({name:'Unarmed Strike',bonus:9,damage:'1d6+4'});
+assert.ok(Vault.reconcile(oldAttack,newAttack).attacks.every(a=>!a.attack_type),'Ambiguous duplicate matches must not inherit unverified attack types');
 assert.equal(updated.resources.Custom.current,1);
 assert.equal(updated.abilities.DEX.score,30);
 assert.equal(updated.inventory[0].quantity,2);assert.equal(updated.inventory[0].notes,'Equipped');

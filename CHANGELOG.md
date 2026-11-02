@@ -1,3 +1,11 @@
+## v0.30.0 — Scoped bonus attacks and verified Flurry prerequisites
+
+- Extend the *existing* `effects.combat.economy` ledger with restricted bonus-attack grants. No separate action store or class-feature interpreter is introduced.
+- A player/DM-approved D&D 2014 Flurry template spends one bonus action and one Ki only after the Attack action is fully completed and no other tracked activity intervenes. It grants exactly two explicitly classified unarmed strikes; neither strike is a new Attack action or another bonus action.
+- Attack rows expose qualifying Bonus Strike buttons. Physical attack dice consume one grant at launch, not at preparation; mixed weapon/unarmed attacks cannot borrow an unarmed-only grant.
+- Preserve explicitly approved attack classifications across unambiguous PDF reimports without overwriting the PDF's bonuses or damage. Duplicate-name imports remain unclassified rather than guessed.
+- Extend Node, vault, and real Chromium regressions (18 browser scenarios) for prerequisites, spending, grants, turn reset/undo, invalid plans, manual accounting, and UI behavior.
+
 ## v0.29.0 — Safe effects and configurable combat economy
 
 - Reuse the existing effect end path for long-rest cleanup; preserve manual conditions, stable concentration-check IDs, resolved-check damage-undo safety, and Empty Body condition ownership.

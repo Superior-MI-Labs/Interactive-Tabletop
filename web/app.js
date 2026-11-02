@@ -182,17 +182,20 @@ function unavailableReason(plan,resourceCharacter=character){
  try{Action.verifyEconomy(resourceCharacter,plan);return '';}
  catch(error){return error.message;}
 }
-function attackUnavailable(){
+function attackUnavailable(permission='action',type='unspecified'){
  if(!Action.combat(character).active||!Action.combat(character).economy.auto)return '';
- try{Action.verifyAttack(character);return '';}
+ try{Action.verifyAttack(character,permission,type);return '';}
  catch(error){return error.message;}
 }
 function attackRows(mode='compact'){
  return (character.attacks||[]).map((a,i)=>{
   const reason=attackUnavailable(),disabled=reason?' disabled aria-disabled="true"':'';
-  const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${button('Damage','damage',String(i),'button mini subtle')}`;
-  if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)}</small></div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
-  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)}"><span class="attack-name">${esc(a.name)}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
+  const type=Action.attackType(a),bonusRemaining=Action.availableAttackGrants(character,type);
+  const bonusReason=attackUnavailable('bonus',type);
+  const bonusControl=bonusRemaining?`<button class="button mini" type="button" data-action="bonus-attack" data-arg="${i}" ${bonusReason?'disabled aria-disabled="true"':''} title="${esc(bonusReason||'Spend one granted '+type+' strike when dice launch')}">Bonus strike (${bonusRemaining})</button>`:'';
+  const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}`;
+  if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)}</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
+  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)} · ${esc(type)}"><span class="attack-name">${esc(a.name)}${editMode?`<label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
 }
 function rollRows(kind,mode='compact'){
@@ -299,6 +302,9 @@ function encounterTargets(){
 const ABILITY_TEMPLATES={
  shield_stance:{name:'Shield Stance',activation:'1 action',grant_resource:'Shield Stance Points',grant_amount:4,effect_kind:'none',description:'Player/DM-approved stance; spend one action to recharge your defensive-point pool.'},
  empty_body:{name:'Empty Body',activation:'1 action',resource:'Ki',cost:4,effect_kind:'condition',effect_condition:'Invisible',duration_rounds:10,description:'Configure this feature according to your edition/DM ruling. Grants a tracked Invisibility condition for ten rounds.'},
+ flurry_2014:{name:'Flurry of Blows (2014)',ruleset_profile:'dnd-2014',activation:'1 bonus action',resource:'Ki',cost:1,
+  requires_attack:true,requires_attack_complete:true,grant_attacks:2,grant_attack_scope:'unarmed',effect_kind:'none',
+  description:'2014 SRD: immediately after completing your Attack action, spend one Ki point and your bonus action to gain two unarmed strikes. Mark an imported attack as Unarmed in edit mode. These strikes are separate from Extra Attack and consume no additional action.'},
  deflect_missiles_2014:{name:'Deflect Missiles (2014)',ruleset_profile:'dnd-2014',activation:'1 reaction',roll:'1d10+0',cost:0,effect_kind:'none',
   workflow:{kind:'damage-reduction',followup:{label:'Return caught missile',resource:'Ki',cost:1,roll:'1d20+0',requires_catchable:true,requires_free_hand:true}},
   description:'2014 SRD: on a confirmed ranged weapon hit, spend one reaction and reduce incoming damage by 1d10 + DEX modifier + Monk level. Configure the flat bonus in this dice expression. If damage reaches zero, and the missile is small/catchable and one hand is free, optionally spend 1 Ki for a return ranged attack within 20/60 ft as part of the SAME reaction. Confirm level and attack bonus with the DM.'}
@@ -330,6 +336,9 @@ function actionWorkspace(){
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
    <div class="entry-pair">${field('Action pool cost (1–3)',`actions.${a.index}.economy_units`,a.economy_units??1,'number')}
    <label class="field">Requires a prior Attack action<input type="checkbox" data-action-requires-attack="${a.index}" ${a.requires_attack?'checked':''}></label></div>
+   <div class="entry-pair"><label class="field">Immediately after completed Attack<input type="checkbox" data-action-requires-attack-complete="${a.index}" ${a.requires_attack_complete?'checked':''}></label>
+   ${field('Bonus strikes granted (0–4)',`actions.${a.index}.grant_attacks`,a.grant_attacks??0,'number')}</div>
+   <label class="field">Granted attack type<select class="input" data-input="actions.${a.index}.grant_attack_scope"><option value="unarmed" ${(!a.grant_attack_scope||a.grant_attack_scope==='unarmed')?'selected':''}>Unarmed only</option><option value="weapon" ${a.grant_attack_scope==='weapon'?'selected':''}>Weapon only</option><option value="any" ${a.grant_attack_scope==='any'?'selected':''}>Any classified attack</option></select></label>
    <div class="entry-pair">${field('Grant resource pool',`actions.${a.index}.grant_resource`,a.grant_resource||'')}${field('Grant amount',`actions.${a.index}.grant_amount`,a.grant_amount||0,'number')}</div>
    <label class="field">Grant extra action permission<select class="input" data-input="actions.${a.index}.grant_economy"><option value="" ${!a.grant_economy?'selected':''}>None</option><option value="any" ${a.grant_economy==='any'?'selected':''}>Unrestricted action (Action Surge-like)</option><option value="attack" ${a.grant_economy==='attack'?'selected':''}>One attack only (Haste-like)</option></select></label>
    <label class="field"><span class="field-label">Effect after roll (DM-approved only)</span><select class="input" data-input="actions.${a.index}.effect_kind"><option value="none" ${(a.effect_kind||'none')==='none'?'selected':''}>No automatic effect</option><option value="heal" ${a.effect_kind==='heal'?'selected':''}>Offer HP healing after roll</option><option value="damage" ${a.effect_kind==='damage'?'selected':''}>Offer damage to selected target</option><option value="condition" ${a.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
@@ -673,7 +682,7 @@ function handleAction(action,arg){
    if(preset.ruleset_profile&&character.system_edition!==preset.ruleset_profile){toast('Template requires '+preset.ruleset_profile+' edition.');break;}
    dialog('Replace mechanics for '+a.name+'?',`This explicitly replaces the selected ability’s activation and resource costs with the ${preset.name} template. The original ability ID and imported description are retained. Verify dice modifiers and homebrew rules with your DM. No resource is spent by configuring an ability.`,()=>{
     const name=a.name,id=a.id,description=a.description||'';
-    for(const field of ['activation','roll','damage','resource','cost','effect_kind','effect_condition','duration_rounds','concentration','economy_units','requires_attack','grant_resource','grant_amount','grant_economy','workflow','damage_type','ruleset_profile'])delete a[field];
+    for(const field of ['activation','roll','damage','resource','cost','effect_kind','effect_condition','duration_rounds','concentration','economy_units','requires_attack','grant_resource','grant_amount','grant_economy','grant_attacks','grant_attack_scope','requires_attack_complete','workflow','damage_type','ruleset_profile'])delete a[field];
     Object.assign(a,JSON.parse(JSON.stringify(preset)),{id,name,source:'manual',preset_id:selected});
     a.description=description?description+'\n\nWorkflow configuration: '+preset.description:preset.description;
     save();render();toast('Ability workflow configured. Review dice modifiers before use.');
@@ -699,7 +708,7 @@ function handleAction(action,arg){
    }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
-   const details=[p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
+   const details=[p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
    dialog('Use '+p.name+'?',details.join(' · ')+'. Continue only if appropriate under your table rules.',()=>{
     try{
      // Never spend resources while the active dice animation is unresolved.
@@ -782,9 +791,9 @@ function handleAction(action,arg){
   case 'toggle-archived':showArchived=!showArchived;render();break;
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check',null,'ability-check');break;}
-  case 'attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId();
-   try{Action.verifyAttack(character);
-    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+' attack vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg)},'attack'))pendingRoll.combatAttack=true;
+  case 'attack':case 'bonus-attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId(),permission=action==='bonus-attack'?'bonus':'action',type=Action.attackType(a);
+   try{Action.verifyAttack(character,permission,type);
+    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+(permission==='bonus'?' bonus strike':' attack')+' vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg)},'attack')){pendingRoll.combatAttack=true;pendingRoll.attackPermission=permission;pendingRoll.attackType=type;}
    }catch(e){toast(e.message);}}break;}
   case 'damage':{
    const index=num(arg),targetId=currentTargetId();
@@ -981,7 +990,9 @@ document.addEventListener('change',e=>{
  if(el.id==='combat-mode'){try{Action.setCombatMode(character,el.value);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.economyAuto!==undefined){try{Action.setAutoEconomy(character,el.checked);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.economyConfig){try{Action.configureEconomy(character,el.dataset.economyConfig,Number(el.value));save();render();}catch(error){toast(error.message);render();}return;}
- if(el.dataset.actionRequiresAttack!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttack)];if(a){a.requires_attack=el.checked;a.source='manual';save();}return;}
+ if(el.dataset.actionRequiresAttack!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttack)];if(a){a.requires_attack=el.checked;a.source='manual';save();render();}return;}
+ if(el.dataset.actionRequiresAttackComplete!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttackComplete)];if(a){a.requires_attack_complete=el.checked;a.source='manual';save();render();}return;}
+ if(el.dataset.attackType!==undefined){const a=character.attacks?.[num(el.dataset.attackType)];if(a){a.attack_type=el.value;save();render();}return;}
  if(el.dataset.effectAuto!==undefined){
   try{Action.setAutoUse(character,el.dataset.effectAuto,el.checked);save();toast((el.checked?'Armed ':'Paused ')+Action.activeEffects(character).find(e=>e.id===el.dataset.effectAuto)?.name);}
   catch(error){toast(error.message);render();}return;
@@ -1248,7 +1259,7 @@ function startDiceGroup(selected,p,vx,vy,shake,effect){
  // An Attack action is spent only when its physical dice actually launch.
  // Canceling/replacing prepared dice never consumes an action or attack.
  if(p.combatAttack){
-  try{Action.commitAttack(character);save();render();}
+  try{Action.commitAttack(character,p.attackPermission||'action',p.attackType||'unspecified');save();render();}
   catch(error){toast(error.message);return false;}
  }
  selected.forEach(d=>{

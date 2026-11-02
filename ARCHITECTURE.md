@@ -155,3 +155,13 @@ The per-character **vault** remains the only persistence owner. The combat actio
 - The three-action Pathfinder-2e-style pool is now **representable**; actual Pathfinder rules are **not** implemented. Future edition profiles must provide verified action traits, multiple-attack penalties, subordinate activities, reactions and timing, rather than assuming D&D Attack action semantics. Likewise this alpha does not infer Action Surge, Haste, Monk Flurry of Blows, proficiency level, or homebrew defensive-point triggers from imported prose.
 
 Core invariants: one transaction for resource charges and action budget; no hidden rules inferred from a name; no effect duplicate store; canceled pending attack dice spend no action; manual adjustments are possible and explicit; unsupported/unknown mechanics remain DM-adjudicated.
+
+## v0.30 — Restricted attack permissions share the existing economy owner
+
+The character vault remains authoritative; `DndAction` now distinguishes **Attack-action attacks** (`attackActionMade` and `attacks.remaining`) from **bonus strikes granted by configured features** (`economy.attackGrants`). Grants record `source`, `scope` (`unarmed`, `weapon`, or explicit `any`), and `remaining` charges. Normal attack budget/extra attacks and scoped bonus attacks are checked by the same `verifyAttack` / `commitAttack` functions. There is no second combat store or dedicated Monk executor.
+
+An ability may declare `grant_attacks` (1–4), `grant_attack_scope`, `requires_attack`, and `requires_attack_complete`. For the explicitly applied 2014 Flurry template, an Attack action must finish first and remain the last tracked activity. A physical bonus-attack roll consumes exactly one grant at **throw**, not during cursor preparation. The original feature invocation is what spends its one bonus action/Ki. `advanceTurn` clears grants; `undoTurn` restores the saved ledger. Ability text is never parsed for permissions, and an unrelated or unclassified attack cannot claim an unarmed-only grant.
+
+The PDF reimport merges attack classifications only on unique, unambiguous name matches. The incoming PDF remains authoritative for attack bonuses and dice. Classification is an explicit player/DM decision shown in the existing attack editor.
+
+Remaining boundaries: the implementation does not yet model full initiative timing, movement between actions, off-turn interruptions, or every edition-specific attack activity. The 2014 'immediately after' constraint is enforced against tracked abilities/spells and Attack-action completion; the UI cannot observe out-of-band movement/DM narration. Pathfinder profiles remain future work.

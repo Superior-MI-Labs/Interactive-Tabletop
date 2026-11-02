@@ -43,6 +43,13 @@ function combat(character){
  if(!e.attacks||typeof e.attacks!=='object')e.attacks={made:0,remaining:0};
  for(const k of ['made','remaining'])if(!Number.isSafeInteger(e.attacks[k])||e.attacks[k]<0)e.attacks[k]=0;
  if(!Array.isArray(e.grants))e.grants=[];
+ if(!Array.isArray(e.attackGrants))e.attackGrants=[];
+ // Character backups can include older or manually edited turn ledgers.
+ // An invalid grant must never create a free strike or poison calculations.
+ e.attackGrants=e.attackGrants.filter(g=>g&&typeof g.source==='string'&&g.source.length>0&&
+  ['unarmed','weapon','any'].includes(g.scope)&&Number.isSafeInteger(g.remaining)&&g.remaining>=0&&g.remaining<=4);
+ if(!Number.isSafeInteger(e.attackActionMade)||e.attackActionMade<0)e.attackActionMade=e.attacks.made; // legacy saves
+ if(!['attack','other',null].includes(e.lastActivity))e.lastActivity=null;
  return state;
 }
 function activationCost(raw){
@@ -90,10 +97,34 @@ function spendEconomy(character,type,units=1,scope='any'){
  e.spent[type]+=base;
  for(const g of grants)g.used=true;
  state.used[type]=e.spent[type]>0;
+ e.lastActivity='other';
  delete state.undo_turn;
  return {base,grants:grants.map(g=>g.scope)};
 }
-function verifyAttack(character){
+// Restricted attacks are additional attack *permissions*, not Attack actions.
+// A grant is explicitly scoped to an attack type; unknown imported attacks
+// cannot silently qualify as unarmed strikes.
+function attackType(attack){
+ const type=attack?.attack_type??'unspecified';
+ if(!['unarmed','weapon','unspecified'].includes(type))throw Error('Unsupported attack type.');
+ return type;
+}
+function attackGrant(character,type){
+ attackType({attack_type:type});
+ return combat(character).economy.attackGrants.find(g=>g.remaining>0&&(g.scope==='any'||g.scope===type));
+}
+function availableAttackGrants(character,type){
+ const state=combat(character);
+ return state.economy.attackGrants.filter(g=>g.remaining>0&&(g.scope==='any'||g.scope===type)).reduce((n,g)=>n+g.remaining,0);
+}
+function verifyAttack(character,permission='action',type='unspecified'){
+ if(permission==='bonus'){
+  const state=combat(character);
+  if(!state.active||!state.economy.auto)return true;
+  if(!attackGrant(character,type))throw Error('No qualified bonus attack permission for this attack type.');
+  return true;
+ }
+ if(permission!=='action')throw Error('Unknown attack permission.');
  const state=combat(character);
  if(!state.active||!state.economy.auto)return true;
  attacksPerAction(character);
@@ -101,18 +132,30 @@ function verifyAttack(character){
  if(!economyAvailable(character,'action',1,'attack'))throw Error('No Attack action or extra attack grant remains this turn.');
  return true;
 }
-function commitAttack(character){
- verifyAttack(character);
+function commitAttack(character,permission='action',type='unspecified'){
+ verifyAttack(character,permission,type);
  const state=combat(character);
  if(!state.active||!state.economy.auto)return false;
  const sequence=state.economy.attacks;
+ if(permission==='bonus'){
+  const grant=attackGrant(character,type);
+  grant.remaining--;
+  sequence.made++;
+  // A granted strike is not the Attack action and must never unlock the
+  // Attack-action prerequisite on its own.
+  state.economy.lastActivity='other';
+  delete state.undo_turn;
+  return true;
+ }
  if(sequence.remaining>0)sequence.remaining--;
  else{
   const charge=spendEconomy(character,'action',1,'attack');
   // A restricted Haste-style action grants exactly one attack, never Extra Attack.
   sequence.remaining=charge.grants.includes('attack')?0:attacksPerAction(character)-1;
  }
- sequence.made++;
+ sequence.made++;state.economy.attackActionMade++;
+ // The 2014 Flurry window opens after the Attack action has finished.
+ state.economy.lastActivity=sequence.remaining===0?'attack':null;
  delete state.undo_turn;
  return true;
 }
@@ -161,7 +204,10 @@ function verifyEconomy(character,validated){
  const state=combat(character),type=activationCost(validated.activation),units=validated.economyUnits??1;
  if(!state.active||!state.economy.auto)return type;
  if(type&&!economyAvailable(character,type,units))throw Error('Your '+type+' is already used or its pool is exhausted this turn.');
- if(validated.requiresAttack&&state.economy.attacks.made<1)throw Error('This feature requires an Attack action first this turn.');
+ if(validated.requiresAttack&&state.economy.attackActionMade<1)throw Error('This feature requires an Attack action first this turn.');
+ if(validated.requiresAttackComplete&&(state.economy.attacks.remaining>0||state.economy.lastActivity!=='attack'))
+  throw Error('Complete the Attack action immediately before this ability.');
+ if(validated.grantAttacks&&state.economy.attackGrants.some(g=>g.source===validated.sourceId))throw Error('This ability already granted attacks this turn.');
  if(validated.grantEconomy&&state.economy.grants.some(g=>g.source===validated.sourceId))throw Error('Feature already granted its action this turn.');
  if(follows2014(character)&&validated.kind==='spell'){
   if(state.spellcasting.bonus&&!actionCantrip(validated))throw Error('2014 bonus-action spell rule: only a 1-action cantrip may follow a bonus-action spell this turn.');
@@ -178,12 +224,16 @@ function commitUsage(character,validated){
  if(validated.grantResource&&(!grant||!Number.isSafeInteger(Number(grant.current))||!Number.isSafeInteger(Number(grant.max))||Number(grant.current)<0||Number(grant.current)>Number(grant.max)||Number(grant.max)<0))throw Error('Invalid resource grant pool: '+validated.grantResource);
  const state=combat(character),e=state.economy;
  if(state.active&&e.auto&&validated.grantEconomy&&e.grants.filter(g=>!g.used).length>=3)throw Error('No room for another action grant.');
+ if(state.active&&e.auto&&validated.grantAttacks&&e.attackGrants.reduce((n,g)=>n+g.remaining,0)+validated.grantAttacks>8)
+  throw Error('Maximum eight unspent bonus attacks.');
  // All costs and requirements were validated before modifying any resource.
  if(validated.cost)pool.current=Number(pool.current)-validated.cost;
  if(grant)grant.current=Math.min(Number(grant.max),Number(grant.current)+validated.grantAmount);
  if(state.active&&e.auto){
   if(type)spendEconomy(character,type,validated.economyUnits??1);
   if(validated.grantEconomy)grantEconomyAction(character,validated.grantEconomy,validated.sourceId);
+  if(validated.grantAttacks)e.attackGrants.push({source:validated.sourceId,scope:validated.grantAttackScope,remaining:validated.grantAttacks});
+  e.lastActivity='other';
   if(follows2014(character)&&validated.kind==='spell'){
    if(type==='bonus')state.spellcasting.bonus=true;
    else if(!actionCantrip(validated))state.spellcasting.restricted=true;
@@ -202,7 +252,7 @@ function markAction(character,type){
 function setEncounter(character,enabled){
  const state=combat(character),mode=state.economy.mode;
  state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
- state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},grants:[]};delete state.pending_workflow;delete state.undo_turn;
+ state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.pending_workflow;delete state.undo_turn;
  return state;
 }
 
@@ -334,6 +384,12 @@ function plan(character,action){
  if(!grantResource&&grantAmount)throw Error('Choose a resource to grant.');
  const grantEconomy=String(action.grant_economy||'');
  if(grantEconomy&&!['any','attack'].includes(grantEconomy))throw Error('Unsupported extra action permission.');
+ const grantAttacks=Number(action.grant_attacks??0),grantAttackScope=String(action.grant_attack_scope||'unarmed');
+ if(!Number.isSafeInteger(grantAttacks)||grantAttacks<0||grantAttacks>4)throw Error('Bonus attack grant must be 0–4 attacks.');
+ if(grantAttacks&&!['unarmed','weapon','any'].includes(grantAttackScope))throw Error('Bonus attack grant needs a valid attack type.');
+ if(grantAttacks&&activationCost(action.activation)!=='bonus')throw Error('Bonus attack grants require a bonus action.');
+ const requiresAttackComplete=action.requires_attack_complete===true;
+ if(requiresAttackComplete&&action.requires_attack!==true)throw Error('Attack completion requires the Attack-action prerequisite.');
  const economyUnits=Number(action.economy_units??1);
  if(!Number.isSafeInteger(economyUnits)||economyUnits<1||economyUnits>3)throw Error('Action pool expense must be 1–3.');
  if(!activationCost(action.activation)&&economyUnits!==1)throw Error('Special activities need a DM-defined activation.');
@@ -368,7 +424,7 @@ function plan(character,action){
  if(action.damage)dice(action.damage); // Validate all configured dice before mutation.
  return Object.freeze({kind:'ability',name:String(action.name||'Ability'),sourceId:String(action.id||action.name||'ability'),resource,cost,roll,effect,
    concentration:action.concentration===true,durationRounds:duration(action.duration_rounds),activation:String(action.activation||'special'),condition,damageType,
-   economyUnits,requiresAttack:action.requires_attack===true,grantResource,grantAmount,grantEconomy,workflow:staged});
+   economyUnits,requiresAttack:action.requires_attack===true,requiresAttackComplete,grantAttacks,grantAttackScope,grantResource,grantAmount,grantEconomy,workflow:staged});
 }
 // One pending sequence per character. The continuation is not a second
 // reaction: it is an optional child of the already committed parent action.
@@ -593,7 +649,7 @@ function advanceTurn(character){
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
-  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},grants:[]};delete state.pending_workflow;}
+  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.pending_workflow;}
  const expired=advanceEffects(character);
  for(const [name,resource] of Object.entries(character.resources||{}))
   if(resource?.reset==='turn'||(name==='Shield Stance Points'&&resource?.reset===undefined))resource.current=0; // legacy character import compatibility
@@ -797,6 +853,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
