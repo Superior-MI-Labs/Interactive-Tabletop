@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#171b22">
+  <title>Character Tabletop v0.10.0</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script>window.__STATIC_TABLETOP__ = true;</script>
+<script src="./character-import.js" defer></script>
+  <script src="./browser-pdf.js" defer></script>
+  <script src="./dice-physics.js" defer></script>
+  <script src="./app.js" defer></script>
+<meta name="description" content="PhoenixTabletop — early alpha. Import a D&D Beyond PDF and play with interactive sheets, spells, abilities and dice. Local-first, free and experimental.">
+</head>
+<body>
+  <div id="shell">
+    <header class="topbar">
+      <div class="brand"><imgclass="sunmark" src="./solar-crest.png" alt="" aria-hidden="true"><div><small>EARLY ALPHA · DICE & CHARACTER SHEETS</small><strong>Character Tabletop</strong></div></div>
+      <div class="top-actions"><a class="button subtle"href="./downloads/SkyBlueEyes-Tabletop-v0.10.0.zip" download>Download desktop ZIP</a>
+        <span id="save-state" class="save-state">Opening…</span>
+        <label class="button subtle" for="pdf-file">Import PDF</label>
+        <inputid="pdf-file" type="file" accept=".pdf,application/pdf" hidden>
+        <button class="button subtle" id="import-json">Import JSON</button>
+        <input id="json-file" type="file" accept=".json,application/json" hidden>
+        <buttonclass="button subtle" id="export-json">Export JSON</button>
+        <button class="button primary" id="quick-d20">Roll d20</button>
+      </div>
+    </header>
+    <div id="workspace">
+      <section class="tabletop-dock"aria-label="Interactive sheet and dice on the tabletop">
+        <div id="dice-stage" class="dice-stage" aria-label="Shared physical tabletop">
+          <button type="button" id="sheet-handle" class="sheet-handle"aria-controls="sheet-wrap" aria-expanded="true" title="Hide character sheet">‹‹ <span>Hide sheet</span></button>
+          <div class="sheet-wrap" id="sheet-wrap">
+
+            <main id="page" tabindex="-1"><divclass="loading">Opening tabletop…</div></main>
+          </div>
+          <details class="desk-controls" id="dice-widget" aria-label="Dice controls">
+            <summary class="desk-heading"><span>Dice</span><span id="collapsed-result"class="collapsed-result" aria-live="polite">Ready</span><span class="expand-glyph" aria-hidden="true">⌄</span></summary>
+            <div class="dice-widget-content">
+              <div class="dice-choice" aria-label="Choose dice tospawn">
+                <button data-die="4">d4</button><button data-die="6">d6</button><button data-die="8">d8</button>
+                <button data-die="10">d10</button><button data-die="12">d12</button><buttondata-die="20">d20</button><button data-die="100">d100</button>
+              </div>
+              <div class="throw-row"><input class="input" id="custom-roll" value="1d20+0" aria-label="Dice expression" spellcheck="false"placeholder="2d6+3">
+                <button class="button primary" data-action="custom-roll" title="Prepare dice">Prepare</button>
+                <button class="button" data-action="auto-throw">Throw</button>
+                <buttonclass="button subtle" data-action="clear-table">Clear</button></div>
+              <div id="last-result" class="table-result" aria-live="polite">Choose a die and flick it across the table.</div>
+              <detailsclass="table-history"><summary>Roll history <span id="history-count">0</span></summary>
+                <ul id="table-history" class="history"></ul><button class="button mini subtle" data-action="clear-history">Clearhistory</button></details>
+              <div class="tray-help" id="tray-help">Dice can roll across the sheet and the tabletop.</div>
+            </div>
+          </details>
+          <canvas id="dice-canvas" aria-label="Renderedthree-dimensional dice over the table and character sheet"></canvas>
+        </div>
+      </section>
+    </div>
+    <div id="status-msg" role="status" aria-live="polite" class="status-msg">Ready</div>
+  </div>
+  <div id="dialog-layer"hidden></div>
+</body>
+</html>

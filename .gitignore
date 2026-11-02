@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.pdf
+/private/
+_private_fields_*.json
+**/character.json
+*.log
+.DS_Store
