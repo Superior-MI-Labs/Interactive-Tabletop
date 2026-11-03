@@ -52,7 +52,7 @@ assert.equal(A.combatEvent(c),null);assert.equal(c.effects.pending_concentration
 A.commitDamage(c,A.planDamage(c,'self',{amount:5}));
 const event=A.combatEvent(c);
 assert.throws(()=>A.verifyCombatEvent(c,'damage-taken','other'),/must use/);
-const taken={id:'trigger',kind:'ability',name:'DM reaction',activation:'special',triggerEvent:'damage-taken',targetId:'self',cost:0};
+const taken=A.plan(c,{id:'trigger',name:'DM reaction',activation:'1 reaction',trigger_event:'damage-taken',cost:0});
 A.commitUsage(c,taken);assert.equal(A.combatEvent(c).used,true);
 assert.throws(()=>A.undoLastDamage(c),/damage-triggered event was consumed/);
 assert.equal(c.hp.current,27);

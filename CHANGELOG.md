@@ -1,3 +1,11 @@
+## v0.37.0 — Verified combat-outcome predicates and confirmation identity
+
+- Add strictly validated, opt-in filters for the existing `save-success`, `save-failure`, and `damage-taken` ability triggers: saving throw ability, damage type, minimum effective damage, and minimum actual HP loss after temporary HP. The action planner—not the UI or imported text—owns the predicates.
+- Require real saved-roll or applied-damage provenance for numerical/ability filters. A manually confirmed generic event remains available for unfiltered DM play but cannot masquerade as physical-roll evidence for filtered automation.
+- Bind event-triggered ability plans to their exact event ID and target, even if prepared before the event existed or if another qualifying event replaces it. The UI commits the original reviewed plan rather than quietly constructing a new one at confirmation time; staged reactions use the same validation.
+- Expose conditional controls in the existing character-ability editor; changing the prerequisite clears hidden obsolete filters. Preserve edition isolation, manual mode, the vault as source of truth, resource atomicity and no-new-engine policy.
+- Add pure-engine and Chromium regressions for save and damage outcomes, target binding, invalid configuration, stale dialogs, real button eligibility, and committed costs. Run the same CI browser gate prior to Pages publication.
+
 ## v0.36.0 — Verified saving throws, explicit damage association and applied-damage events
 
 - Save outcomes now enter the existing character-owned combat ledger with a physical roll ID, target, ability, total, DC and derived success/failure. A completed save opens a short-lived, target-bound `save-success` / `save-failure` event when tracked combat is active; duplicate and invalid results fail before state mutation.

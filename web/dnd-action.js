@@ -200,7 +200,22 @@ function recordResolvedAttack(character,record){
  state.resolved_attack_ids=[...seen.slice(-39),rollId];
  return event;
 }
-function verifyCombatEvent(character,required,targetId=null,expectedId=null){
+// Event filters are explicitly approved character metadata, never parsed rules.
+// This is a predicate over verified evidence, not a second execution path.
+function eventFilter(action,kind){
+ const saveAbility=String(action.event_save_ability||'').trim().toUpperCase();
+ const damageType=String(action.event_damage_type||'').trim().toLowerCase();
+ const minDamage=Number(action.event_min_damage??0),minHpLoss=Number(action.event_min_hp_loss??0);
+ if(!Number.isSafeInteger(minDamage)||minDamage<0||minDamage>999999||
+    !Number.isSafeInteger(minHpLoss)||minHpLoss<0||minHpLoss>999999)throw Error('Event damage thresholds must be whole numbers from 0 to 999999.');
+ if(saveAbility&&(!['save-success','save-failure'].includes(kind)||!ABILITIES.includes(saveAbility)))
+  throw Error('Saving-throw ability filter requires a valid save event and ability.');
+ if((damageType||minDamage||minHpLoss)&&kind!=='damage-taken')
+  throw Error('Damage filters require a damage-taken event.');
+ if(damageType&&!DAMAGE_TYPES.includes(damageType))throw Error('Unsupported event damage type.');
+ return Object.freeze({saveAbility,damageType,minDamage,minHpLoss});
+}
+function verifyCombatEvent(character,required,targetId=null,expectedId=null,filter=null){
  if(!required)return true;
  if(!EVENT_KINDS.includes(required))throw Error('Unsupported ability trigger.');
  const state=combat(character);
@@ -210,8 +225,24 @@ function verifyCombatEvent(character,required,targetId=null,expectedId=null){
  if(expectedId&&expectedId!==current.id)throw Error('The original combat event changed. Confirm the ability again.');
  if(current.attackerId&&!targetById(character,current.attackerId))throw Error('The attacking creature is no longer in this encounter.');
  if(current.targetId){
-  if(!targetById(character,current.targetId))throw Error('The original hit target is no longer in this encounter.');
-  if(targetId!==null&&current.targetId!==targetId)throw Error('This ability must use the creature hit by the qualifying attack.');
+  if(!targetById(character,current.targetId))throw Error('The original event target is no longer in this encounter.');
+  if(targetId!==null&&current.targetId!==targetId)throw Error(current.kind==='melee-hit'?'This ability must use the creature hit by the qualifying attack.':'This ability must use the creature associated with its triggering event.');
+ }
+ if(filter){
+  if(filter.saveAbility){
+   if(current.origin!=='resolved-save'||current.sourceId!==filter.saveAbility||
+      !Number.isSafeInteger(current.total)||!Number.isSafeInteger(current.dc)||
+      current.dc<0||current.dc>99||
+      (current.total>=current.dc)!==(current.kind==='save-success'))
+    throw Error('This event does not meet the required verified saving throw.');
+  }
+  if(filter.damageType||filter.minDamage||filter.minHpLoss){
+   if(current.origin!=='applied-damage'||!Number.isSafeInteger(current.damageAmount)||
+      !Number.isSafeInteger(current.hpLoss)||current.damageAmount<0||current.hpLoss<0||
+      (filter.damageType&&current.damageType!==filter.damageType)||
+      current.damageAmount<filter.minDamage||current.hpLoss<filter.minHpLoss)
+    throw Error('This event does not meet the configured damage requirements.');
+  }
  }
  return true;
 }
@@ -356,7 +387,9 @@ function grantEconomyAction(character,scope='any',source='manual'){
 function verifyEconomy(character,validated){
  const state=combat(character),type=activationCost(validated.activation),units=validated.economyUnits??1;
  if(!state.active||!state.economy.auto)return type;
- verifyCombatEvent(character,validated.triggerEvent,validated.targetId??null,validated.eventId??null);
+ if(validated.triggerEvent&&!validated.eventId)
+  throw Error('Confirm the '+validated.triggerEvent+' event and prepare this ability again.');
+ verifyCombatEvent(character,validated.triggerEvent,validated.targetId??null,validated.eventId??null,validated.eventFilter??null);
  if(type&&!economyAvailable(character,type,units))throw Error('Your '+type+' is already used or its pool is exhausted this turn.');
  if(validated.requiresAttack&&state.economy.attackActionMade<1)throw Error('This feature requires an Attack action first this turn.');
  if(validated.requiresAttackComplete&&(state.economy.attacks.remaining>0||state.economy.lastActivity!=='attack'))
@@ -557,6 +590,7 @@ function plan(character,action,context=null){
  if(action.ruleset_profile&&action.ruleset_profile!==character.system_edition)throw Error('Ability profile requires '+action.ruleset_profile+' character edition.');
  const triggerEvent=String(action.trigger_event||'');
  if(triggerEvent&&!EVENT_KINDS.includes(triggerEvent))throw Error('Unsupported ability trigger.');
+ const filters=eventFilter(action,triggerEvent);
  if(triggerEvent&&activationCost(action.activation)!=='reaction'&&triggerEvent!=='melee-hit')throw Error('This trigger requires a reaction.');
  const workflow=action.workflow;
  let staged=null;
@@ -588,8 +622,10 @@ function plan(character,action,context=null){
  return Object.freeze({kind:'ability',name:String(action.name||'Ability'),sourceId:String(action.id||action.name||'ability'),resource,cost,roll,effect,
    concentration:action.concentration===true,durationRounds:duration(action.duration_rounds),activation:String(action.activation||'special'),condition,damageType,
    economyUnits,requiresAttack:action.requires_attack===true,requiresAttackComplete,grantAttacks,grantAttackScope,grantResource,grantAmount,grantEconomy,triggerEvent:triggerEvent||(staged?'ranged-hit':''),
-   targetId:triggerEvent==='melee-hit'?(context?.targetId??null):null,
-   eventId:(triggerEvent||(staged?'ranged-hit':''))?(combatEvent(character)?.id??null):null,workflow:staged});
+   targetId:['melee-hit','save-success','save-failure'].includes(triggerEvent)?
+    (context?.targetId??combatEvent(character)?.targetId??null):triggerEvent==='damage-taken'?'self':null,
+   eventId:(triggerEvent||(staged?'ranged-hit':''))?(combatEvent(character)?.id??null):null,
+   eventFilter:filters,workflow:staged});
 }
 // One pending sequence per character. The continuation is not a second
 // reaction: it is an optional child of the already committed parent action.

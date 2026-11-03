@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.29.0
+# Interactive Tabletop architecture — v0.37.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -203,3 +203,9 @@ The `used` bit indicates whether the pre-roll reaction opportunity was consumed;
 - **A save does not automatically apply to damage.** The player must explicitly associate the exact recent saved result with a damage roll and choose the DM-approved half/negates-on-success policy. `planDamage` stores `saveId`; `commitDamage` recomputes the entire plan against that exact current evidence and target before spending HP. Manual DM-confirmed outcomes can still use the existing explicit input contract. Saving throws by themselves never change HP or conditions.
 - `commitDamage` is the sole origin for tracked `damage-taken` events; the event names its self target, actual damage type, post-trait damage and HP loss. Immunity/zero damage and attacks on other creatures cannot open a self-damage trigger. An unfinished staged workflow is never displaced by damage reporting. No trigger is emitted by a preview. Undo is disallowed if the resulting event was consumed or replaced and retires its own unspent window when reversing HP.
 - Future saving-throw or damage-dependent class features must provide approved structured triggers and validate target, provenance, timing, cost and resource limits in the existing `verifyEconomy`/`commitUsage` pipeline. No inference from spell text, class names, or PDF prose.
+
+## v0.37 event predicates and binding
+
+An ability's optional `event_save_ability`, `event_damage_type`, `event_min_damage` and `event_min_hp_loss` are **explicit approved configuration**, not imported rule inference. `DndAction.plan` validates these fields by trigger kind and snapshots a frozen filter plus the current combat event/target identity. `verifyEconomy` consults the one existing event window through `verifyCombatEvent`, checking trusted physical-save or applied-damage origin and numerical evidence *before* costs and effect mutations. Empty filters retain existing DM-confirmed manual event behavior. Manual combat mode remains advisory for the same canonical action rules.
+
+The UI only exposes the settings and acts on `verifyEconomy`; on confirmation it uses the **original** planned transaction, not a freshly generated plan that might bind to a different intervening event. The same rule applies to staged reactions. There is no second event subscriber, rules parser, queue, or client-side budget ledger. Test boundaries: before-event previews, same-kind replacement, foreign targets, temporary HP, invalid imported settings, resource atomicity, cancel/confirm, vault round-trip and turn undo.

@@ -360,6 +360,8 @@ function actionWorkspace(){
    ${a.workflow?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
    <label class="field">Confirmed event prerequisite<select class="input" data-input="actions.${a.index}.trigger_event">${[['','None'],['incoming-attack','Incoming attack before roll'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit'],['save-success','Selected creature succeeded on save'],['save-failure','Selected creature failed save'],['damage-taken','You took damage']].map(([id,label])=>`<option value="${id}" ${a.trigger_event===id?'selected':''}>${label}</option>`).join('')}</select></label>
+   ${['save-success','save-failure'].includes(a.trigger_event)?`<label class="field">Verified save ability (optional filter)<select class="input" data-input="actions.${a.index}.event_save_ability"><option value="">Any verified ability</option>${Action.ABILITIES.map(v=>`<option value="${v}" ${a.event_save_ability===v?'selected':''}>${v}</option>`).join('')}</select></label>`:''}
+   ${a.trigger_event==='damage-taken'?`<div class="entry-pair"><label class="field">Incoming damage type (optional)<select class="input" data-input="actions.${a.index}.event_damage_type"><option value="">Any damage type</option>${Action.DAMAGE_TYPES.map(v=>`<option value="${v}" ${a.event_damage_type===v?'selected':''}>${v}</option>`).join('')}</select></label>${field('Minimum applied damage',`actions.${a.index}.event_min_damage`,a.event_min_damage??0,'number')}${field('Minimum HP lost (after temporary HP)',`actions.${a.index}.event_min_hp_loss`,a.event_min_hp_loss??0,'number')}</div>`:''}
    <div class="entry-pair">${field('Action pool cost (1–3)', `actions.${a.index}.economy_units`,a.economy_units??1,'number')}
    <label class="field">Requires a prior Attack action<input type="checkbox" data-action-requires-attack="${a.index}" ${a.requires_attack?'checked':''}></label></div>
    <div class="entry-pair"><label class="field">Immediately after completed Attack<input type="checkbox" data-action-requires-attack-complete="${a.index}" ${a.requires_attack_complete?'checked':''}></label>
@@ -559,10 +561,10 @@ function setPath(path,value){
  let obj=character;
  for(const p of parts.slice(0,-1)){if(!obj||!Object.prototype.hasOwnProperty.call(obj,p))return;obj=obj[p];}
  const key=parts.at(-1);
- if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|economy_units|grant_resource|grant_amount|grant_economy)$/.test(path)))return;
+ if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
  obj[key]=value;
- if(/^actions\.\d+\.(?:economy_units|grant_amount)$/.test(path))obj[key]=Math.max(0,Math.min(999,Math.floor(num(value))));
+ if(/^actions\.\d+\.(?:economy_units|grant_amount|event_min_damage|event_min_hp_loss)$/.test(path))obj[key]=Math.max(0,Math.min(999999,Math.floor(num(value))));
  if(/^(?:actions|spells)\.\d+\.duration_rounds$/.test(path))obj[key]=Math.max(0,Math.min(999,Math.floor(num(value))));
  // User-edited imported abilities become manual overrides, retained on reimport.
  if(/^actions\.\d+\./.test(path)){const a=character.actions[Number(parts[1])];if(a)a.source='manual';}
@@ -723,7 +725,7 @@ function handleAction(action,arg){
     catch(e){toast(e.message);break;}
     let incoming=0;
     dialog('Activate '+p.name+'?',`Confirm you were hit by a ranged weapon attack. Spend the reaction now, then roll ${p.roll.expression} to reduce the incoming damage. Counterattack Ki is OPTIONAL and never charged upfront.`,()=>{
-     try{const fresh=Action.plan(character,a);const flow=Action.beginWorkflow(character,fresh,incoming);save();render();
+     try{const flow=Action.beginWorkflow(character,p,incoming);save();render();
       queueRoll(flow.roll,flow.name+' damage reduction',{kind:'staged-reduction',characterId:activeId,sequenceId:flow.id});}
      catch(error){toast('Cannot activate: '+error.message);}
     },'Spend reaction & roll');
@@ -741,8 +743,8 @@ function handleAction(action,arg){
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      // Never charge a resource if the required dice cannot be prepared.
      if(p.roll&&!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough space for this throw. Clear unused dice first.');
-     const confirmed=Action.plan(character,a,{targetId:currentTargetId()});
-     Action.commitUsage(character,confirmed);Action.startEffect(character,confirmed);save();render();
+     Action.commitUsage(character,p);Action.startEffect(character,p);save();render();
+     const confirmed=p;
      if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:confirmed.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:currentTargetId(),damageType:confirmed.damageType,source:confirmed.name}:null);
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
@@ -1081,6 +1083,12 @@ document.addEventListener('change',e=>{
  if(el.dataset.input){
   const value=el.value;
   setPath(el.dataset.input,value);
+  if(/^actions\.\d+\.trigger_event$/.test(el.dataset.input)){
+   const a=character.actions?.[num(el.dataset.input.split('.')[1])];
+   if(a){delete a.event_save_ability;delete a.event_damage_type;delete a.event_min_damage;delete a.event_min_hp_loss;save();render();}
+   return;
+  }
+  if(/^actions\.\d+\.event_(?:save_ability|damage_type|min_damage|min_hp_loss)$/.test(el.dataset.input)){render();return;}
   // Qty 0 moves to archived, but does not delete imported records.
   if(/^inventory\.\d+\.quantity$/.test(el.dataset.input)){
     const i=num(el.dataset.input.split('.')[1]);character.inventory[i].archived=num(value)<=0;save();render();return;
