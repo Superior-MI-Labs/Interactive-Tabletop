@@ -1,3 +1,11 @@
+## v0.35.0 — One typed incoming-attack lifecycle for pre- and post-roll reactions
+
+- Introduce a validated incoming-attack event that records the attacker, attack classification and self recipient in the existing per-character combat window. Only explicitly selected encounter attackers qualify; no enemy roll simulation or rules inference is introduced.
+- Confirm Hit or Miss **after** the pre-roll reaction opportunity. Only a confirmed ranged-weapon hit opens a descendant `ranged-hit` window for Deflect Missiles; misses, spells, melee and unclassified hits close the window.
+- Keep the already-spent reaction and resources when the attack is resolved; Warding Flare's consumed pre-roll event does not refund a reaction or prevent outcome recording. Optional Deflect Ki is still not spent until its separate return throw.
+- Stale event identities, a removed attacker, changed turns, invalid attack kinds and invalid outcomes fail safely. Both event stages and their attacker provenance survive vault persistence.
+- Add Node and real Chromium regressions for timing, costs, stale events, attacker removal, hit/miss classification and UI eligibility. Keep legacy manual DM-event confirmations available without pretending they have automated provenance.
+
 ## v0.34.0 — Transaction-scoped event windows and target identity
 
 - Expire an unconsumed or consumed combat trigger on the next committed unrelated action, next attack, manually spent action, target removal, combat-mode change, or new turn. Merely preparing, canceling, or resolving the existing attack’s damage dice does not spend another action or close the window.

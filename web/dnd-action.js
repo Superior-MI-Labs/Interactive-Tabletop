@@ -92,7 +92,8 @@ function setCombatEvent(character,kind,origin=null){
  if(!Number.isSafeInteger(next))throw Error('Combat event sequence exhausted.');
  state.event_sequence=next;
  state.event_window={id:'event-'+next,kind,turn:state.turn,used:false,...(origin?{
-  origin:origin.origin,rollId:origin.rollId,sourceId:origin.sourceId,targetId:origin.targetId
+  origin:origin.origin,rollId:origin.rollId,sourceId:origin.sourceId,targetId:origin.targetId,
+  attackerId:origin.attackerId,attackKind:origin.attackKind,parentEventId:origin.parentEventId
  }:{} )};
  delete state.undo_turn;
  return deepcopy(state.event_window);
@@ -103,6 +104,33 @@ function recordCombatEvent(character,kind,targetId=null){
   return setCombatEvent(character,kind,{origin:'dm-confirmed',targetId});
  }
  return setCombatEvent(character,kind);
+}
+// One DM-confirmed attack transaction uses the existing event window throughout
+// its pre-roll and post-hit phases. It is never an enemy attack simulator.
+const INCOMING_ATTACK_KINDS=['ranged-weapon','melee-weapon','spell','other'];
+function recordIncomingAttack(character,attackerId,attackKind){
+ if(attackerId==='self'||!targetById(character,attackerId))throw Error('Choose the attacking creature in Encounter Targets.');
+ if(!INCOMING_ATTACK_KINDS.includes(attackKind))throw Error('Choose a verified incoming attack type.');
+ return setCombatEvent(character,'incoming-attack',{
+  origin:'confirmed-incoming',attackerId,attackKind,targetId:'self'
+ });
+}
+function resolveIncomingAttack(character,eventId,hit){
+ const state=combat(character),event=combatEvent(character);
+ if(!event||event.id!==eventId||event.kind!=='incoming-attack'||event.origin!=='confirmed-incoming')
+  throw Error('The incoming attack window expired or was replaced.');
+ if(typeof hit!=='boolean')throw Error('Confirm whether the incoming attack hit or missed.');
+ if(!targetById(character,event.attackerId))throw Error('The attacker was removed from the encounter.');
+ // A spent Warding Flare reaction changes the attack adjudication, not the
+ // existence of the original attack. Its eventual hit can still be recorded.
+ if(hit&&event.attackKind==='ranged-weapon'){
+  return setCombatEvent(character,'ranged-hit',{
+   origin:'confirmed-incoming',attackerId:event.attackerId,attackKind:event.attackKind,
+   targetId:'self',parentEventId:event.id
+  });
+ }
+ expireCombatEvent(character);
+ return null;
 }
 function dismissCombatEvent(character){delete combat(character).event_window;return true;}
 // A resolved physical attack is evidence for a typed trigger, not an ability.
@@ -148,6 +176,7 @@ function verifyCombatEvent(character,required,targetId=null,expectedId=null){
  const current=combatEvent(character);
  if(!current||current.kind!==required||current.used)throw Error('Confirm the '+required+' event before using this ability.');
  if(expectedId&&expectedId!==current.id)throw Error('The original combat event changed. Confirm the ability again.');
+ if(current.attackerId&&!targetById(character,current.attackerId))throw Error('The attacking creature is no longer in this encounter.');
  if(required==='melee-hit'&&current.targetId){
   if(!targetById(character,current.targetId))throw Error('The original hit target is no longer in this encounter.');
   if(targetId!==null&&current.targetId!==targetId)throw Error('This ability must use the creature hit by the qualifying attack.');
@@ -878,7 +907,7 @@ function removeTarget(character,id){
  const roster=targets(character),index=roster.findIndex(t=>t.id===id);
  if(index<0)return false;
  roster.splice(index,1);
- if(combatEvent(character)?.targetId===id)expireCombatEvent(character);
+ if([combatEvent(character)?.targetId,combatEvent(character)?.attackerId].includes(id))expireCombatEvent(character);
  return true;
 }
 function updateTargetStat(character,id,field,value){
@@ -967,6 +996,6 @@ function commitDamage(character,planned){
  state.last_damage_undo.check_id=check?.id||null;
  return {...fresh,concentrationCheck:check};
 }
-const api={EVENT_KINDS,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

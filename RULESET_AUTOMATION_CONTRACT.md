@@ -91,3 +91,10 @@ A fully resolved `target-attack` physical roll can create a typed `melee-hit` wi
 - A resolved melee hit is tied to its original roll/source and encounter target. A DM-confirmed melee hit is associated with the selected creature. On-hit ability execution in Auto/Guided cannot be redirected to another target; removing the original target invalidates it.
 - Event IDs and their turn stamps are authoritative in the single combat state. A plan made while a window is open cannot be applied to a replacement event of the same kind. The next unrelated **committed** action or attack closes the old window; merely preparing or canceling dice, rolling its damage, or displaying the sheet does not.
 - In Manual mode the DM retains responsibility for eligibility; costs remain explicit. This is intentionally not an interpreter for arbitrary prose, nor a timer based on real-world milliseconds.
+
+## Incoming attack provenance and response timing (v0.35)
+
+- An explicitly selected encounter creature and classified hostile attack create one `incoming-attack` event **before** its attack roll is resolved. A Warding Flare reaction must commit during that window; range, line of sight and blindness applicability remain DM-confirmed.
+- Outcome resolution must name the exact event ID and provide a boolean Hit/Miss decision. Only a confirmed **ranged weapon** hit may open a child `ranged-hit` event. Melee weapon, spell or unclassified attacks and misses close the original window without granting Deflect Missiles.
+- Consuming a pre-roll Warding Flare opportunity does not skip resolving the incoming attack, refund the reaction, or create a second reaction. Removed attacker, stale ID, ended turn and edited/unknown classification fail safely; no character resource is spent for invalid events.
+- This is a DM-confirmed incoming-attack workflow, **not** enemy attack automation, a visibility/position solver or a generic narrative interpreter. Legacy DM override buttons remain manual provenance and are labeled as such.

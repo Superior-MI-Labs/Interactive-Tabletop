@@ -71,3 +71,7 @@ Use the existing typed event-window store (`effects.combat.event_window`) rather
 ## Event-window expiry regression (v0.34)
 
 Treat an event as one turn-scoped, optionally target-scoped opportunity. Only the existing D&D action/attack transaction boundaries can retire it. On-hit plans snapshot event identity; commit must reject a stale window or different target without consuming Ki, reaction or other resources. Preparation, canceled dice and damage rolls do not constitute new actions. Target deletion, combat-mode changes and turn advancement expire the opportunity; test undo and legacy saves. Never add per-ability event timers or a second event bus. Regression gates: `tests/test_event_window_lifecycle.js`, `tests/browser_resolved_attack_event_smoke.py`.
+
+## Incoming attack event sequencing (v0.35)
+
+Use the existing `recordIncomingAttack`/`resolveIncomingAttack` contract. A typed pre-roll window must identify a present encounter attacker and an explicit attack category; only confirmed ranged-weapon Hit may transition to the linked post-hit Deflect Missiles event. Spend Warding Flare before result adjudication, never retroactively; resolving an attack neither grants nor refunds a reaction. Do not infer attacks from names, imported prose, or make opponent dice/positions up. Stale ID and removed attacker must reject safely. Test both browser action controls and the pure planner; keep the manual override path explicitly labeled.

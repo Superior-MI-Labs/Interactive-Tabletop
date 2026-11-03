@@ -326,9 +326,13 @@ function stateEventControls(){
  const state=Action.combat(character),event=Action.combatEvent(character);
  if(!state.active)return '';
  return `<section class="pending-resolution" aria-label="Combat event windows"><strong>Event window (DM confirmed)</strong>
- <small>Choose when the trigger occurs. Incoming attack is before the attack roll; melee hit is bound to the selected target. A window closes after the next unrelated committed action, target removal, or turn change.</small>
- <div class="controls-row">${[['incoming-attack','Incoming attack (before roll)'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit']].map(([id,name])=>button(name,'combat-event',id,'button mini subtle')).join('')}</div>
- ${event?`<small>Current: ${esc(event.kind)} ${event.origin==='resolved-attack'?'· '+esc(Action.targetById(character,event.targetId)?.name||'removed target')+' · settled attack':''} ${event.used?'(consumed)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}</section>`;
+ <small>Select the attacking creature in the Target menu, choose the attack type, and confirm the incoming attack before its roll. Resolve Hit/Miss after any pre-roll reaction. Melee hits bind to the selected target. The next unrelated action or turn closes the window.</small>
+ <div class="controls-row"><label class="field">Incoming attack type<select id="incoming-attack-kind" class="input" aria-label="Incoming attack type">${[['ranged-weapon','Ranged weapon'],['melee-weapon','Melee weapon'],['spell','Spell attack'],['other','Other / unclassified']].map(([id,name])=>`<option value="${id}">${name}</option>`).join('')}</select></label>
+ ${button('Incoming attack (before roll)','incoming-attack-open','','button mini subtle')}
+ ${button('Ranged weapon hit on you (DM override)','combat-event','ranged-hit','button mini subtle')}
+ ${button('Your melee attack hit (DM override)','combat-event','melee-hit','button mini subtle')}</div>
+ ${event?`<small>Current: ${esc(event.kind)} ${event.attackerId?'· from '+esc(Action.targetById(character,event.attackerId)?.name||'removed attacker'):''} ${event.origin==='resolved-attack'?'· '+esc(Action.targetById(character,event.targetId)?.name||'removed target')+' · settled attack':''} ${event.used?'(reaction used)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}
+ ${event?.kind==='incoming-attack'&&event.origin==='confirmed-incoming'?`<div class="controls-row">${button('Attack missed / resolved','incoming-attack-result',event.id+':miss','button mini subtle')}${button('Attack hit / resolved','incoming-attack-result',event.id+':hit','button mini primary')}</div><small>Apply pre-roll reactions before resolving. The hit decision is confirmed by your DM; ranged-weapon hits can unlock Deflect Missiles.</small>`:''}</section>`;
 }
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
@@ -743,6 +747,19 @@ function handleAction(action,arg){
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
+  }
+  case 'incoming-attack-open':{
+   try{const attackerId=currentTargetId(),kind=$('#incoming-attack-kind')?.value;
+    const entry=Action.recordIncomingAttack(character,attackerId,kind);save();render();
+    toast('Incoming '+kind+' attack from '+Action.targetById(character,attackerId).name+'. Confirm pre-roll reactions now.');}
+   catch(e){toast(e.message);}break;
+  }
+  case 'incoming-attack-result':{
+   try{const separator=arg.lastIndexOf(':'),id=arg.slice(0,separator),outcome=arg.slice(separator+1);
+    if(!['hit','miss'].includes(outcome))throw Error('Unknown attack outcome.');
+    const followup=Action.resolveIncomingAttack(character,id,outcome==='hit');save();render();
+    toast(followup?'Confirmed ranged-weapon hit: eligible reactions may now be used.':'Incoming attack resolved; pre-roll event closed.');}
+   catch(e){toast(e.message);}break;
   }
   case 'combat-event':try{Action.recordCombatEvent(character,arg,arg==='melee-hit'?currentTargetId():null);save();render();toast('Confirmed event: '+arg+'.');}catch(e){toast(e.message);}break;
   case 'combat-event-close':Action.dismissCombatEvent(character);save();render();break;
