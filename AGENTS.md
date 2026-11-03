@@ -75,3 +75,7 @@ Treat an event as one turn-scoped, optionally target-scoped opportunity. Only th
 ## Incoming attack event sequencing (v0.35)
 
 Use the existing `recordIncomingAttack`/`resolveIncomingAttack` contract. A typed pre-roll window must identify a present encounter attacker and an explicit attack category; only confirmed ranged-weapon Hit may transition to the linked post-hit Deflect Missiles event. Spend Warding Flare before result adjudication, never retroactively; resolving an attack neither grants nor refunds a reaction. Do not infer attacks from names, imported prose, or make opponent dice/positions up. Stale ID and removed attacker must reject safely. Test both browser action controls and the pure planner; keep the manual override path explicitly labeled.
+
+## Verified save and damage results (v0.36)
+
+Never associate the most recently rolled saving throw with later damage simply because its target matches. Saving throw evidence lives in the existing `effects.combat.last_save` record and must be explicitly chosen for damage mitigation; `planDamage` and `commitDamage` both reject stale save IDs/changed targets. Commit `save-success`/`save-failure` only from confirmed dice outcomes; emit `damage-taken` only after actual applied self-damage, never during a preview. A damage-triggered event that was consumed or replaced blocks undo. Preserve complete provenance, turn and target validation when extending any event. Add both unit and Chromium regressions.

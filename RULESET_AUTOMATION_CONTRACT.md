@@ -98,3 +98,9 @@ A fully resolved `target-attack` physical roll can create a typed `melee-hit` wi
 - Outcome resolution must name the exact event ID and provide a boolean Hit/Miss decision. Only a confirmed **ranged weapon** hit may open a child `ranged-hit` event. Melee weapon, spell or unclassified attacks and misses close the original window without granting Deflect Missiles.
 - Consuming a pre-roll Warding Flare opportunity does not skip resolving the incoming attack, refund the reaction, or create a second reaction. Removed attacker, stale ID, ended turn and edited/unknown classification fail safely; no character resource is spent for invalid events.
 - This is a DM-confirmed incoming-attack workflow, **not** enemy attack automation, a visibility/position solver or a generic narrative interpreter. Legacy DM override buttons remain manual provenance and are labeled as such.
+
+## v0.36 — Save / damage event contract
+
+`save-success`, `save-failure`, and `damage-taken` are short-lived character combat windows, not automatic abilities. A save is recorded from a settled physical roll, with a unique roll ID, exact target, chosen ability, DC and derived outcome. In Auto/Guided encounter tracking, it may satisfy an explicitly configured event prerequisite. A failed save never automatically applies an enemy condition, and a successful save never implicitly reduces an unrelated later damage roll.
+
+Damage reduction requires the DM/player to choose that particular recorded save and a policy (`half` or `negates`). Plan and commit both verify save ID, target, active turn and result; stale associations reject without HP mutation. Manual DM determinations remain a supported explicit path. Nonzero damage applied to the active character can open a `damage-taken` event using post-resistance damage and exact HP loss. Undo cannot roll back HP after that event is consumed or replaced. The single per-character combat ledger remains authoritative.

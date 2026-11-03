@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.35.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.36.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.35.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.36.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -75,20 +75,22 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 **v0.27 spellcasting:** For a D&D 2014 edition character with optional encounter tracking enabled, casting a bonus-action spell blocks other same-turn spells except 1-action cantrips, regardless of whether the spell is an automated SRD profile or a manually adjudicated entry. Action cantrips can precede a bonus spell; a different spell already cast that turn blocks a later bonus spell. The tracker does not model out-of-turn reactions or initiative across all creatures.
 
+**v0.36 saves and damage:** Settled saving throws now carry their own exact roll, target, ability, DC and success/failure. A save will **never** silently mitigate damage merely because it was the last roll against that creature; you explicitly select a linked save and a half/negates-on-success policy in the Dice panel, and the planner checks the association again before changing HP. In tracked Auto/Guided encounters, verified save outcomes and applied self-damage can open short-lived, target-bound event windows for configured abilities. Damage undo is blocked if its event was already used or replaced. Saving throws do not automatically inflict conditions or alter HP.
+
 **v0.21 gameplay:** Older saves with `First-level Spell Slots` work with the same casting controls as modern imports. The Dice panel offers normal/advantage/disadvantage d20 rolls. A resolved natural-20 attack prepares doubled weapon damage dice (flat damage stays unchanged), and encounter targets have manually toggled conditions. Imported spell preparation still matters and is not bypassed.
 
 **Test coverage:** Synthetic automated parser tests plus private QA against three D&D Beyond exports (Fighter 1, Bard 19, Monk 19 / Cleric 1). This is not a guarantee that every class, rules edition, spell, or homebrew field imports correctly.
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.35.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.36.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.35.0.zip" SkyBlueEyes-Tabletop-v0.35.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.36.0.zip" SkyBlueEyes-Tabletop-v0.36.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
@@ -97,7 +99,7 @@ Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP
 
 The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh` (Python, JavaScript and 18 actual Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same command is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
 
-The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.35.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
+The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.36.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 
 ## Development and architecture
 

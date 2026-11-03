@@ -21,7 +21,7 @@ const DP=globalThis.DicePhysics;
 let history=[],pendingRoll=null,dice=[],activeRolls=[],activeRoll=null,pointer=null,frame=0,lastFrame=0,accumulator=0,canvas=null,ctx=null;
 let lastDimensions={w:0,h:0},nextDieId=0;
 let queuedEffect=null,pendingHealing=null;
-let pendingDamage=[],lastSaveOutcome=null,selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
+let pendingDamage=[],selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
 let pointerPosition=null,following=false,hoverDieId=null,lastDiceGesture=null; // stage-local cursor, not a second dice scene
 
 const panelState=new Map();
@@ -67,7 +67,7 @@ function selectLoadedCharacter(){
   character.system_id=character.system_id||'dnd5e';
   character.system_edition=character.system_edition||'unspecified';
   history=character.roll_history;
-  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastSaveOutcome=null;lastAttackOutcome=null;lastResult=null;selectedTargetId='self';
+  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastAttackOutcome=null;lastResult=null;selectedTargetId='self';
   setView('overview');
  }else{history=[];showWelcome();}
  showVaultCount();
@@ -359,7 +359,7 @@ function actionWorkspace(){
    <div class="entry-pair">${field(a.workflow?'Damage reduction dice (1d10 + DEX mod + class level)':'Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
    ${a.workflow?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
-   <label class="field">Confirmed event prerequisite<select class="input" data-input="actions.${a.index}.trigger_event">${[['','None'],['incoming-attack','Incoming attack before roll'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit']].map(([id,label])=>`<option value="${id}" ${a.trigger_event===id?'selected':''}>${label}</option>`).join('')}</select></label>
+   <label class="field">Confirmed event prerequisite<select class="input" data-input="actions.${a.index}.trigger_event">${[['','None'],['incoming-attack','Incoming attack before roll'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit'],['save-success','Selected creature succeeded on save'],['save-failure','Selected creature failed save'],['damage-taken','You took damage']].map(([id,label])=>`<option value="${id}" ${a.trigger_event===id?'selected':''}>${label}</option>`).join('')}</select></label>
    <div class="entry-pair">${field('Action pool cost (1–3)', `actions.${a.index}.economy_units`,a.economy_units??1,'number')}
    <label class="field">Requires a prior Attack action<input type="checkbox" data-action-requires-attack="${a.index}" ${a.requires_attack?'checked':''}></label></div>
    <div class="entry-pair"><label class="field">Immediately after completed Attack<input type="checkbox" data-action-requires-attack-complete="${a.index}" ${a.requires_attack_complete?'checked':''}></label>
@@ -620,7 +620,7 @@ function handleAction(action,arg){
   case 'target-roll-save':{
    const target=currentTargetId(),abb=$('#target-save-ability')?.value||'CON',dc=Number($('#target-save-dc')?.value);
    const bonus=target==='self'?num(character.saves?.[{STR:'Strength',DEX:'Dexterity',CON:'Constitution',INT:'Intelligence',WIS:'Wisdom',CHA:'Charisma'}[abb]]):num(Action.targetById(character,target)?.saves?.[abb]);
-   try{Action.evaluateSave(0,dc);if(!queueRoll(`1d20${sgn(bonus)}`,`${Action.targetById(character,target).name} ${abb} save (DC ${dc})`,{kind:'target-save',characterId:activeId,targetId:target,dc},target==='self'?'save':'untyped'))throw Error('Cannot prepare dice.');}
+   try{Action.evaluateSave(0,dc);if(!queueRoll(`1d20${sgn(bonus)}`,`${Action.targetById(character,target).name} ${abb} save (DC ${dc})`,{kind:'target-save',characterId:activeId,targetId:target,ability:abb,dc},target==='self'?'save':'untyped'))throw Error('Cannot prepare dice.');}
    catch(e){toast('Cannot roll target save: '+e.message);}break;
   }
   case 'target-manual-damage':{
@@ -631,12 +631,12 @@ function handleAction(action,arg){
    const entry=pendingDamage.find(x=>x.id===arg&&x.characterId===activeId);
    if(!entry){toast('Damage roll no longer available.');break;}
    const policy=$(`[data-pending-save="${arg}"]`)?.value||'none';
-   const last=entry.saveOutcome;
-   if(policy!=='none'&&!last){toast('Roll a saving throw for this target first.');break;}
+   const saveId=policy==='none'?null:$(`[data-pending-save="${arg}"]`)?.dataset.saveId;
+   if(policy!=='none'&&!saveId){toast('Choose a verified saving throw result first.');break;}
    try{const p=Action.planDamage(character,entry.targetId,{amount:entry.amount,type:entry.type,
-     saveOutcome:policy==='none'?'none':last,savePolicy:policy});
+     saveId,savePolicy:policy});
     const target=Action.targetById(character,entry.targetId);
-    dialog('Apply rolled damage?',`${entry.source}: apply ${p.amount} ${p.type} damage to ${target.name} (${p.absorbed} temp HP, ${p.hpLoss} HP)?`,()=>{
+    dialog('Apply rolled damage?',`${entry.source}: apply ${p.amount} ${p.type} damage to ${target.name} (${p.absorbed} temp HP, ${p.hpLoss} HP)?${p.saveId?' This explicitly associates the selected saving throw with this damage.':''}`,()=>{
      try{const result=Action.commitDamage(character,p);pendingDamage=pendingDamage.filter(x=>x.id!==arg);save({preserveDamageUndo:true});render();updateTableResults();
       toast(`Applied ${result.amount} ${result.type} damage to ${target.name}${result.concentrationCheck?' · concentration DC '+result.concentrationCheck.dc:''}.`);
      }catch(e){toast('Damage not applied: '+e.message);}
@@ -1445,17 +1445,19 @@ function finishRollIfSettled(){
        }catch(e){toast('Attack outcome: '+e.message);}
      }
      if(group.effect.kind==='target-save'){
-       try{const verdict=Action.evaluateSave(result.total,group.effect.dc);
-        lastSaveOutcome={targetId:group.effect.targetId,outcome:verdict.success?'success':'failure',dc:verdict.dc};
-        result.outcome=verdict.success?'SAVE SUCCEEDED':'SAVE FAILED';
+       try{
+        const verdict=Action.recordResolvedSave(character,{
+         rollId:group.rollId,targetId:group.effect.targetId,ability:group.effect.ability,
+         total:result.total,dc:group.effect.dc});
+        result.outcome=verdict.outcome==='success'?'SAVE SUCCEEDED':'SAVE FAILED';
         toast(`${Action.targetById(character,group.effect.targetId)?.name||'Target'}: ${result.outcome} vs DC ${verdict.dc}.`);
-       }catch(e){toast('Save result: '+e.message);}
+        effectsChanged=true;
+       }catch(e){toast('Save result not recorded: '+e.message);}
      }
      if(group.effect.kind==='target-damage'&&result.total>=0){
        const targetId=group.effect.targetId;
        if(Action.targetById(character,targetId))pendingDamage.push({id:String(++nextResolutionId),characterId:activeId,targetId,
-         source:group.effect.source||group.label,type:group.effect.damageType||'untyped',amount:result.total,
-         saveOutcome:lastSaveOutcome?.targetId===targetId?lastSaveOutcome.outcome:null});
+         source:group.effect.source||group.label,type:group.effect.damageType||'untyped',amount:result.total});
      }
      if(group.effect.kind==='staged-reduction'){
        try{const outcome=Action.resolveWorkflow(character,group.effect.sequenceId,result.total);
@@ -1489,14 +1491,15 @@ function updateTableResults(){
  list.innerHTML=history.slice(0,30).map(h=>`<li>${esc(h.label)} <b>${esc(h.total)}</b> <small>${esc(h.expression)}${(h.bonuses||[]).map(b=>' + '+esc(b.name)+' '+esc(b.expression)).join('')}</small></li>`).join('');
  const effect=$('#roll-effect');if(effect){
   const heal=pendingHealing&&pendingHealing.characterId===activeId?`<div class="pending-resolution"><span>${esc(pendingHealing.name)}: ${esc(pendingHealing.amount)} HP healing ready</span> ${button('Apply to HP','apply-roll-heal','','button primary mini')} ${button('Dismiss','dismiss-roll-heal','','button mini subtle')}</div>`:'';
+  const recent=Action.recentSave(character);
   const damages=pendingDamage.filter(x=>x.characterId===activeId).map(d=>{
-   const target=Action.targetById(character,d.targetId);
+   const target=Action.targetById(character,d.targetId),matching=recent?.targetId===d.targetId;
    return target?`<div class="pending-resolution"><strong>${esc(d.amount)} ${esc(d.type)} → ${esc(target.name)}</strong>
-     <label>Save rule <select class="input" data-pending-save="${esc(d.id)}"><option value="none">No save reduction</option>
-     ${d.saveOutcome?`<option value="half">${d.saveOutcome} · half on success</option><option value="negates">${d.saveOutcome} · negates on success</option>`:''}</select></label>
+     <label>Save rule (explicitly associate; never automatic) <select class="input" data-pending-save="${esc(d.id)}" data-save-id="${esc(matching?recent.id:'')}"><option value="none">No save reduction</option>
+     ${matching?`<option value="half">${esc(recent.ability)} save DC ${recent.dc} (${esc(recent.outcome)}) · half on success</option><option value="negates">${esc(recent.ability)} save DC ${recent.dc} (${esc(recent.outcome)}) · negates on success</option>`:''}</select></label>
      ${button('Review & apply','apply-target-damage',d.id,'button mini primary')} ${button('Dismiss','dismiss-target-damage',d.id,'button mini subtle')}</div>`:'';
   }).join('');
-  effect.innerHTML=heal+damages+(lastSaveOutcome?`<p class="save-result-note">Last save: ${esc(lastSaveOutcome.outcome)} vs DC ${lastSaveOutcome.dc} (${esc(Action.targetById(character,lastSaveOutcome.targetId)?.name||'removed target')})</p>`:'');
+  effect.innerHTML=heal+damages+(recent?`<p class="save-result-note">Last save: ${esc(recent.ability)} ${esc(recent.outcome)} vs DC ${recent.dc} (${esc(Action.targetById(character,recent.targetId)?.name||'removed target')}); damage association requires confirmation.</p>`:'');
  }
 }
 function renderTray(W,H){

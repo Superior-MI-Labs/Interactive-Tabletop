@@ -79,7 +79,7 @@ with sync_playwright() as playwright:
  page.locator('#target-save-dc').fill('17')
  page.get_by_role('button',name='Roll target save').click()
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
- assert page.evaluate('lastSaveOutcome.dc')==17
+ assert page.evaluate('Action.recentSave(character).dc')==17
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-manual-damage').fill('12')

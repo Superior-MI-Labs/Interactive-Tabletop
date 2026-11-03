@@ -69,7 +69,7 @@ function actionCantrip(plan){return plan.kind==='spell'&&plan.slotLevel===0&&act
 const POOL_NAMES=['action','bonus','reaction'];
 // Explicit DM/player event windows, not a text parser or an autonomous combat log.
 // Each window is short-lived and consumed by exactly one committed ability.
-const EVENT_KINDS=['incoming-attack','ranged-hit','melee-hit'];
+const EVENT_KINDS=['incoming-attack','ranged-hit','melee-hit','save-success','save-failure','damage-taken'];
 // A window belongs to one turn and at most one selected creature. The same
 // ledger that charges actions retires windows on the NEXT unrelated activity.
 function combatEvent(character){
@@ -93,7 +93,8 @@ function setCombatEvent(character,kind,origin=null){
  state.event_sequence=next;
  state.event_window={id:'event-'+next,kind,turn:state.turn,used:false,...(origin?{
   origin:origin.origin,rollId:origin.rollId,sourceId:origin.sourceId,targetId:origin.targetId,
-  attackerId:origin.attackerId,attackKind:origin.attackKind,parentEventId:origin.parentEventId
+  attackerId:origin.attackerId,attackKind:origin.attackKind,parentEventId:origin.parentEventId,
+  dc:origin.dc,total:origin.total,damageType:origin.damageType,damageAmount:origin.damageAmount,hpLoss:origin.hpLoss
  }:{} )};
  delete state.undo_turn;
  return deepcopy(state.event_window);
@@ -133,6 +134,37 @@ function resolveIncomingAttack(character,eventId,hit){
  return null;
 }
 function dismissCombatEvent(character){delete combat(character).event_window;return true;}
+// A settled physical save is evidence, not permission to reduce arbitrary damage.
+// A player must explicitly associate this exact save with a damage preview.
+const SAVE_ID=/^attack-roll-[a-z0-9-]{1,90}$/i;
+function recentSave(character){
+ const state=combat(character),saved=state.last_save;
+ if(!saved)return null;
+ if(typeof saved.id!=='string'||!SAVE_ID.test(saved.id)||saved.rollId!==saved.id||
+  !targetById(character,saved.targetId)||!ABILITIES.includes(saved.ability)||
+  !Number.isSafeInteger(saved.total)||!Number.isSafeInteger(saved.dc)||saved.dc<0||saved.dc>99||
+  saved.outcome!==(saved.total>=saved.dc?'success':'failure')||
+  (saved.turn!==null&&(!Number.isSafeInteger(saved.turn)||!state.active||saved.turn!==state.turn)))return null;
+ return deepcopy(saved);
+}
+function recordResolvedSave(character,record){
+ if(!record||typeof record!=='object'||typeof record.rollId!=='string'||!SAVE_ID.test(record.rollId))throw Error('Invalid saving throw roll identity.');
+ const {rollId,targetId,ability,total,dc}=record;
+ if(!targetById(character,targetId))throw Error('Saving throw target no longer exists.');
+ if(!ABILITIES.includes(ability))throw Error('Choose a valid saving throw ability.');
+ const verdict=evaluateSave(total,dc),state=combat(character);
+ if((state.resolved_save_ids||[]).includes(rollId))throw Error('Saving throw result was already recorded.');
+ // Set the next event before saving the evidence. Pending staged reactions
+ // cannot be displaced by an unrelated saving throw transaction.
+ const event=state.active&&state.economy.auto?setCombatEvent(character,verdict.success?'save-success':'save-failure',{
+  origin:'resolved-save',rollId,targetId,sourceId:ability,dc,total
+ }):null;
+ const saved={id:rollId,rollId,targetId,ability,total,dc,outcome:verdict.success?'success':'failure',turn:state.active?state.turn:null};
+ state.last_save=saved;
+ state.resolved_save_ids=[...(state.resolved_save_ids||[]).slice(-39),rollId];
+ return {...deepcopy(saved),event};
+}
+
 // A resolved physical attack is evidence for a typed trigger, not an ability.
 // The dice controller supplies the already-settled identity and the planner
 // rechecks the current explicit classification, target and result. Imported
@@ -177,7 +209,7 @@ function verifyCombatEvent(character,required,targetId=null,expectedId=null){
  if(!current||current.kind!==required||current.used)throw Error('Confirm the '+required+' event before using this ability.');
  if(expectedId&&expectedId!==current.id)throw Error('The original combat event changed. Confirm the ability again.');
  if(current.attackerId&&!targetById(character,current.attackerId))throw Error('The attacking creature is no longer in this encounter.');
- if(required==='melee-hit'&&current.targetId){
+ if(current.targetId){
   if(!targetById(character,current.targetId))throw Error('The original hit target is no longer in this encounter.');
   if(targetId!==null&&current.targetId!==targetId)throw Error('This ability must use the creature hit by the qualifying attack.');
  }
@@ -379,7 +411,7 @@ function markAction(character,type){
 function setEncounter(character,enabled){
  const state=combat(character),mode=state.economy.mode;
  state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
- state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;delete state.undo_turn;
+ state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;delete state.last_save;delete state.resolved_save_ids;delete state.undo_turn;
  return state;
 }
 
@@ -786,12 +818,12 @@ function advanceEffects(character){
 }
 function advanceTurn(character){
  const state=combat(character);
- const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),resolved_attack_ids:deepcopy(state.resolved_attack_ids||[]),
+ const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),resolved_attack_ids:deepcopy(state.resolved_attack_ids||[]),last_save:deepcopy(state.last_save||null),resolved_save_ids:deepcopy(state.resolved_save_ids||[]),
   effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
-  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;}
+  state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;delete state.last_save;delete state.resolved_save_ids;}
  const expired=advanceEffects(character);
  for(const [name,resource] of Object.entries(character.resources||{}))
   if(resource?.reset==='turn'||(name==='Shield Stance Points'&&resource?.reset===undefined))resource.current=0; // legacy character import compatibility
@@ -805,7 +837,7 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];state.last_save=before.last_save||null;state.resolved_save_ids=before.resolved_save_ids||[];
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;
@@ -908,6 +940,7 @@ function removeTarget(character,id){
  if(index<0)return false;
  roster.splice(index,1);
  if([combatEvent(character)?.targetId,combatEvent(character)?.attackerId].includes(id))expireCombatEvent(character);
+ if(combat(character).last_save?.targetId===id)delete combat(character).last_save;
  return true;
 }
 function updateTargetStat(character,id,field,value){
@@ -931,6 +964,10 @@ function undoLastDamage(character){
  const target=targetById(character,undo.targetId);
  if(!target||target.hp.current!==undo.after.current||(target.hp.temp||0)!==undo.after.temp){delete state.last_damage_undo;throw Error('Target HP changed since damage. Undo is no longer safe.');}
  // Undo cannot resurrect an effect or bypass a completed concentration save.
+ if(undo.event_id){
+  const event=combatEvent(character);
+  if(!event||event.id!==undo.event_id||event.used){delete state.last_damage_undo;throw Error('A damage-triggered event was consumed or replaced. Damage undo is no longer safe.');}
+ }
  // Only an outstanding check created by this exact damage event is reversible.
  if(undo.check_id&&!character.effects?.pending_concentration?.some(c=>c.id===undo.check_id)){
   delete state.last_damage_undo;throw Error('Concentration was already resolved or ended. Damage undo is no longer safe.');
@@ -938,6 +975,7 @@ function undoLastDamage(character){
  target.hp.current=undo.before.current;target.hp.temp=undo.before.temp;
  if(undo.check_id&&Array.isArray(character.effects.pending_concentration))
   character.effects.pending_concentration=character.effects.pending_concentration.filter(c=>c.id!==undo.check_id);
+ if(undo.event_id)expireCombatEvent(character);
  delete state.last_damage_undo;
  return true;
 }
@@ -959,8 +997,13 @@ function planDamage(character,targetId,details){
  const type=String(details?.type||'untyped').trim().toLowerCase();
  if(!DAMAGE_TYPES.includes(type))throw Error('Choose a supported damage type.');
  const raw=boundedInteger(details.amount,'Damage',0,999999);
- const outcome=String(details.saveOutcome||'none');
  const policy=String(details.savePolicy||'none');
+ const saveId=details.saveId||null;
+ if(saveId!==null&&(typeof saveId!=='string'||!SAVE_ID.test(saveId)))throw Error('Invalid save evidence identity.');
+ if(saveId&&policy==='none')throw Error('Choose the damage rule for the linked saving throw.');
+ const evidence=saveId?recentSave(character):null;
+ if(saveId&&(!evidence||evidence.id!==saveId||evidence.targetId!==targetId))throw Error('The linked saving throw is stale or belongs to another target.');
+ const outcome=saveId?evidence.outcome:String(details.saveOutcome||'none');
  if(!['none','success','failure'].includes(outcome)||!['none','half','negates'].includes(policy))throw Error('Invalid saving throw outcome.');
  if(outcome!=='none'&&policy==='none'||outcome==='none'&&policy!=='none')throw Error('Specify both a saving throw outcome and its damage rule.');
  let reduced=raw;
@@ -980,22 +1023,32 @@ function planDamage(character,targetId,details){
  const hp=target.hp;
  if(!hp||!Number.isSafeInteger(hp.current)||!Number.isSafeInteger(hp.max)||!Number.isSafeInteger(hp.temp||0))throw Error('Invalid target HP.');
  const absorbed=Math.min(hp.temp||0,reduced),loss=Math.min(hp.current,Math.max(0,reduced-absorbed));
- return {targetId,type,raw,amount:reduced,absorbed,hpLoss:loss,saveOutcome:outcome,savePolicy:policy,
+ return {targetId,type,raw,amount:reduced,absorbed,hpLoss:loss,saveOutcome:outcome,savePolicy:policy,saveId,
    initial:{current:hp.current,max:hp.max,temp:hp.temp||0},immune,resistant,vulnerable};
 }
 function commitDamage(character,planned){
  if(!planned||!Number.isSafeInteger(planned.amount))throw Error('Invalid damage plan.');
  const target=targetById(character,planned.targetId);
  if(!target)throw Error('Target has been removed.');
- const fresh=planDamage(character,planned.targetId,{amount:planned.raw,type:planned.type,saveOutcome:planned.saveOutcome,savePolicy:planned.savePolicy});
+ const fresh=planDamage(character,planned.targetId,{amount:planned.raw,type:planned.type,saveOutcome:planned.saveOutcome,savePolicy:planned.savePolicy,saveId:planned.saveId});
  if(JSON.stringify(fresh)!==JSON.stringify(planned))throw Error('Target or defenses changed; preview the damage again.');
  const state=combat(character);
- state.last_damage_undo={targetId:planned.targetId,before:{...fresh.initial},after:{current:fresh.initial.current-fresh.hpLoss,temp:fresh.initial.temp-fresh.absorbed},check_id:null};
+ const willEmit=planned.targetId==='self'&&fresh.amount>0&&state.active&&state.economy.auto&&!state.pending_workflow;
+ if(willEmit&&(!Number.isSafeInteger(state.event_sequence||0)||state.event_sequence>=Number.MAX_SAFE_INTEGER))
+  throw Error('Combat event sequence exhausted. Damage was not applied.');
+ state.last_damage_undo={targetId:planned.targetId,before:{...fresh.initial},after:{current:fresh.initial.current-fresh.hpLoss,temp:fresh.initial.temp-fresh.absorbed},check_id:null,event_id:null};
  target.hp.temp=(target.hp.temp||0)-fresh.absorbed;target.hp.current-=fresh.hpLoss;
  const check=planned.targetId==='self'&&fresh.amount>0?queueConcentrationCheck(character,fresh.amount):null;
  state.last_damage_undo.check_id=check?.id||null;
+ // Applied damage is the commit boundary; no event exists during previews.
+ // Do not displace an unfinished staged reaction or manufacture a damage
+ // trigger for zero effective damage, other creatures, or manual mode.
+ if(willEmit){
+  const event=setCombatEvent(character,'damage-taken',{origin:'applied-damage',targetId:'self',damageType:fresh.type,damageAmount:fresh.amount,hpLoss:fresh.hpLoss});
+  state.last_damage_undo.event_id=event.id;
+ }
  return {...fresh,concentrationCheck:check};
 }
-const api={EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

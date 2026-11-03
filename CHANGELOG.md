@@ -1,3 +1,11 @@
+## v0.36.0 — Verified saving throws, explicit damage association and applied-damage events
+
+- Save outcomes now enter the existing character-owned combat ledger with a physical roll ID, target, ability, total, DC and derived success/failure. A completed save opens a short-lived, target-bound `save-success` / `save-failure` event when tracked combat is active; duplicate and invalid results fail before state mutation.
+- Stop silently attaching the last save against a target to unrelated damage. The dice panel requires the player/DM to explicitly associate that precise recorded save and choose half-on-success or negate-on-success; `planDamage` and `commitDamage` revalidate the same evidence at preview and HP-commit boundaries. Raw damage and manual DM adjudication remain supported.
+- Applying nonzero effective damage to the active character creates a `damage-taken` event with applied damage type, effective amount and HP loss in the same combat window. It never fires from previews, immunity, damage to another creature or untracked/manual play. Concentration remains resolved through the existing check queue.
+- Damage undo retires its own unconsumed event and refuses to rewind HP after that event was used or replaced. Turn advance/undo, removed targets, vault reconciliation and edition-neutral save rolls retain the existing source-of-truth boundaries.
+- Extend the approved custom-ability trigger choices without inferring rules from prose. Add unit and real-Chromium coverage for opt-in save policy, stale saves, explicit event provenance and safe undo. No second event bus, saving-throw store or rules executor is introduced.
+
 ## v0.35.0 — One typed incoming-attack lifecycle for pre- and post-roll reactions
 
 - Introduce a validated incoming-attack event that records the attacker, attack classification and self recipient in the existing per-character combat window. Only explicitly selected encounter attackers qualify; no enemy roll simulation or rules inference is introduced.
