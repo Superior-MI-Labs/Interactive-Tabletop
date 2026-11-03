@@ -1,3 +1,11 @@
+## v0.38.0 — Validated multi-stage save/condition workflows
+
+- Extend the existing single `effects.combat.pending_workflow` ledger with a declarative `save-condition` sequence. A verified, target-bound event authorizes activation and its resource cost; the same physical saving-throw recorder resolves outcome, and a failed save only offers a separate DM-confirmed condition application.
+- Pin the save to its initiating workflow ID, original target, approved ability and explicit DC. A late, duplicate, wrong-target or replaced result cannot spend resources or apply conditions. Save success closes the sequence; a failed save does not automatically impose a condition or invent its expiration.
+- Upgrade the opt-in 2014 Stunning Strike template without guessing monk level or Ki save DC. Configure DC and condition in the existing action editor. The target save uses the target's own bonus, never the hero's personal save buffs.
+- Preserve a pending sequence across vault round-trips and reversible turn advancement; cancellation/retry does not refund the initial committed cost. Invalidate pending save workflows when their target is removed. Keep Deflect Missiles' existing reduction-and-optional-attack contract unchanged.
+- Cover the planner, malformed schema, original event/target, failed/successful saves, duplicate physical results, stale sequence, manual accounting, undo, live dice cancellation and confirmation through Node and Chromium tests.
+
 ## v0.37.0 — Verified combat-outcome predicates and confirmation identity
 
 - Add strictly validated, opt-in filters for the existing `save-success`, `save-failure`, and `damage-taken` ability triggers: saving throw ability, damage type, minimum effective damage, and minimum actual HP loss after temporary HP. The action planner—not the UI or imported text—owns the predicates.

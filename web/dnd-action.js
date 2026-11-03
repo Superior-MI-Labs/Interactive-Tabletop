@@ -154,15 +154,23 @@ function recordResolvedSave(character,record){
  if(!ABILITIES.includes(ability))throw Error('Choose a valid saving throw ability.');
  const verdict=evaluateSave(total,dc),state=combat(character);
  if((state.resolved_save_ids||[]).includes(rollId))throw Error('Saving throw result was already recorded.');
- // Set the next event before saving the evidence. Pending staged reactions
- // cannot be displaced by an unrelated saving throw transaction.
- const event=state.active&&state.economy.auto?setCombatEvent(character,verdict.success?'save-success':'save-failure',{
+ const workflowId=record.workflowId??null,flow=state.pending_workflow;
+ if(workflowId&&(!flow||flow.id!==workflowId||flow.kind!=='save-condition'||flow.status!=='await-save'||
+  flow.targetId!==targetId||flow.save.ability!==ability||flow.save.dc!==dc))
+  throw Error('This saving throw no longer belongs to the staged ability.');
+ // A linked saving throw advances its original workflow, not a new trigger
+ // window. All other saves continue to use the existing event pipeline.
+ const event=workflowId?null:state.active&&state.economy.auto?setCombatEvent(character,verdict.success?'save-success':'save-failure',{
   origin:'resolved-save',rollId,targetId,sourceId:ability,dc,total
  }):null;
  const saved={id:rollId,rollId,targetId,ability,total,dc,outcome:verdict.success?'success':'failure',turn:state.active?state.turn:null};
  state.last_save=saved;
  state.resolved_save_ids=[...(state.resolved_save_ids||[]).slice(-39),rollId];
- return {...deepcopy(saved),event};
+ if(workflowId){
+  if(verdict.success)delete state.pending_workflow;
+  else{flow.status='await-effect';flow.saveRollId=rollId;flow.saveTotal=total;}
+ }
+ return {...deepcopy(saved),event,workflowId};
 }
 
 // A resolved physical attack is evidence for a typed trigger, not an ability.
@@ -595,20 +603,32 @@ function plan(character,action,context=null){
  const workflow=action.workflow;
  let staged=null;
  if(workflow!==undefined&&workflow!==null){
-  if(typeof workflow!=='object'||Array.isArray(workflow)||workflow.kind!=='damage-reduction')throw Error('Unsupported staged ability workflow.');
-  if(activationCost(action.activation)!=='reaction'||cost!==0||grantResource||grantEconomy)throw Error('Damage-reduction workflow must begin with a cost-free reaction.');
+  if(typeof workflow!=='object'||Array.isArray(workflow)||!['damage-reduction','save-condition'].includes(workflow.kind))throw Error('Unsupported staged ability workflow.');
   if(action.effect_kind&&action.effect_kind!=='none')throw Error('Staged ability cannot apply unrelated automatic effects.');
-  const reduction=dice(action.roll||'');
-  if(!reduction||reduction.sides!==10)throw Error('Configure the physical d10 reduction roll first.');
-  const next=workflow.followup;
-  if(!next||typeof next!=='object'||Array.isArray(next))throw Error('Staged ability requires a qualified optional follow-up.');
-  const nextResource=String(next.resource||'').trim(),nextCost=Number(next.cost),nextRoll=dice(next.roll||'');
-  if(!nextResource||!Number.isSafeInteger(nextCost)||nextCost<1||nextCost>9999||!nextRoll||nextRoll.sides!==20)throw Error('Configure a resource cost and a d20 follow-up roll.');
-  if(next.requires_catchable!==true||next.requires_free_hand!==true)throw Error('Counterattack requires explicit catchable-missile and free-hand confirmation.');
-  staged={kind:'damage-reduction',followup:{label:String(next.label||'Counterattack'),resource:nextResource,cost:nextCost,roll:nextRoll.expression,
-   requires_catchable:true,requires_free_hand:true}};
+  if(workflow.kind==='damage-reduction'){
+   if(activationCost(action.activation)!=='reaction'||cost!==0||grantResource||grantEconomy)throw Error('Damage-reduction workflow must begin with a cost-free reaction.');
+   const reduction=dice(action.roll||'');
+   if(!reduction||reduction.sides!==10)throw Error('Configure the physical d10 reduction roll first.');
+   const next=workflow.followup;
+   if(!next||typeof next!=='object'||Array.isArray(next))throw Error('Staged ability requires a qualified optional follow-up.');
+   const nextResource=String(next.resource||'').trim(),nextCost=Number(next.cost),nextRoll=dice(next.roll||'');
+   if(!nextResource||!Number.isSafeInteger(nextCost)||nextCost<1||nextCost>9999||!nextRoll||nextRoll.sides!==20)throw Error('Configure a resource cost and a d20 follow-up roll.');
+   if(next.requires_catchable!==true||next.requires_free_hand!==true)throw Error('Counterattack requires explicit catchable-missile and free-hand confirmation.');
+   staged={kind:'damage-reduction',followup:{label:String(next.label||'Counterattack'),resource:nextResource,cost:nextCost,roll:nextRoll.expression,
+    requires_catchable:true,requires_free_hand:true}};
+  }else{
+   // Save-gated conditions are typed, explicit configuration. A 2014 on-hit
+   // ability does not buy another action or guess a save DC from imported text.
+   const save=workflow.save,failed=workflow.on_failure;
+   if(!triggerEvent||!['melee-hit','save-success','save-failure','damage-taken'].includes(triggerEvent))throw Error('Saving-throw workflow needs a confirmed target-bound event.');
+   if(grantResource||grantEconomy||grantAttacks||action.roll||action.damage)throw Error('Saving-throw workflow cannot include unrelated grants or dice.');
+   if(!save||typeof save!=='object'||!ABILITIES.includes(save.ability)||!Number.isSafeInteger(save.dc)||save.dc<1||save.dc>99)
+    throw Error('Configure a verified saving throw ability and DC (1–99).');
+   if(!failed||typeof failed!=='object'||!CONDITIONS.has(failed.condition))throw Error('Choose a supported condition on a failed save.');
+   staged={kind:'save-condition',save:{ability:save.ability,dc:save.dc},onFailure:{condition:failed.condition}};
+  }
  }
- if(staged&&triggerEvent&&triggerEvent!=='ranged-hit')throw Error('Damage reduction requires a ranged-hit trigger.');
+ if(staged?.kind==='damage-reduction'&&triggerEvent&&triggerEvent!=='ranged-hit')throw Error('Damage reduction requires a ranged-hit trigger.');
  const effect=action.effect_kind||'none';
  if(!['none','heal','condition','damage'].includes(effect))throw Error('Unsupported ability effect.');
  const roll=dice(action.roll||'');
@@ -631,17 +651,23 @@ function plan(character,action,context=null){
 // reaction: it is an optional child of the already committed parent action.
 function pendingWorkflow(character){return combat(character).pending_workflow||null;}
 function beginWorkflow(character,validated,incoming){
- if(validated?.workflow?.kind!=='damage-reduction')throw Error('Not a supported staged action.');
- if(!Number.isSafeInteger(incoming)||incoming<1||incoming>999999)throw Error('Enter confirmed incoming weapon damage (1–999999).');
+ const kind=validated?.workflow?.kind;
+ if(!['damage-reduction','save-condition'].includes(kind))throw Error('Not a supported staged action.');
+ if(kind==='damage-reduction'&&(!Number.isSafeInteger(incoming)||incoming<1||incoming>999999))throw Error('Enter confirmed incoming weapon damage (1–999999).');
  if(pendingWorkflow(character))throw Error('Resolve or decline the existing staged ability first.');
  const state=combat(character),nextId=(state.sequence_counter||0)+1;
  if(!Number.isSafeInteger(nextId))throw Error('Ability sequence identity exhausted.');
- // Do not debit anything until identity, all stages and prerequisites validate.
+ if(kind==='save-condition'&&(!validated.targetId||!targetById(character,validated.targetId)))throw Error('Choose a valid saving throw target.');
+ // The event, identity, cost and action budget must all validate before spending.
  verifyEconomy(character,validated);
  commitUsage(character,validated);
  state.sequence_counter=nextId;
- state.pending_workflow={id:'sequence-'+nextId,sourceId:validated.sourceId,name:validated.name,status:'await-roll',
-  incoming,roll:validated.roll.expression,followup:deepcopy(validated.workflow.followup)};
+ state.pending_workflow=kind==='damage-reduction'?
+  {id:'sequence-'+nextId,kind,sourceId:validated.sourceId,name:validated.name,status:'await-roll',
+   incoming,roll:validated.roll.expression,followup:deepcopy(validated.workflow.followup)}:
+  {id:'sequence-'+nextId,kind,sourceId:validated.sourceId,name:validated.name,status:'await-save',
+   targetId:validated.targetId,save:deepcopy(validated.workflow.save),onFailure:deepcopy(validated.workflow.onFailure),
+   eventId:validated.eventId};
  return deepcopy(state.pending_workflow);
 }
 function resolveWorkflow(character,id,reduction){
@@ -672,6 +698,23 @@ function finishWorkflow(character,id,confirmation={}){
  delete state.pending_workflow;
  delete state.undo_turn;
  return attack;
+}
+// Applying a save-gated condition is a separate, DM-approved mutation. The
+// original resource was charged at activation; a failed save grants no refund.
+// This does not guess condition duration from a text description.
+function finishWorkflowCondition(character,id){
+ const state=combat(character),flow=state.pending_workflow;
+ if(!flow||flow.id!==id||flow.kind!=='save-condition'||flow.status!=='await-effect')throw Error('No eligible failed-save follow-up.');
+ const saved=recentSave(character);
+ if(!saved||saved.id!==flow.saveRollId||saved.targetId!==flow.targetId||saved.ability!==flow.save.ability||
+  saved.dc!==flow.save.dc||saved.total!==flow.saveTotal||saved.outcome!=='failure')
+  throw Error('The original failed saving throw is no longer valid.');
+ if(!targetById(character,flow.targetId))throw Error('The original creature is no longer in this encounter.');
+ const name=flow.onFailure.condition;
+ if(!CONDITIONS.has(name))throw Error('Invalid configured condition.');
+ setTargetCondition(character,flow.targetId,name,true);
+ delete state.pending_workflow;delete state.undo_turn;
+ return {targetId:flow.targetId,condition:name,sourceId:flow.sourceId};
 }
 function declineWorkflow(character,id){
  const state=combat(character),entry=state.pending_workflow;
@@ -855,7 +898,7 @@ function advanceEffects(character){
 function advanceTurn(character){
  const state=combat(character);
  const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),resolved_attack_ids:deepcopy(state.resolved_attack_ids||[]),last_save:deepcopy(state.last_save||null),resolved_save_ids:deepcopy(state.resolved_save_ids||[]),
-  effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
+  pending_workflow:deepcopy(state.pending_workflow||null),effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
@@ -873,7 +916,7 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];state.last_save=before.last_save||null;state.resolved_save_ids=before.resolved_save_ids||[];
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];state.last_save=before.last_save||null;state.resolved_save_ids=before.resolved_save_ids||[];if(before.pending_workflow)state.pending_workflow=before.pending_workflow;else delete state.pending_workflow;
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;
@@ -975,6 +1018,7 @@ function removeTarget(character,id){
  const roster=targets(character),index=roster.findIndex(t=>t.id===id);
  if(index<0)return false;
  roster.splice(index,1);
+ if(combat(character).pending_workflow?.targetId===id)delete combat(character).pending_workflow;
  if([combatEvent(character)?.targetId,combatEvent(character)?.attackerId].includes(id))expireCombatEvent(character);
  if(combat(character).last_save?.targetId===id)delete combat(character).last_save;
  return true;
@@ -1085,6 +1129,6 @@ function commitDamage(character,planned){
  }
  return {...fresh,concentrationCheck:check};
 }
-const api={recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

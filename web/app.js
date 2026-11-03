@@ -318,7 +318,8 @@ const ABILITY_TEMPLATES={
   description:'2014 SRD: on a confirmed ranged weapon hit, spend one reaction and reduce incoming damage by 1d10 + DEX modifier + Monk level. Configure the flat bonus in this dice expression. If damage reaches zero, and the missile is small/catchable and one hand is free, optionally spend 1 Ki for a return ranged attack within 20/60 ft as part of the SAME reaction. Confirm level and attack bonus with the DM.'}
  ,
  stunning_strike_2014:{name:'Stunning Strike (2014)',ruleset_profile:'dnd-2014',activation:'special',trigger_event:'melee-hit',resource:'Ki',cost:1,effect_kind:'none',
-  description:'Requires a confirmed hit with a melee weapon attack. Spend 1 Ki after the hit; DM requests a Constitution save against your monk Ki save DC. Stunned only on a failed save. No automatic condition application.'},
+  workflow:{kind:'save-condition',save:{ability:'CON',dc:null},on_failure:{condition:'Stunned'}},
+  description:'2014 SRD: after a confirmed qualifying melee weapon hit, spend 1 Ki. Configure YOUR Ki save DC explicitly (8 + proficiency bonus + Wisdom modifier, per DM). The original target makes a Constitution save. Only a failed save can offer Stunned; manually end it at the end of your next turn.'},
  warding_flare_2014:{name:'Warding Flare (2014; DM-configured)',ruleset_profile:'dnd-2014',activation:'1 reaction',trigger_event:'incoming-attack',resource:'Warding Flare Uses',cost:1,effect_kind:'none',
   description:'Before the incoming attack roll is resolved, confirm a visible attacker within 30 feet that can be blinded. Spend one reaction and one configured use to impose disadvantage; do not automatically alter enemy dice. Confirm variant and uses with your DM.'}
 };
@@ -341,7 +342,12 @@ function actionWorkspace(){
  const templates=Object.keys(ABILITY_TEMPLATES).filter(key=>!character.actions.some(a=>a.preset_id===key));
  const sequence=Action.pendingWorkflow(character);
  const staged=sequence?`<div class="pending-resolution" aria-label="Pending staged ability"><strong>${esc(sequence.name)}</strong>
- <span>${sequence.status==='await-roll'?`Awaiting reduction roll vs ${esc(sequence.incoming)} incoming damage; initial reaction already spent.`:'Damage fully deflected. Confirm a catchable missile and free hand before optional return attack.'}</span>
+ <span>${sequence.kind==='save-condition'?
+  sequence.status==='await-save'?`Awaiting ${esc(sequence.save.ability)} save DC ${esc(sequence.save.dc)} from ${esc(Action.targetById(character,sequence.targetId)?.name||'removed target')}. The activation cost was spent.`:
+   `Confirmed failed save. You may apply ${esc(sequence.onFailure.condition)} to the original target with DM approval.`:
+  sequence.status==='await-roll'?`Awaiting reduction roll vs ${esc(sequence.incoming)} incoming damage; initial reaction already spent.`:'Damage fully deflected. Confirm a catchable missile and free hand before optional return attack.'}</span>
+ ${sequence.kind==='save-condition'&&sequence.status==='await-save'?button('Roll target save','staged-save-roll',sequence.id,'button mini primary'):''}
+ ${sequence.kind==='save-condition'&&sequence.status==='await-effect'?button('Apply condition (DM confirmed)','staged-save-effect',sequence.id,'button mini primary'):''}
  ${sequence.status==='optional-followup'?`<button type="button" class="button mini primary" data-action="staged-followup" data-arg="${esc(sequence.id)}" ${Number(character.resources?.[sequence.followup.resource]?.current||0)<sequence.followup.cost?'disabled':''}>${esc(sequence.followup.label)} · ${esc(sequence.followup.cost)} ${esc(sequence.followup.resource)}</button>`:''}
  ${button('Decline / finish','staged-decline',sequence.id,'button mini subtle')}</div>`:'';
  return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}${combatActions()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
@@ -356,8 +362,9 @@ function actionWorkspace(){
    ${damage?button('Damage '+damage,'action-damage',String(a.index),'button mini subtle'):''}
    ${a.resource&&num(a.cost)>0?`<small class="action-cost">${esc(a.cost)} ${esc(a.resource)} on use</small>`:''}</div>
    ${editMode?`<div class="action-editor"><div class="entry-pair">${field('Name',`actions.${a.index}.name`,a.name)}${field('Activation',`actions.${a.index}.activation`,a.activation||'')}</div>
-   <div class="entry-pair">${field(a.workflow?'Damage reduction dice (1d10 + DEX mod + class level)':'Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
-   ${a.workflow?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
+   <div class="entry-pair">${field(a.workflow?.kind==='damage-reduction'?'Damage reduction dice (1d10 + DEX mod + class level)':'Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
+   ${a.workflow?.kind==='damage-reduction'?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
+   ${a.workflow?.kind==='save-condition'?`<div class="entry-pair"><label class="field">Target save ability<select class="input" data-input="actions.${a.index}.workflow.save.ability">${Action.ABILITIES.map(v=>`<option value="${v}" ${a.workflow.save?.ability===v?'selected':''}>${v}</option>`).join('')}</select></label>${field('Ki/feature save DC (DM approved)',`actions.${a.index}.workflow.save.dc`,a.workflow.save?.dc??'','number')}<label class="field">Condition on failed save<select class="input" data-input="actions.${a.index}.workflow.on_failure.condition">${[...Action.CONDITIONS].map(v=>`<option value="${v}" ${a.workflow.on_failure?.condition===v?'selected':''}>${v}</option>`).join('')}</select></label></div><small>Save and condition are resolved only for the original verified event target. Removing the condition when its duration ends remains a DM action.</small>`:''}
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
    <label class="field">Confirmed event prerequisite<select class="input" data-input="actions.${a.index}.trigger_event">${[['','None'],['incoming-attack','Incoming attack before roll'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit'],['save-success','Selected creature succeeded on save'],['save-failure','Selected creature failed save'],['damage-taken','You took damage']].map(([id,label])=>`<option value="${id}" ${a.trigger_event===id?'selected':''}>${label}</option>`).join('')}</select></label>
    ${['save-success','save-failure'].includes(a.trigger_event)?`<label class="field">Verified save ability (optional filter)<select class="input" data-input="actions.${a.index}.event_save_ability"><option value="">Any verified ability</option>${Action.ABILITIES.map(v=>`<option value="${v}" ${a.event_save_ability===v?'selected':''}>${v}</option>`).join('')}</select></label>`:''}
@@ -562,6 +569,7 @@ function setPath(path,value){
  for(const p of parts.slice(0,-1)){if(!obj||!Object.prototype.hasOwnProperty.call(obj,p))return;obj=obj[p];}
  const key=parts.at(-1);
  if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
+ if(/^actions\.\d+\.workflow\.save\.dc$/.test(path))value=value.trim()===''?null:Number(value);
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
  obj[key]=value;
  if(/^actions\.\d+\.(?:economy_units|grant_amount|event_min_damage|event_min_hp_loss)$/.test(path))obj[key]=Math.max(0,Math.min(999999,Math.floor(num(value))));
@@ -720,7 +728,7 @@ function handleAction(action,arg){
   case 'action-use':{
    const a=character.actions?.[num(arg)];if(!a)break;
    let p;try{p=Action.plan(character,a,{targetId:currentTargetId()});}catch(e){toast('Cannot use '+a.name+': '+e.message);break;}
-   if(p.workflow){
+   if(p.workflow?.kind==='damage-reduction'){
     try{Action.verifyEconomy(character,p);if(!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough room for the reduction dice.');}
     catch(e){toast(e.message);break;}
     let incoming=0;
@@ -733,6 +741,21 @@ function handleAction(action,arg){
     const input=document.createElement('input');input.className='input';input.type='number';input.min='1';input.max='999999';input.value='1';incoming=1;
     input.addEventListener('input',()=>incoming=Number(input.value));field.append(input);panel.querySelector('.controls-row').before(field);
     break;
+   }
+   if(p.workflow?.kind==='save-condition'){
+    try{Action.verifyEconomy(character,p);if(Action.pendingWorkflow(character))throw Error('Finish the previous staged ability first.');
+     const target=Action.targetById(character,p.targetId);if(!target)throw Error('Original event target was removed.');
+     const ability=p.workflow.save.ability,dc=p.workflow.save.dc,bonus=num(target.saves?.[ability],0);
+     const expr=`1d20${sgn(bonus)}`,cfg=Action.dice(expr);
+     if(!canPrepareDice(cfg.count,cfg.sides))throw Error('Not enough room for the target save dice.');
+     dialog('Attempt '+p.name+'?',`Spend ${p.cost} ${p.resource} after the confirmed event, then ${target.name} rolls a ${ability} saving throw against DC ${dc}. On failure, you may separately confirm the condition with your DM.`,()=>{
+      try{const flow=Action.beginWorkflow(character,p);save();render();
+       if(!queueRoll(expr,`${target.name} ${ability} save (DC ${dc})`,
+        {kind:'target-save',characterId:activeId,targetId:p.targetId,ability,dc,workflowId:flow.id},p.targetId==='self'?'save':'untyped'))
+        toast('Save dice not prepared. Use Roll target save to retry; the original cost remains spent.');
+      }catch(e){toast('Could not activate: '+e.message);}
+     },'Spend & roll save');
+    }catch(e){toast('Cannot use '+p.name+': '+e.message);}break;
    }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
@@ -765,8 +788,28 @@ function handleAction(action,arg){
   }
   case 'combat-event':try{Action.recordCombatEvent(character,arg,arg==='melee-hit'?currentTargetId():null);save();render();toast('Confirmed event: '+arg+'.');}catch(e){toast(e.message);}break;
   case 'combat-event-close':Action.dismissCombatEvent(character);save();render();break;
+  case 'staged-save-roll':{
+   try{const flow=Action.pendingWorkflow(character);
+    if(!flow||flow.id!==arg||flow.kind!=='save-condition'||flow.status!=='await-save')throw Error('No pending ability saving throw.');
+    const target=Action.targetById(character,flow.targetId);
+    if(!target)throw Error('Original saving throw target was removed.');
+    const ability=flow.save.ability,dc=flow.save.dc,expression=`1d20${sgn(num(target.saves?.[ability],0))}`;
+    if(!queueRoll(expression,`${target.name} ${ability} save (DC ${dc})`,
+     {kind:'target-save',characterId:activeId,targetId:flow.targetId,ability,dc,workflowId:flow.id},flow.targetId==='self'?'save':'untyped'))
+     throw Error('Finish or cancel the prepared dice first.');
+   }catch(e){toast(e.message);}break;
+  }
+  case 'staged-save-effect':{
+   const flow=Action.pendingWorkflow(character);
+   if(!flow||flow.id!==arg||flow.status!=='await-effect'){toast('No eligible failed-save effect.');break;}
+   const target=Action.targetById(character,flow.targetId);
+   dialog('Apply condition?',`Confirm with the DM: apply ${flow.onFailure.condition} to ${target?.name||'removed target'} after the verified failed ${flow.save.ability} save. Remove it manually when the approved duration ends.`,()=>{
+    try{const applied=Action.finishWorkflowCondition(character,arg);save();render();toast('Applied '+applied.condition+'; review duration with the DM.');}
+    catch(e){toast('Could not apply condition: '+e.message);}
+   },'Apply condition');break;
+  }
   case 'staged-decline':{
-   try{Action.declineWorkflow(character,arg);save();render();toast('Optional follow-up declined. The original reaction remains spent.');}
+   try{Action.declineWorkflow(character,arg);save();render();toast('Staged ability dismissed. Its committed activation cost remains spent.');}
    catch(error){toast(error.message);}break;
   }
   case 'staged-followup':{
@@ -1456,7 +1499,7 @@ function finishRollIfSettled(){
        try{
         const verdict=Action.recordResolvedSave(character,{
          rollId:group.rollId,targetId:group.effect.targetId,ability:group.effect.ability,
-         total:result.total,dc:group.effect.dc});
+         total:result.total,dc:group.effect.dc,workflowId:group.effect.workflowId});
         result.outcome=verdict.outcome==='success'?'SAVE SUCCEEDED':'SAVE FAILED';
         toast(`${Action.targetById(character,group.effect.targetId)?.name||'Target'}: ${result.outcome} vs DC ${verdict.dc}.`);
         effectsChanged=true;
