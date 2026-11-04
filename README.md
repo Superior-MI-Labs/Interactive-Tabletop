@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.39.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.40.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.39.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.40.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -24,6 +24,12 @@
 
 No signup or application server is needed. The hosted version parses PDF fields in your browser and stores a multi-character vault in IndexedDB. Previously saved single-character localStorage data is migrated without deleting the recovery copy. PDF.js code is downloaded from a pinned jsDelivr URL when importing a PDF; the **PDF itself is not intentionally uploaded to any server**. Do not assume local browser storage is permanent, private on shared computers, or synchronized across devices.
 
+
+### Condition source and turn-boundary tracking (v0.40)
+
+A DM-approved failed-save condition can now carry **independent source ownership** and one of three explicit expiration policies: **DM-managed** (default for older saves), **end of your next turn** (the opt-in 2014 Stunning Strike template), or **end of the affected creature’s next turn**. Multiple effects imposing the same condition do not intensify it, and ending one source does not remove another. Existing manually applied or imported conditions are never silently expired by a newly added timed source.
+
+Your **Next turn** action ends your preceding turn and advances your existing personal action economy. For other creatures, select that encounter target and use **End creature turn**, confirmed by the DM, to advance that creature’s independent condition clock. This is **not** an automatic initiative engine; no turn order, reactions between creatures, or external combat events are inferred. The UI allows an individual source to be ended without removing other sources. Undoing your personal turn restores any conditions that expired at that boundary. Ending/restarting encounter tracking conservatively converts unresolved turn-based grants to DM-managed instead of fabricating a new initiative history.
 
 ### Staged ability interruption safety (v0.39)
 
@@ -97,14 +103,14 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.39.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.40.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.39.0.zip" SkyBlueEyes-Tabletop-v0.39.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.40.0.zip" SkyBlueEyes-Tabletop-v0.40.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
@@ -113,7 +119,7 @@ Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP
 
 The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh` (Python, JavaScript and 24 actual Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same command is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
 
-The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.39.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
+The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.40.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 
 ## Development and architecture
 

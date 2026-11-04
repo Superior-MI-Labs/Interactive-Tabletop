@@ -8,6 +8,9 @@ const ALLOWED=new Set([4,6,8,10,12,20,100]);
 // A turn belongs to the active character, not to a server timer or a separate combat database.
 const CONDITIONS=new Set(['Blinded','Charmed','Deafened','Exhaustion','Frightened','Grappled',
  'Incapacitated','Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained','Stunned','Unconscious']);
+// Deliberately small, edition-neutral DM timing vocabulary. The 2014 Stunning
+// Strike template opts into source-next-turn-end; no imported prose is parsed.
+const CONDITION_EXPIRATIONS=Object.freeze(['manual','source-next-turn-end','target-next-turn-end']);
 const deepcopy=value=>JSON.parse(JSON.stringify(value));
 let nextEffectInstance=0;
 function combat(character){
@@ -453,6 +456,9 @@ function setEncounter(character,enabled){
  const state=combat(character),mode=state.economy.mode;
  state.active=Boolean(enabled);state.turn=1;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
  state.economy={mode,auto:mode!=='manual',spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;delete state.last_save;delete state.resolved_save_ids;delete state.undo_turn;
+ // Resetting the encounter never destroys conditions; their previous turn
+ // anchors are no longer trustworthy, so outstanding grants become DM-managed.
+ for(const grant of conditionGrants(character))grant.expiry=null;
  return state;
 }
 
@@ -625,7 +631,9 @@ function plan(character,action,context=null){
    if(!save||typeof save!=='object'||!ABILITIES.includes(save.ability)||!Number.isSafeInteger(save.dc)||save.dc<1||save.dc>99)
     throw Error('Configure a verified saving throw ability and DC (1–99).');
    if(!failed||typeof failed!=='object'||!CONDITIONS.has(failed.condition))throw Error('Choose a supported condition on a failed save.');
-   staged={kind:'save-condition',save:{ability:save.ability,dc:save.dc},onFailure:{condition:failed.condition}};
+   const expiration=failed.expiration??'manual';
+   if(!CONDITION_EXPIRATIONS.includes(expiration))throw Error('Choose an approved condition expiration.');
+   staged={kind:'save-condition',save:{ability:save.ability,dc:save.dc},onFailure:{condition:failed.condition,expiration}};
   }
  }
  if(staged?.kind==='damage-reduction'&&triggerEvent&&triggerEvent!=='ranged-hit')throw Error('Damage reduction requires a ranged-hit trigger.');
@@ -733,9 +741,10 @@ function finishWorkflowCondition(character,id){
  if(!targetById(character,flow.targetId))throw Error('The original creature is no longer in this encounter.');
  const name=flow.onFailure.condition;
  if(!CONDITIONS.has(name))throw Error('Invalid configured condition.');
- setTargetCondition(character,flow.targetId,name,true);
+ // Older saved workflows without timing remain DM-managed. Do not guess.
+ const grant=grantCondition(character,flow.targetId,name,{sourceId:flow.sourceId,expiration:flow.onFailure.expiration??'manual'});
  delete state.pending_workflow;delete state.undo_turn;
- return {targetId:flow.targetId,condition:name,sourceId:flow.sourceId};
+ return {targetId:flow.targetId,condition:name,sourceId:flow.sourceId,grant};
 }
 function declineWorkflow(character,id){
  const state=combat(character),entry=pendingWorkflow(character);
@@ -759,7 +768,11 @@ function endEffect(character,id){
   if(!effect.condition_owned||!effect.condition)continue;
   const successor=character.effects.active.find(e=>e.condition===effect.condition);
   if(successor)successor.condition_owned=true;
-  else if(Array.isArray(character.conditions))character.conditions=character.conditions.filter(c=>c!==effect.condition);
+  else {
+   const grant=conditionGrants(character).find(g=>g.targetId==='self'&&g.condition===effect.condition);
+   if(grant)grant.owned=true;
+   else if(Array.isArray(character.conditions))character.conditions=character.conditions.filter(c=>c!==effect.condition);
+  }
  }
  return true;
 }
@@ -920,10 +933,14 @@ function advanceTurn(character){
  const state=combat(character);
  const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),resolved_attack_ids:deepcopy(state.resolved_attack_ids||[]),last_save:deepcopy(state.last_save||null),resolved_save_ids:deepcopy(state.resolved_save_ids||[]),
   effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
+  condition_grants:deepcopy(conditionGrants(character)),target_conditions:targets(character).map(t=>({id:t.id,conditions:deepcopy(t.conditions||[])})),
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
   state.economy={mode:state.economy.mode,auto:state.economy.auto,spent:{action:0,bonus:0,reaction:0},attacks:{made:0,remaining:0},attackActionMade:0,grants:[],attackGrants:[],lastActivity:null};delete state.event_window;delete state.pending_workflow;delete state.resolved_attack_ids;delete state.last_save;delete state.resolved_save_ids;}
+ // Next turn ends the outgoing character turn before starting the next.
+ // A source-next-turn-end grant applied on turn N expires leaving turn N+1.
+ const endedConditions=state.active?expireConditionGrants(character,'self',state.turn-1):[];
  const expired=advanceEffects(character);
  for(const [name,resource] of Object.entries(character.resources||{}))
   if(resource?.reset==='turn'||(name==='Shield Stance Points'&&resource?.reset===undefined))resource.current=0; // legacy character import compatibility
@@ -941,6 +958,8 @@ function undoTurn(character){
  // initiative must not authorize dice thrown during the interrupted turn.
  delete state.pending_workflow;
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
+ state.condition_grants=before.condition_grants||[];
+ for(const row of before.target_conditions||[]){const target=targetById(character,row.id);if(target)target.conditions=row.conditions;}
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;
  for(const [key,current] of Object.entries(before.turn_resources||{}))if(character.resources?.[key])character.resources[key].current=current;
@@ -1011,6 +1030,89 @@ function setTargetTraits(character,id,kind,values){
  }
  return parsed;
 }
+// Condition grants describe the provenance and expiry of *independent* sources.
+// The legacy entity.conditions array remains the canonical visible status; grants
+// are supplementary ownership/timing records, never another condition flag store.
+function conditionGrants(character,targetId=null){
+ const state=combat(character);
+ if(!Array.isArray(state.condition_grants))state.condition_grants=[];
+ // Imported and manually edited vaults can carry malformed metadata. Invalid
+ // sources must never schedule expiration or remove an unrelated condition.
+ const seen=new Set();
+ state.condition_grants=state.condition_grants.filter(g=>{
+  if(!g||typeof g!=='object'||!/^condition-[1-9]\d*$/.test(g.id)||seen.has(g.id)||
+   typeof g.targetId!=='string'||!CONDITIONS.has(g.condition)||typeof g.sourceId!=='string'||
+   typeof g.owned!=='boolean')return false;
+  seen.add(g.id);
+  if(g.expiry!==null&&(typeof g.expiry!=='object'||typeof g.expiry.anchorId!=='string'||
+   !Number.isSafeInteger(g.expiry.endTurn)||g.expiry.endTurn<1))g.expiry=null;
+  return true;
+ });
+ return targetId===null?state.condition_grants:state.condition_grants.filter(g=>g.targetId===targetId);
+}
+function conditionTurn(character,id){
+ if(id==='self')return combat(character).turn;
+ const target=targetById(character,id);
+ if(!target)throw Error('Tracked condition turn belongs to a removed creature.');
+ if(!Number.isSafeInteger(target.condition_turn)||target.condition_turn<1)target.condition_turn=1;
+ return target.condition_turn;
+}
+function grantCondition(character,targetId,name,{sourceId='dm',expiration='manual'}={}){
+ if(!CONDITIONS.has(name))throw Error('Unknown D&D condition.');
+ if(!CONDITION_EXPIRATIONS.includes(expiration))throw Error('Unknown approved condition expiration.');
+ const entity=targetById(character,targetId),state=combat(character);
+ if(!entity)throw Error('Original condition target was removed.');
+ if(expiration!=='manual'&&!state.active)throw Error('Start encounter tracking before scheduling a turn-based expiration.');
+ if(!Array.isArray(entity.conditions))entity.conditions=[];
+ const grants=conditionGrants(character),had=entity.conditions.includes(name);
+ const owned=!had||grants.some(g=>g.targetId===targetId&&g.condition===name&&g.owned);
+ const next=(state.condition_sequence||0)+1;
+ if(!Number.isSafeInteger(next))throw Error('Condition grant identity exhausted.');
+ const anchor=expiration==='source-next-turn-end'?'self':targetId;
+ const turn=expiration==='manual'?null:conditionTurn(character,anchor);
+ if(turn===Number.MAX_SAFE_INTEGER)throw Error('Condition turn clock exhausted.');
+ const expiry=expiration==='manual'?null:{anchorId:anchor,endTurn:turn+1};
+ const grant={id:'condition-'+next,targetId,condition:name,sourceId:String(sourceId).slice(0,120),owned,expiry};
+ state.condition_sequence=next;
+ if(!had)entity.conditions.push(name);
+ grants.push(grant);delete state.undo_turn;
+ return deepcopy(grant);
+}
+function endConditionGrant(character,id){
+ const state=combat(character),grants=conditionGrants(character),index=grants.findIndex(g=>g.id===id);
+ if(index<0)return false;
+ const [ended]=grants.splice(index,1),entity=targetById(character,ended.targetId);
+ if(ended.owned&&entity){
+  const successor=grants.find(g=>g.targetId===ended.targetId&&g.condition===ended.condition);
+  if(successor)successor.owned=true;
+  else if(ended.targetId==='self'){
+   const effect=activeEffects(character).find(e=>e.condition===ended.condition);
+   if(effect)effect.condition_owned=true;
+   else entity.conditions=(entity.conditions||[]).filter(n=>n!==ended.condition);
+  }else entity.conditions=(entity.conditions||[]).filter(n=>n!==ended.condition);
+ }
+ delete state.undo_turn;
+ return true;
+}
+function expireConditionGrants(character,anchorId,turn){
+ // Snapshot IDs: source removal can transfer ownership to another source.
+ const due=conditionGrants(character).filter(g=>g.expiry?.anchorId===anchorId&&g.expiry.endTurn<=turn);
+ for(const row of due)endConditionGrant(character,row.id);
+ return due.map(g=>({targetId:g.targetId,condition:g.condition,sourceId:g.sourceId}));
+}
+// Advance an explicitly selected creature's turn independently of the player's
+// turn. This is a DM confirmation, NOT a guessed initiative scheduler.
+function advanceTargetTurn(character,id){
+ const state=combat(character);
+ if(!state.active)throw Error('Start encounter tracking before advancing a creature turn.');
+ if(id==='self')throw Error('Use Next turn to advance your character.');
+ const target=targetById(character,id);
+ if(!target)throw Error('Creature was removed from the encounter.');
+ const turn=conditionTurn(character,id);
+ const expired=expireConditionGrants(character,id,turn);
+ target.condition_turn=turn+1;delete state.undo_turn;
+ return {targetId:id,turn:target.condition_turn,expired};
+}
 // Target conditions are explicit manual adjudications. No save, damage or
 // duration is inferred from a label. All records live with the encounter.
 function setTargetCondition(character,id,name,enabled){
@@ -1019,7 +1121,14 @@ function setTargetCondition(character,id,name,enabled){
  if(!entity)throw Error('Target no longer exists.');
  if(!Array.isArray(entity.conditions))entity.conditions=[];
  if(enabled&&!entity.conditions.includes(name))entity.conditions.push(name);
- if(!enabled)entity.conditions=entity.conditions.filter(x=>x!==name);
+ if(!enabled){
+  if(id==='self'&&activeEffects(character).some(e=>e.condition===name))throw Error('End the linked effect before removing '+name+'.');
+  // Explicit DM removal dismisses every scheduled grant of this condition.
+  const state=combat(character);
+  state.condition_grants=conditionGrants(character).filter(g=>g.targetId!==id||g.condition!==name);
+  entity.conditions=entity.conditions.filter(x=>x!==name);
+ }
+ delete combat(character).undo_turn;
  return [...entity.conditions];
 }
 function addTarget(character,details){
@@ -1041,6 +1150,10 @@ function removeTarget(character,id){
  const roster=targets(character),index=roster.findIndex(t=>t.id===id);
  if(index<0)return false;
  roster.splice(index,1);
+ const state=combat(character);
+ state.condition_grants=conditionGrants(character).filter(g=>g.targetId!==id);
+ // A removed creature cannot continue driving another effect's turn clock.
+ for(const grant of state.condition_grants)if(grant.expiry?.anchorId===id)grant.expiry=null;
  if(combat(character).pending_workflow?.targetId===id)delete combat(character).pending_workflow;
  if([combatEvent(character)?.targetId,combatEvent(character)?.attackerId].includes(id))expireCombatEvent(character);
  if(combat(character).last_save?.targetId===id)delete combat(character).last_save;
@@ -1152,6 +1265,6 @@ function commitDamage(character,planned){
  }
  return {...fresh,concentrationCheck:check};
 }
-const api={recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -68,4 +68,16 @@ assert.equal(c.resources.Ki.current,2);
 ({c,target,ability}=setup());A.setCombatMode(c,'manual');
 flow=A.beginWorkflow(c,A.plan(c,ability,{targetId:target.id}));
 assert.equal(A.combat(c).economy.spent.action,0);assert.equal(c.resources.Ki.current,2);
+// The approved 2014 template's next-turn duration is copied into the staged
+// workflow; the saving throw and DM approval do not automatically mutate HP.
+({c,target,ability}=setup());
+ability.workflow.on_failure.expiration='source-next-turn-end';
+A.recordCombatEvent(c,'melee-hit',target.id);
+flow=A.beginWorkflow(c,A.plan(c,ability,{targetId:target.id}));
+A.recordResolvedSave(c,save(target,flow,8,'attack-roll-timed-fail'));
+const awarded=A.finishWorkflowCondition(c,flow.id);
+assert.equal(awarded.grant.expiry.endTurn,2);assert.equal(c.resources.Ki.current,2);
+A.advanceTurn(c);assert(target.conditions.includes('Stunned'));
+A.advanceTurn(c);assert(!target.conditions.includes('Stunned'));
+assert.throws(()=>A.plan(c,{...ability,workflow:{...ability.workflow,on_failure:{condition:'Stunned',expiration:'end-of-every-round'}}}),/expiration/);
 console.log('Save-condition workflow: validated events, atomic Ki, linked physical save, target, persistence, undo, manual mode PASS');

@@ -1,3 +1,11 @@
+## v0.40.0 — Source-aware conditions and DM-controlled creature turns
+
+- Reuse the per-character combat ledger to track independently expiring grants of the same condition, while preserving the existing `conditions` arrays as visible/legacy state. Manual conditions and overlapping spell effects are not deleted by an unrelated grant’s expiration.
+- Add explicit expiration policies for a failed-save workflow: DM-managed (backward-compatible default), end of the source character’s next turn, or end of the original target’s next turn. The opt-in D&D 2014 Stunning Strike template uses the verified end-of-your-next-turn rule.
+- Advance the player’s own condition boundaries through the existing Next turn transition, including full undo restoration. Provide a separate, DM-confirmed End creature turn command for explicitly selected encounter targets; do not pretend the application knows initiative order.
+- Give each grant a unique source identity, approve per-source removal, and preserve grants across vault saves and reconciliation. Invalid imported ledger metadata is discarded before it can remove a condition; removed targets cannot leave runnable timers.
+- Update the existing ability editor, target condition controls, rules docs, Node regressions and real-Chromium smoke checks. No new combat engine, background initiative scheduler, separate conditions store, or source-name inference.
+
 ## v0.39.0 — Staged workflow lifecycle and dice ownership
 
 - Bind pending save/condition and damage-reduction workflows to the originating turn and combat assistance mode, revalidating the single character-owned ledger at every continuation.

@@ -281,12 +281,14 @@ function targetPicker(){
 }
 function encounterTargets(){
  const selected=currentTargetId(),entity=Action.targetById(character,selected);
- const traits=Action.targetTraits(character,selected);
+ const traits=Action.targetTraits(character,selected),grants=Action.conditionGrants(character,selected);
  const saves=selected==='self'?Object.fromEntries(Action.ABILITIES.map((k,i)=>[k,character.saves?.[{'STR':'Strength','DEX':'Dexterity','CON':'Constitution','INT':'Intelligence','WIS':'Wisdom','CHA':'Charisma'}[k]]??0])):entity.saves;
  return `<details class="encounter-targets" data-panel="Encounter targets" ${panelState.get('Encounter targets')?'open':''}><summary>Encounter targets <small>${Action.targets(character).length} tracked · self or manual targets</small></summary>
  <div class="target-toolbar"><label>Damage type <select class="input" id="damage-type" aria-label="Damage type">${Action.DAMAGE_TYPES.map(type=>`<option value="${type}" ${selectedDamageType===type?'selected':''}>${type}</option>`).join('')}</select></label></div>
  <div class="target-summary">${esc(entity.name)} · AC ${esc(Action.effectiveAC(character,selected))} · ${esc(entity.hp.current)}/${esc(entity.hp.max)} HP ${entity.hp.temp?`(+${esc(entity.hp.temp)} temp)`:''}</div>
  <div class="target-conditions" aria-label="Manual target conditions">${[...Action.CONDITIONS].map(n=>`<button type="button" data-action="target-condition" data-arg="${esc(n)}" aria-pressed="${(entity.conditions||[]).includes(n)}" title="Manually toggle ${esc(n)} on ${esc(entity.name)}">${esc(n)}</button>`).join('')}</div>
+ ${grants.length?`<div class="target-toolbar" aria-label="Tracked condition sources">${grants.map(g=>`<span class="tag">${esc(g.condition)} · ${esc(g.sourceId)} · ${g.expiry?`end of ${g.expiry.anchorId==='self'?'your':g.expiry.anchorId===selected?'this creature’s':'another creature’s'} turn ${g.expiry.endTurn}`:'DM-managed'} ${button('End source','end-condition-grant',g.id,'button mini subtle')}</span>`).join('')}</div>`:''}
+ ${Action.combat(character).active&&selected!=='self'?`<div class="target-toolbar"><small>Creature turn ${esc(entity.condition_turn||1)} · DM-tracked separately from your turn</small>${button('End creature turn','advance-target-turn',selected,'button mini subtle')}</div>`:''}
  <div class="target-traits">${['resistances','vulnerabilities','immunities'].map(k=>`<label>${k}<input class="input" data-target-trait="${k}" value="${esc(traits[k].join(', '))}" placeholder="e.g. fire, poison"></label>`).join('')}</div>
  <div class="target-saves">${Action.ABILITIES.map(k=>`<label>${k} save ${selected==='self'?`<span>${esc(sgn(saves[k]||0))}</span>`:`<input class="input" type="number" data-target-stat="saves.${k}" value="${esc(saves[k]||0)}" aria-label="${k} save bonus">`}</label>`).join('')}</div>
  <div class="target-toolbar"><label>Save <select class="input" id="target-save-ability">${Action.ABILITIES.map(k=>`<option value="${k}">${k}</option>`).join('')}</select></label>
@@ -316,8 +318,8 @@ const ABILITY_TEMPLATES={
   description:'2014 SRD: on a confirmed ranged weapon hit, spend one reaction and reduce incoming damage by 1d10 + DEX modifier + Monk level. Configure the flat bonus in this dice expression. If damage reaches zero, and the missile is small/catchable and one hand is free, optionally spend 1 Ki for a return ranged attack within 20/60 ft as part of the SAME reaction. Confirm level and attack bonus with the DM.'}
  ,
  stunning_strike_2014:{name:'Stunning Strike (2014)',ruleset_profile:'dnd-2014',activation:'special',trigger_event:'melee-hit',resource:'Ki',cost:1,effect_kind:'none',
-  workflow:{kind:'save-condition',save:{ability:'CON',dc:null},on_failure:{condition:'Stunned'}},
-  description:'2014 SRD: after a confirmed qualifying melee weapon hit, spend 1 Ki. Configure YOUR Ki save DC explicitly (8 + proficiency bonus + Wisdom modifier, per DM). The original target makes a Constitution save. Only a failed save can offer Stunned; manually end it at the end of your next turn.'},
+  workflow:{kind:'save-condition',save:{ability:'CON',dc:null},on_failure:{condition:'Stunned',expiration:'source-next-turn-end'}},
+  description:'2014 SRD: after a confirmed qualifying melee weapon hit, spend 1 Ki. Configure YOUR Ki save DC explicitly (8 + proficiency bonus + Wisdom modifier, per DM). The original target makes a Constitution save. Only a failed save can offer Stunned; the tracked condition expires at the end of your next character turn, or the DM can end it earlier.'},
  warding_flare_2014:{name:'Warding Flare (2014; DM-configured)',ruleset_profile:'dnd-2014',activation:'1 reaction',trigger_event:'incoming-attack',resource:'Warding Flare Uses',cost:1,effect_kind:'none',
   description:'Before the incoming attack roll is resolved, confirm a visible attacker within 30 feet that can be blinded. Spend one reaction and one configured use to impose disadvantage; do not automatically alter enemy dice. Confirm variant and uses with your DM.'}
 };
@@ -362,7 +364,7 @@ function actionWorkspace(){
    ${editMode?`<div class="action-editor"><div class="entry-pair">${field('Name',`actions.${a.index}.name`,a.name)}${field('Activation',`actions.${a.index}.activation`,a.activation||'')}</div>
    <div class="entry-pair">${field(a.workflow?.kind==='damage-reduction'?'Damage reduction dice (1d10 + DEX mod + class level)':'Roll expression',`actions.${a.index}.roll`,roll)}${field('Damage expression',`actions.${a.index}.damage`,damage)}</div>
    ${a.workflow?.kind==='damage-reduction'?`<div class="entry-pair">${field('Optional counterattack roll',`actions.${a.index}.workflow.followup.roll`,a.workflow.followup?.roll||'1d20+0')}${field('Counterattack resource',`actions.${a.index}.workflow.followup.resource`,a.workflow.followup?.resource||'Ki')}${field('Counterattack cost',`actions.${a.index}.workflow.followup.cost`,a.workflow.followup?.cost||1,'number')}</div>`:''}
-   ${a.workflow?.kind==='save-condition'?`<div class="entry-pair"><label class="field">Target save ability<select class="input" data-input="actions.${a.index}.workflow.save.ability">${Action.ABILITIES.map(v=>`<option value="${v}" ${a.workflow.save?.ability===v?'selected':''}>${v}</option>`).join('')}</select></label>${field('Ki/feature save DC (DM approved)',`actions.${a.index}.workflow.save.dc`,a.workflow.save?.dc??'','number')}<label class="field">Condition on failed save<select class="input" data-input="actions.${a.index}.workflow.on_failure.condition">${[...Action.CONDITIONS].map(v=>`<option value="${v}" ${a.workflow.on_failure?.condition===v?'selected':''}>${v}</option>`).join('')}</select></label></div><small>Save and condition are resolved only for the original verified event target. Removing the condition when its duration ends remains a DM action.</small>`:''}
+   ${a.workflow?.kind==='save-condition'?`<div class="entry-pair"><label class="field">Target save ability<select class="input" data-input="actions.${a.index}.workflow.save.ability">${Action.ABILITIES.map(v=>`<option value="${v}" ${a.workflow.save?.ability===v?'selected':''}>${v}</option>`).join('')}</select></label>${field('Ki/feature save DC (DM approved)',`actions.${a.index}.workflow.save.dc`,a.workflow.save?.dc??'','number')}<label class="field">Condition on failed save<select class="input" data-input="actions.${a.index}.workflow.on_failure.condition">${[...Action.CONDITIONS].map(v=>`<option value="${v}" ${a.workflow.on_failure?.condition===v?'selected':''}>${v}</option>`).join('')}</select></label><label class="field">Condition expiration<select class="input" data-input="actions.${a.index}.workflow.on_failure.expiration">${[['manual','DM removes manually'],['source-next-turn-end','End of your next turn'],['target-next-turn-end',"End of target's next turn (manual target turn tracking)"]].map(([id,label])=>`<option value="${id}" ${(a.workflow.on_failure?.expiration||'manual')===id?'selected':''}>${label}</option>`).join('')}</select></label></div><small>Each approved condition source expires independently. The player's Next turn ends their preceding turn; target turns advance only when a DM confirms them.</small>`:''}
    <div class="entry-pair">${field('Resource name',`actions.${a.index}.resource`,a.resource||'')}${field('Cost',`actions.${a.index}.cost`,a.cost||0,'number')}</div>
    <label class="field">Confirmed event prerequisite<select class="input" data-input="actions.${a.index}.trigger_event">${[['','None'],['incoming-attack','Incoming attack before roll'],['ranged-hit','Ranged weapon hit on you'],['melee-hit','Your melee attack hit'],['save-success','Selected creature succeeded on save'],['save-failure','Selected creature failed save'],['damage-taken','You took damage']].map(([id,label])=>`<option value="${id}" ${a.trigger_event===id?'selected':''}>${label}</option>`).join('')}</select></label>
    ${['save-success','save-failure'].includes(a.trigger_event)?`<label class="field">Verified save ability (optional filter)<select class="input" data-input="actions.${a.index}.event_save_ability"><option value="">Any verified ability</option>${Action.ABILITIES.map(v=>`<option value="${v}" ${a.event_save_ability===v?'selected':''}>${v}</option>`).join('')}</select></label>`:''}
@@ -630,6 +632,21 @@ function handleAction(action,arg){
    Action.removeTarget(character,arg);selectedTargetId='self';pendingDamage=pendingDamage.filter(x=>x.targetId!==arg);save();render();updateTableResults();
   });break;
   case 'target-condition':{try{const id=currentTargetId(),entity=Action.targetById(character,id);Action.setTargetCondition(character,id,arg,!entity.conditions?.includes(arg));save();render();}catch(e){toast(e.message);}break;}
+  case 'end-condition-grant':{
+   const grant=Action.conditionGrants(character).find(g=>g.id===arg);
+   if(!grant){toast('Condition source is no longer active.');break;}
+   dialog('End condition source?',`Confirm ending ${grant.condition} from ${grant.sourceId}. Other active sources remain in effect.`,()=>{
+    if(Action.endConditionGrant(character,arg)){save();render();}else toast('Source already ended.');
+   },'End source');break;
+  }
+  case 'advance-target-turn':{
+   const target=Action.targetById(character,arg);
+   if(!target||arg==='self'){toast('Select a tracked creature.');break;}
+   dialog('End creature turn?',`DM confirmation: finish ${target.name}'s tracked turn ${target.condition_turn||1}. This advances only that creature's condition timers, not your action economy or initiative.`,()=>{
+    try{const result=Action.advanceTargetTurn(character,arg);save();render();toast(result.expired.length?'Expired: '+result.expired.map(x=>x.condition).join(', '):'Creature turn advanced.');}
+    catch(e){toast(e.message);}
+   },'End creature turn');break;
+  }
   case 'target-roll-save':{
    const target=currentTargetId(),abb=$('#target-save-ability')?.value||'CON',dc=Number($('#target-save-dc')?.value);
    const bonus=target==='self'?num(character.saves?.[{STR:'Strength',DEX:'Dexterity',CON:'Constitution',INT:'Intelligence',WIS:'Wisdom',CHA:'Charisma'}[abb]]):num(Action.targetById(character,target)?.saves?.[abb]);
@@ -703,7 +720,7 @@ function handleAction(action,arg){
   case 'toggle-edit-rolls':editRollModifiers=!editRollModifiers;render();break;
   case 'hp':applyDamage(arg);break;
   case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
-  case 'condition':if(Action.activeEffects(character).some(e=>e.condition===arg)){toast('End the linked effect before removing '+arg+'.');break;}character.conditions=character.conditions.includes(arg)?character.conditions.filter(x=>x!==arg):[...character.conditions,arg];delete Action.combat(character).undo_turn;save();render();break;
+  case 'condition':try{Action.setTargetCondition(character,'self',arg,!character.conditions.includes(arg));save();render();}catch(e){toast(e.message);}break;
   case 'set-hp':{character.hp.current=Math.max(0,Math.min(character.hp.max,num(arg)));save();render();break;}
   case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,value));save();render();}break;}
   case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,r.current+delta));save();render();}break;}
@@ -806,8 +823,8 @@ function handleAction(action,arg){
    const flow=Action.pendingWorkflow(character);
    if(!flow||flow.id!==arg||flow.status!=='await-effect'){toast('No eligible failed-save effect.');break;}
    const target=Action.targetById(character,flow.targetId);
-   dialog('Apply condition?',`Confirm with the DM: apply ${flow.onFailure.condition} to ${target?.name||'removed target'} after the verified failed ${flow.save.ability} save. Remove it manually when the approved duration ends.`,()=>{
-    try{const applied=Action.finishWorkflowCondition(character,arg);save();render();toast('Applied '+applied.condition+'; review duration with the DM.');}
+   dialog('Apply condition?',`Confirm with the DM: apply ${flow.onFailure.condition} to ${target?.name||'removed target'} after the verified failed ${flow.save.ability} save. Timing: ${flow.onFailure.expiration==='source-next-turn-end'?'end of your next turn':flow.onFailure.expiration==='target-next-turn-end'?"end of target's next turn (manual tracker)":'DM-managed'}.`,()=>{
+    try{const applied=Action.finishWorkflowCondition(character,arg);save();render();toast('Applied '+applied.condition+'; '+(applied.grant.expiry?'expiry tracked for its source.':'DM controls expiry.'));}
     catch(e){toast('Could not apply condition: '+e.message);}
    },'Apply condition');break;
   }
