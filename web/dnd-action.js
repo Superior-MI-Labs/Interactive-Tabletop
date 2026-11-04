@@ -154,7 +154,7 @@ function recordResolvedSave(character,record){
  if(!ABILITIES.includes(ability))throw Error('Choose a valid saving throw ability.');
  const verdict=evaluateSave(total,dc),state=combat(character);
  if((state.resolved_save_ids||[]).includes(rollId))throw Error('Saving throw result was already recorded.');
- const workflowId=record.workflowId??null,flow=state.pending_workflow;
+ const workflowId=record.workflowId??null,flow=pendingWorkflow(character);
  if(workflowId&&(!flow||flow.id!==workflowId||flow.kind!=='save-condition'||flow.status!=='await-save'||
   flow.targetId!==targetId||flow.save.ability!==ability||flow.save.dc!==dc))
   throw Error('This saving throw no longer belongs to the staged ability.');
@@ -376,7 +376,7 @@ function configureEconomy(character,key,value){
 function setCombatMode(character,mode){
  if(!['auto','guided','manual'].includes(mode))throw Error('Unknown combat assistance mode.');
  const state=combat(character);
- if(state.economy.mode!==mode)expireCombatEvent(character);
+ if(state.economy.mode!==mode){expireCombatEvent(character);delete state.pending_workflow;}
  state.economy.mode=mode;state.economy.auto=mode!=='manual';delete state.undo_turn;
  return mode;
 }
@@ -649,7 +649,30 @@ function plan(character,action,context=null){
 }
 // One pending sequence per character. The continuation is not a second
 // reaction: it is an optional child of the already committed parent action.
-function pendingWorkflow(character){return combat(character).pending_workflow||null;}
+// The existing combat ledger owns one staged workflow. Character switching
+// only pauses the UI; changes to the originating turn, encounter, combat mode
+// or target invalidate continuation without refunding the committed cost.
+// Legacy v0.38 records receive a best-effort stamp on first access so that an
+// already-paid pending save remains resumable after upgrading the application.
+function pendingWorkflow(character){
+ const state=combat(character),flow=state.pending_workflow;
+ if(!flow)return null;
+ const turn=state.active?state.turn:null;
+ if(flow.turn===undefined)flow.turn=turn;
+ if(flow.mode===undefined)flow.mode=state.economy.mode;
+ if(flow.turn!==turn||flow.mode!==state.economy.mode||
+  (flow.kind==='save-condition'&&!targetById(character,flow.targetId))){
+  delete state.pending_workflow;
+  return null;
+ }
+ return flow;
+}
+function requireWorkflow(character,id,status,kind,message='The staged ability was interrupted, expired, or already resolved.'){
+ const flow=pendingWorkflow(character);
+ if(!flow||flow.id!==id||flow.status!==status||(kind&&flow.kind!==kind))
+  throw Error(message);
+ return flow;
+}
 function beginWorkflow(character,validated,incoming){
  const kind=validated?.workflow?.kind;
  if(!['damage-reduction','save-condition'].includes(kind))throw Error('Not a supported staged action.');
@@ -662,17 +685,17 @@ function beginWorkflow(character,validated,incoming){
  verifyEconomy(character,validated);
  commitUsage(character,validated);
  state.sequence_counter=nextId;
+ const stamp={turn:state.active?state.turn:null,mode:state.economy.mode};
  state.pending_workflow=kind==='damage-reduction'?
-  {id:'sequence-'+nextId,kind,sourceId:validated.sourceId,name:validated.name,status:'await-roll',
+  {...stamp,id:'sequence-'+nextId,kind,sourceId:validated.sourceId,name:validated.name,status:'await-roll',
    incoming,roll:validated.roll.expression,followup:deepcopy(validated.workflow.followup)}:
-  {id:'sequence-'+nextId,kind,sourceId:validated.sourceId,name:validated.name,status:'await-save',
+  {...stamp,id:'sequence-'+nextId,kind,sourceId:validated.sourceId,name:validated.name,status:'await-save',
    targetId:validated.targetId,save:deepcopy(validated.workflow.save),onFailure:deepcopy(validated.workflow.onFailure),
    eventId:validated.eventId};
  return deepcopy(state.pending_workflow);
 }
 function resolveWorkflow(character,id,reduction){
- const state=combat(character),entry=state.pending_workflow;
- if(!entry||entry.id!==id||entry.status!=='await-roll')throw Error('No matching unresolved reduction roll.');
+ const state=combat(character),entry=requireWorkflow(character,id,'await-roll','damage-reduction','No matching unresolved reduction roll.');
  if(!Number.isSafeInteger(reduction)||reduction<0)throw Error('Invalid reduction result.');
  const remaining=Math.max(0,entry.incoming-reduction);
  if(remaining){delete state.pending_workflow;return {remaining,eligible:false};}
@@ -683,8 +706,7 @@ function resolveWorkflow(character,id,reduction){
 // The exact same qualification is checked at launch; a stale or declined
 // sequence must never debit Ki, and the parent reaction is never charged twice.
 function previewWorkflowFollowup(character,id,{catchable=false,freeHand=false}={}){
- const entry=combat(character).pending_workflow;
- if(!entry||entry.id!==id||entry.status!=='optional-followup')throw Error('The follow-up is unavailable or already resolved.');
+ const entry=requireWorkflow(character,id,'optional-followup','damage-reduction','The follow-up is unavailable or already resolved.');
  if(!catchable||!freeHand)throw Error('Confirm the missile can be caught and a hand is free.');
  const {resource,cost,roll}=entry.followup,pool=character.resources?.[resource];
  if(!pool||!Number.isSafeInteger(Number(pool.current))||Number(pool.current)<cost)
@@ -703,8 +725,7 @@ function finishWorkflow(character,id,confirmation={}){
 // original resource was charged at activation; a failed save grants no refund.
 // This does not guess condition duration from a text description.
 function finishWorkflowCondition(character,id){
- const state=combat(character),flow=state.pending_workflow;
- if(!flow||flow.id!==id||flow.kind!=='save-condition'||flow.status!=='await-effect')throw Error('No eligible failed-save follow-up.');
+ const state=combat(character),flow=requireWorkflow(character,id,'await-effect','save-condition','No eligible failed-save follow-up.');
  const saved=recentSave(character);
  if(!saved||saved.id!==flow.saveRollId||saved.targetId!==flow.targetId||saved.ability!==flow.save.ability||
   saved.dc!==flow.save.dc||saved.total!==flow.saveTotal||saved.outcome!=='failure')
@@ -717,7 +738,7 @@ function finishWorkflowCondition(character,id){
  return {targetId:flow.targetId,condition:name,sourceId:flow.sourceId};
 }
 function declineWorkflow(character,id){
- const state=combat(character),entry=state.pending_workflow;
+ const state=combat(character),entry=pendingWorkflow(character);
  if(!entry||entry.id!==id)throw Error('No matching staged ability.');
  delete state.pending_workflow;return true;
 }
@@ -898,7 +919,7 @@ function advanceEffects(character){
 function advanceTurn(character){
  const state=combat(character);
  const snapshot={turn:state.turn,active:state.active,used:deepcopy(state.used),spellcasting:deepcopy(state.spellcasting),economy:deepcopy(state.economy),event_window:deepcopy(state.event_window||null),resolved_attack_ids:deepcopy(state.resolved_attack_ids||[]),last_save:deepcopy(state.last_save||null),resolved_save_ids:deepcopy(state.resolved_save_ids||[]),
-  pending_workflow:deepcopy(state.pending_workflow||null),effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
+  effects:deepcopy(activeEffects(character)),conditions:deepcopy(character.conditions||[]),pending_concentration:deepcopy(character.effects.pending_concentration||[]),
   empty_body_rounds:character.effects.empty_body_rounds||0,empty_body_owned:character.effects.empty_body_owned,
   turn_resources:Object.fromEntries(Object.entries(character.resources||{}).filter(([k,r])=>r?.reset==='turn'||k==='Shield Stance Points').map(([k,r])=>[k,r.current]))};
  if(state.active){state.turn++;state.used={action:false,bonus:false,reaction:false};state.spellcasting={bonus:false,restricted:false};
@@ -916,7 +937,9 @@ function advanceTurn(character){
 function undoTurn(character){
  const state=combat(character),before=state.undo_turn;
  if(!before)return false;
- state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];state.last_save=before.last_save||null;state.resolved_save_ids=before.resolved_save_ids||[];if(before.pending_workflow)state.pending_workflow=before.pending_workflow;else delete state.pending_workflow;
+ state.turn=before.turn;state.active=before.active;state.used=before.used;state.spellcasting=before.spellcasting||{bonus:false,restricted:false};state.economy=before.economy||state.economy; if(before.event_window)state.event_window=before.event_window;else delete state.event_window;state.resolved_attack_ids=before.resolved_attack_ids||[];state.last_save=before.last_save||null;state.resolved_save_ids=before.resolved_save_ids||[];// A turn boundary permanently retires the old staged opportunity. Undoing
+ // initiative must not authorize dice thrown during the interrupted turn.
+ delete state.pending_workflow;
  character.effects.active=before.effects;character.conditions=before.conditions;character.effects.pending_concentration=before.pending_concentration||[];
  character.effects.empty_body_rounds=before.empty_body_rounds;
  if(before.empty_body_owned===undefined)delete character.effects.empty_body_owned;else character.effects.empty_body_owned=before.empty_body_owned;

@@ -1,3 +1,12 @@
+## v0.39.0 — Staged workflow lifecycle and dice ownership
+
+- Bind pending save/condition and damage-reduction workflows to the originating turn and combat assistance mode, revalidating the single character-owned ledger at every continuation.
+- Retire unfinished workflows on turn advancement, encounter reset, mode change, or target removal; the cost already spent for initial activation stays spent. Undo restores ordinary turn accounting but does **not** reopen a stale pending staged reaction.
+- Persist eligible workflows across character switching while discarding the outgoing character’s prepared and in-flight dice, so returning permits an explicit fresh roll rather than a delayed stale settlement.
+- Close old confirmation dialogs when switching characters and guard all confirmation callbacks against cross-character commit. At throw, check the pending workflow ID and stage before releasing linked physical dice.
+- Keep older v0.38 pending workflow saves resumable by initializing missing turn/mode stamps on first read; no vault schema fork, second rules engine or background process.
+- Add pure and Chromium interruption regressions; enforce 26 browser smoke scenarios in the unified CI qualification gate.
+
 ## v0.38.0 — Validated multi-stage save/condition workflows
 
 - Extend the existing single `effects.combat.pending_workflow` ledger with a declarative `save-condition` sequence. A verified, target-bound event authorizes activation and its resource cost; the same physical saving-throw recorder resolves outcome, and a failed save only offers a separate DM-confirmed condition application.

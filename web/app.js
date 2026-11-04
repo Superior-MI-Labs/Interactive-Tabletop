@@ -51,12 +51,10 @@ function showVaultCount(){const n=$('#vault-count');if(n)n.textContent=`(${vault
 function selectLoadedCharacter(){
  const entry=vaultData.characters.find(x=>x.id===vaultData.active_id);
  const nextId=entry?.id||null;
- if(activeId!==nextId&&pendingRoll){
-  // Prepared dice are UI state and cannot be committed to a different sheet.
-  for(const die of dice)if(pendingRoll.diceIds?.includes(die.id)){die.ready=false;die.held=false;}
-  pendingRoll=null;queuedEffect=null;following=false;pointer=null;
-  $('#dice-stage')?.classList.remove('dice-following');
-  document.body.classList.remove('dice-dragging');
+ if(activeId!==nextId&&activeId!==null){
+  abandonCharacterDice(activeId);
+  // A modal confirmation belongs to the sheet on which it was opened.
+  const modal=$('#dialog-layer');if(modal){modal.hidden=true;modal.innerHTML='';}
  }
  activeId=nextId;
  character=entry?.character||null;
@@ -579,12 +577,17 @@ function setPath(path,value){
  save();
 }
 function dialog(heading,message,onConfirm,confirmLabel='Continue',cancelLabel='Cancel'){
+ const ownerId=activeId,ownerCharacter=character;
  const layer=$('#dialog-layer');
  layer.hidden=false;
  layer.innerHTML=`<section class="dialog" role="dialog" aria-modal="true" aria-label="${esc(heading)}"><h2>${esc(heading)}</h2><p>${esc(message)}</p>
  <div class="controls-row"><button class="button subtle" id="dlg-no">${esc(cancelLabel)}</button><button class="button primary" id="dlg-yes">${esc(confirmLabel)}</button></div></section>`;
  $('#dlg-no').onclick=()=>{layer.hidden=true;layer.innerHTML='';};
- $('#dlg-yes').onclick=()=>{layer.hidden=true;layer.innerHTML='';onConfirm();};
+ $('#dlg-yes').onclick=()=>{
+  layer.hidden=true;layer.innerHTML='';
+  if(ownerId!==activeId||ownerCharacter!==character){toast('Character changed. Please review the action again.');return;}
+  onConfirm();
+ };
 }
 function applyDamage(kind){
  const amount=Math.max(0,Math.min(999999,Math.floor(num($('#hp-amount')?.value,0))));
@@ -854,7 +857,7 @@ function handleAction(action,arg){
     }catch(e){toast('Could not cast spell: '+e.message);}
    });break;
   }
-  case 'toggle-encounter':Action.setEncounter(character,!Action.combat(character).active);save();render();break;
+  case 'toggle-encounter':Action.setEncounter(character,!Action.combat(character).active);abandonCharacterDice(activeId);save();render();break;
   case 'mark-turn-action':try{Action.markAction(character,arg);save();render();}catch(e){toast(e.message);}break;
   case 'economy-add-resource':try{
    Action.addResourcePool(character,$('#economy-new-resource')?.value,Number($('#economy-new-resource-max')?.value),$('#economy-new-resource-reset')?.value);
@@ -901,6 +904,7 @@ function handleAction(action,arg){
   case 'clear-table':if(activeRolls.length||pointer?.down){toast('Finish the active dice first.');break;}dice=[];pendingRoll=null;queuedEffect=null;pointer=null;following=false;updateTableResults();toast('Table cleared');break;
   case 'advance-turn':{
     const expired=Action.advanceTurn(character);
+    abandonCharacterDice(activeId);
     save({preserveUndo:true});render();toast(expired.length?'Expired effects: '+expired.join(', '):'Advanced one turn');break;
   }
   case 'custom-roll':{const ex=$('#custom-roll')?.value;if(ex)queueRoll(ex,ex);break;}
@@ -1099,7 +1103,7 @@ document.addEventListener('change',e=>{
   dialog('Use D&D 2014 SRD automation?', 'Enable all verified 2014 SRD effect profiles for this character. Unsupported spells, imported values, homebrew and existing active effects remain unchanged.',()=>{character.rules_profile='srd-2014';if(!character.system_edition||character.system_edition==='unspecified')character.system_edition='dnd-2014';save();render();toast('Qualified 2014 SRD spell effects enabled.');});
   return;
  }
- if(el.id==='combat-mode'){try{Action.setCombatMode(character,el.value);save();render();}catch(error){toast(error.message);render();}return;}
+ if(el.id==='combat-mode'){try{const previous=Action.combat(character).economy.mode;Action.setCombatMode(character,el.value);if(previous!==el.value)abandonCharacterDice(activeId);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.economyAuto!==undefined){try{Action.setAutoEconomy(character,el.checked);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.economyConfig){try{Action.configureEconomy(character,el.dataset.economyConfig,Number(el.value));save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.actionRequiresAttack!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttack)];if(a){a.requires_attack=el.checked;a.source='manual';save();render();}return;}
@@ -1251,6 +1255,25 @@ function cancelPreparedRoll(){
  $('#dice-stage')?.classList.remove('dice-following');
  $('#tray-help').textContent='Prepared roll canceled · no action or resource spent';
  return true;
+}
+// Physics dice are transient UI work, not a second gameplay ledger. When a
+// character, encounter, turn, or mode changes, no in-flight result may be
+// credited later by switching back or undoing an interrupted turn. Costs
+// already committed at launch remain spent, exactly as for canceled dice.
+function abandonCharacterDice(characterId){
+ if(pendingRoll?.characterId===characterId)cancelPreparedRoll();
+ const abandoned=activeRolls.filter(group=>group.characterId===characterId);
+ if(abandoned.length){
+  const ids=new Set(abandoned.flatMap(group=>group.diceIds));
+  for(const die of dice)if(ids.has(die.id)){
+   die.rolling=false;die.held=false;die.sleeping=true;die.ready=false;
+  }
+  activeRolls=activeRolls.filter(group=>group.characterId!==characterId);
+  activeRoll=activeRolls.at(-1)||null;
+ }
+ pointer=null;following=false;
+ document.body.classList.remove('dice-dragging');
+ $('#dice-stage')?.classList.remove('dice-following');
 }
 function initDiceCanvas(){
  canvas=$('#dice-canvas');ctx=canvas.getContext('2d');
@@ -1431,6 +1454,14 @@ function beginThrow(vx=120,vy=45,shake=80){
  const p=pendingRoll,selected=(p.diceIds||[]).map(id=>dice.find(d=>d.id===id)).filter(d=>d&&d.ready);
  if(!selected.length)return;
  const effect=queuedEffect;
+ if(effect?.workflowId||effect?.sequenceId){
+  try{
+   const flow=Action.pendingWorkflow(character);
+   if(!flow||flow.id!==(effect.workflowId||effect.sequenceId)||
+     flow.status!==(effect.workflowId?'await-save':'await-roll'))
+    throw Error('The staged ability was interrupted; prepare a new roll if it is still available.');
+  }catch(error){cancelPreparedRoll();toast(error.message);return;}
+ }
  if(startDiceGroup(selected,p,vx,vy,shake,effect)){
    queuedEffect=null;pendingRoll=null;following=false;$('#dice-stage').classList.remove('dice-following');
  }

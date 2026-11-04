@@ -55,14 +55,15 @@ flow=A.beginWorkflow(c,A.plan(c,ability,{targetId:target.id}));
 assert.equal(A.removeTarget(c,target.id),true);
 assert.equal(A.pendingWorkflow(c),null);
 assert.throws(()=>A.recordResolvedSave(c,save(target,flow,1,'attack-roll-stun-removed')),/Target|target/i);
-// Even a failed save cannot outlive its turn. Undo restores the EXACT state;
-// it does not regenerate a previously consumed event or refund committed Ki.
+// A staged save cannot outlive its turn. Undo restores ordinary turn state,
+// but does not revive an interrupted workflow or refund a committed Ki cost.
 ({c,target,ability}=setup());A.recordCombatEvent(c,'melee-hit',target.id);
 flow=A.beginWorkflow(c,A.plan(c,ability,{targetId:target.id}));
 A.advanceTurn(c);assert.equal(A.pendingWorkflow(c),null);
-assert.equal(A.undoTurn(c),true);assert.equal(A.pendingWorkflow(c).id,flow.id);
+assert.equal(A.undoTurn(c),true);assert.equal(A.pendingWorkflow(c),null);
 assert.equal(c.resources.Ki.current,2);
-A.declineWorkflow(c,flow.id);assert.equal(A.pendingWorkflow(c),null);assert.equal(c.resources.Ki.current,2);
+assert.throws(()=>A.recordResolvedSave(c,save(target,flow,5,'attack-roll-stun-retired')),/no longer belongs/);
+assert.equal(c.resources.Ki.current,2);
 // Explicit manual economy still charges resource, never a phantom action.
 ({c,target,ability}=setup());A.setCombatMode(c,'manual');
 flow=A.beginWorkflow(c,A.plan(c,ability,{targetId:target.id}));
