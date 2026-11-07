@@ -25,6 +25,26 @@ function migrateLegacy(old){
  if(!validCharacter(old))return empty();
  return normalize({schema_version:VERSION,active_id:'legacy-character',characters:[{id:'legacy-character',character:old,updated_at:new Date().toISOString()}]});
 }
+// First-time and explicit demo creation use the same vault upsert path as
+// imported sheets. Never duplicate or overwrite a user's existing demo.
+function addDemo(vault){
+ const demo=root.TabletopDemo;
+ if(!demo||typeof demo.create!=='function')throw Error('Demo character is unavailable.');
+ const found=vault.characters.find(entry=>entry.character?.demo_id===demo.ID);
+ if(found){vault.active_id=found.id;return {id:found.id,created:false};}
+ const sample=demo.create();
+ if(!validCharacter(sample)||sample.demo_id!==demo.ID)throw Error('Invalid demo character.');
+ const id=newId();upsert(vault,id,sample);return {id,created:true};
+}
+// Reset is an explicit, confirmed overwrite of the demo entry only.
+function resetDemo(vault,id){
+ const entry=vault.characters.find(x=>x.id===id);
+ const demo=root.TabletopDemo;
+ if(!entry||!demo||entry.character?.demo_id!==demo.ID)throw Error('Only a demo character can be reset.');
+ const fresh=demo.create();
+ if(!validCharacter(fresh)||fresh.demo_id!==demo.ID)throw Error('Invalid demo character.');
+ upsert(vault,id,fresh);return fresh;
+}
 function upsert(vault,id,character){
  if(!validCharacter(character))throw Error('Invalid character sheet.');
  const entry=vault.characters.find(c=>c.id===id);
@@ -38,7 +58,7 @@ function identityMatches(old,fresh){
  if(old.player&&fresh.player)return canonical(old.player)===canonical(fresh.player);
  return !old.species||!fresh.species||canonical(old.species)===canonical(fresh.species);
 }
-function findMatch(vault,fresh){return vault.characters.find(c=>identityMatches(c.character,fresh))||null;}
+function findMatch(vault,fresh){return vault.characters.find(c=>!c.character.demo_id&&identityMatches(c.character,fresh))||null;}
 function keyFor(record){return [canonical(record.name),canonical(record.level??''),canonical(record.source??'')].join('|');}
 function reconcile(old,fresh){
  if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot reconcile invalid characters.');
@@ -132,6 +152,9 @@ function storage(staticSite){
     const saved=await browserRead();if(saved)return normalize(saved);
     const legacy=root.localStorage?.getItem('smi.tabletop.character.v1');
     const migration=legacy?migrateLegacy(JSON.parse(legacy)):empty();
+    // No IndexedDB record means a genuinely first visit. A saved empty vault,
+    // deleted demo or migrated character must never be repopulated implicitly.
+    if(!legacy)addDemo(migration);
     // Never delete legacy data; it is a recovery copy, not live state.
     await browserWrite(migration);return migration;
    }
@@ -151,6 +174,6 @@ function storage(staticSite){
   }
  };
 }
-const api={empty,normalize,migrateLegacy,upsert,newId,findMatch,identityMatches,reconcile,importSummary,storage,validCharacter};
+const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,reconcile,importSummary,storage,validCharacter};
 root.TabletopVault=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

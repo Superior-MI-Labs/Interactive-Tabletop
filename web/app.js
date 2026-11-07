@@ -80,18 +80,28 @@ function showVault(){
  const layer=$('#vault-layer');layer.hidden=false;
  layer.innerHTML=`<div class="vault-shade"><section class="vault-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-title">
   <header class="vault-header"><div><small>LOCAL CHARACTER LIBRARY</small><h2 id="vault-title">Character vault</h2><p>Your characters stay on this device. Export a backup before clearing browser data.</p></div><button class="button subtle" id="vault-close" aria-label="Close character vault">✕</button></header>
-  <div class="vault-toolbar"><label for="pdf-file" class="button primary">Import character PDF</label><button class="button" id="vault-json">Import JSON</button><button class="button" id="vault-backup">Backup all characters</button></div>
+  <div class="vault-toolbar"><label for="pdf-file" class="button primary">Import character PDF</label><button class="button" id="vault-demo">${vaultData.characters.some(x=>x.character?.demo_id===window.TabletopDemo?.ID)?'Open demo fighter':'Add demo fighter'}</button><button class="button" id="vault-json">Import JSON</button><button class="button" id="vault-backup">Backup all characters</button></div>
   <div class="vault-characters">${vaultData.characters.length?vaultData.characters.map(entry=>{
    const c=entry.character,selected=entry.id===activeId;
-   return `<article class="vault-card ${selected?'selected':''}"><div class="vault-info"><strong>${esc(c.name)}</strong><span>${esc(c.class_level||'D&D character')} · ${esc(c.species||'')}</span><small>${selected?'Currently playing':'Saved locally'}</small></div>
-   <div class="vault-card-actions"><button class="button ${selected?'subtle':'primary'}" data-vault="open" data-id="${esc(entry.id)}" ${selected?'disabled':''}>${selected?'Open':'Play'}</button><button class="button subtle" data-vault="export" data-id="${esc(entry.id)}">Export</button><button class="button warn" data-vault="delete" data-id="${esc(entry.id)}">Delete</button></div></article>`;
+   return `<article class="vault-card ${selected?'selected':''}"><div class="vault-info"><strong>${esc(c.name)}</strong><span>${esc(c.class_level||'D&D character')} · ${esc(c.species||'')}</span><small>${c.demo_id?'Demo character · local practice':selected?'Currently playing':'Saved locally'}</small></div>
+   <div class="vault-card-actions"><button class="button ${selected?'subtle':'primary'}" data-vault="open" data-id="${esc(entry.id)}" ${selected?'disabled':''}>${selected?'Open':'Play'}</button><button class="button subtle" data-vault="export" data-id="${esc(entry.id)}">Export</button>${c.demo_id?`<button class="button subtle" data-vault="reset" data-id="${esc(entry.id)}">Reset demo</button>`:''}<button class="button warn" data-vault="delete" data-id="${esc(entry.id)}">Delete</button></div></article>`;
   }).join(''):'<p>No characters yet. Import a D&D Beyond PDF to begin.</p>'}</div>
   <p class="vault-footnote">Early alpha: D&D character sheets only. PDF exports may omit custom rules. Importing a new PDF for an existing character preserves current combat state and manual entries.</p>
   </section></div>`;
  $('#vault-close').onclick=closeVault;
+ $('#vault-demo').onclick=()=>playDemo();
  $('#vault-json').onclick=()=>$('#json-file').click();
  $('#vault-backup').onclick=()=>downloadJsonData(Vault.normalize(vaultData),'interactive-tabletop-vault-backup.json');
  layer.querySelector('.vault-shade').addEventListener('click',e=>{if(e.target.classList.contains('vault-shade'))closeVault();});
+}
+async function playDemo(){
+ try{
+  await persistVault();
+  const {created}=Vault.addDemo(vaultData);
+  vaultDirty=true;await persistVault();
+  selectLoadedCharacter();closeVault();
+  toast(created?'Demo fighter added to your local vault':'Resumed your saved demo fighter');
+ }catch(error){toast('Unable to open demo: '+error.message);}
 }
 async function activateCharacter(id){
  await persistVault();
@@ -106,6 +116,12 @@ $('#vault-layer').addEventListener('click',async e=>{
  const entry=vaultData.characters.find(x=>x.id===id);if(!entry)return;
  if(action==='open')try{await activateCharacter(id);}catch(ex){toast('Could not switch characters: '+ex.message);}
  if(action==='export')downloadJsonData(entry.character,(entry.character.name||'character').replace(/[^a-z0-9-]+/gi,'-')+'-character.json');
+ if(action==='reset'){
+  closeVault();dialog('Reset demo fighter?', 'Restore the original sample stats, encounters, actions and resources? Current demo changes will be lost. Other saved characters will not change.',async()=>{
+   try{await persistVault();Vault.resetDemo(vaultData,id);vaultDirty=true;await persistVault();selectLoadedCharacter();showVault();toast('Demo reset to starter values');}
+   catch(error){toast('Demo reset failed: '+error.message);}
+  });
+ }
  if(action==='delete'){
   closeVault();dialog('Delete '+entry.character.name+'?', 'This removes the local character. Export a backup first if you may need it again.',async()=>{
    try{await persistVault();vaultData.characters=vaultData.characters.filter(x=>x.id!==id);
@@ -250,7 +266,7 @@ function identityRibbon(){
  const move=(String(character.speed||'').match(/\d+\s*ft/gi)||[]).map(s=>parseInt(s,10)).join(' / ')||character.speed;
  return `<header class="identity-ribbon">
  <div class="sheet-portrait avatar-glyph" aria-hidden="true">✦</div>
- <div class="identity-copy"><small class="sheet-eyebrow">CHARACTER SHEET</small><h1 class="page-title">${esc(character.name)}</h1><div class="identity-sub">${esc(character.class_level)} · ${esc(character.species)} · ${esc(character.background)}</div></div>
+ <div class="identity-copy"><small class="sheet-eyebrow">${character.demo_id?'DEMO CHARACTER · SAMPLE VALUES':'CHARACTER SHEET'}</small><h1 class="page-title">${esc(character.name)}</h1><div class="identity-sub">${esc(character.class_level)} · ${esc(character.species)} · ${esc(character.background)}</div></div>
  <div class="status-chips" aria-label="Character statistics">
  ${stat('AC',Action.effectiveAC(character),Action.effectiveAC(character)===num(character.ac)?'Armor class':'Base '+character.ac+' + active buffs')}${stat('INIT',sgn(character.initiative),character.initiative_note||'Initiative')}${stat('PROF',sgn(character.proficiency),'Proficiency bonus')}${stat('MOVE',move,'Walk / fly / climb in feet')}
  </div>
@@ -399,7 +415,8 @@ function overview(){
   `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
   <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- return identityRibbon()+buffBar()+
+ const demoHint=character.demo_id?`<aside class="demo-callout" role="note" aria-label="Demo character instructions"><strong>Practice character · fictional D&amp;D 2014 Fighter</strong><span>Choose <b>Actions</b>, start an encounter, select the Training Dummy, and try the physical dice. Extra Attack allows two attacks per Attack action. Your changes save locally; delete or export the demo from Characters.</span></aside>`:'';
+ return identityRibbon()+demoHint+buffBar()+
  `<section class="vitals-panel" aria-label="Hit points and conditions">
  <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
  ${heartMeter(hp)}
@@ -1241,11 +1258,12 @@ function showWelcome(){
    <div class="alpha-pill">EARLY ALPHA · WORK IN PROGRESS</div>
    <h1>Your adventure starts here.</h1>
    <p>Upload your <strong>D&amp;D Beyond .pdf character sheet here</strong> and bring your character to the table.</p>
-   <div class="welcome-steps"><label for="pdf-file" class="welcome-button">Choose character PDF</label>
+   <div class="welcome-steps"><button class="welcome-button" type="button" id="welcome-demo">Play with demo fighter</button><label for="pdf-file" class="welcome-button">Choose character PDF</label>
    <button class="button subtle" type="button" id="welcome-json">Restore JSON backup</button><button class="button subtle" type="button" id="welcome-vault">Character vault</button></div>
    <p class="welcome-note">Your character remains in your browser on this device. PDF support is experimental: custom rules, spells and actions may need review. Export JSON backups regularly.</p>
    <details><summary>What is available in this alpha?</summary><p>Interactive character stats, skills, saves, inventory, spells, resources and a persistent dice table. Some mechanics and PDF variations are not fully automated.</p></details>
  </section>`;
+ $('#welcome-demo').addEventListener('click',playDemo);
  $('#welcome-json').addEventListener('click',()=>$('#json-file').click());
  $('#welcome-vault').addEventListener('click',showVault);
 }

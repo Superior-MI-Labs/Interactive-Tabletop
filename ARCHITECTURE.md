@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.37.0
+# Interactive Tabletop architecture — v0.41.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -227,3 +227,11 @@ The UI still owns transient physical dice. `abandonCharacterDice` discards prepa
 - `expiry` is `null` for DM-managed conditions, or `{anchorId,endTurn}` with `anchorId='self'` for source next-turn end and an encounter target ID for that target's next-turn end. Every turn N's **end** is the boundary when advancing from N to N+1; a grant applied during N with next-turn-end expires on the transition N+1 to N+2. Player turns are already tracked in `effects.combat.turn`; encounter targets get only a counter incremented by the explicit, DM-confirmed `advanceTargetTurn` action. This is not initiative order or a scheduler.
 - Personal `advanceTurn` and `undoTurn` preserve the complete condition-grant snapshot plus current target-condition projections. Ending/restarting an encounter conservatively de-anchors still-active grants to DM-managed, rather than inventing lost turn history. Source removal through the encounter roster removes the affected grants. Legacy v0.38-v0.39 save-condition workflows lacking expiry remain DM-managed.
 - The 2014 Stunning Strike template pins `source-next-turn-end` by explicit configuration; no runtime character-name or class-text inference. Other configured staged abilities can opt in to the small, validated timing vocabulary. The application does **not** yet automate concentration breakdown for arbitrary target effects, creature-specific reaction resets, whole-party initiative, or ruleset-specific interrupts.
+
+
+### v0.41 — First-visit demo and turn-bound event ownership
+
+- `web/demo-character.js` is a **pure, original, versioned sample character factory**, not a rules engine, an importer, or a second persistence source. It is consumed only by `web/vault-store.js` through the same `upsert`, `normalize`, and browser IndexedDB adapter as real characters. The sample's `demo_id` is an explicit marker; it is not derived from the character name. The importer must ignore demo entries when matching real PDF identity.
+- Only the **initial** IndexedDB initialization on the static Pages site auto-creates a demo, and only if there is no legacy localStorage sheet. An existing empty vault records deliberate deletion and stays empty. The regular welcome and character vault offer manual demo creation for desktop users and anyone returning later. A confirmed demo reset only replaces that exact demo entry; it never overwrites other characters.
+- The Fighter's two attacks per Attack action, extra-action grant, resources and healing use existing `combat_profile`, ability plans and typed pools. These sample values are never inferred from imported text. A generic extra-action grant requires an active encounter before any charge can be spent.
+- `advanceTargetTurn` retires only events, save evidence and pending workflows associated with the creature whose boundary the DM confirmed. It does not infer any global initiative order or refund an earlier action; existing target condition clocks still own condition expiration.

@@ -1,3 +1,12 @@
+## v0.41.0 — Safe first-visit demo and creature-turn event ownership
+
+- A truly new GitHub Pages IndexedDB vault automatically starts with an original, editable level-5 Fighter and training target. Previously saved vaults, including deliberately empty vaults or migrated legacy sheets, remain untouched. Desktop and existing users can add the same demo explicitly through the welcome screen or character vault.
+- The demo is normal character data (abilities, attacks, resources, actions, equipment, and an encounter target), not a separate onboarding game engine. It includes Extra Attack, a Second Wind healing roll and an Action Surge grant using existing planner contracts. It is visibly labeled sample data; restoring the template requires an explicit confirmation, and deleting it never auto-recreates it.
+- Vault actions avoid duplicate sample characters, isolate reset to the selected demo, and prevent name-matching a real imported PDF to sample content. Backups and editing use the existing character JSON contract.
+- The generic action planner refuses to charge a limited extra-action grant while encounter tracking is off, instead of silently consuming its resource without granting an action.
+- A DM-confirmed creature-turn boundary retires stale events, linked save results, and staged workflows tied to that creature while preserving other creatures' state, prior committed costs, and explicit condition expiry clocks. No automatic initiative scheduler is introduced.
+- Add Node and live Chromium regressions for the first-visit storage path, deletion/recreation, real import isolation, class resource spending, and creature-turn provenance.
+
 ## v0.40.0 — Source-aware conditions and DM-controlled creature turns
 
 - Reuse the per-character combat ledger to track independently expiring grants of the same condition, while preserving the existing `conditions` arrays as visible/legacy state. Manual conditions and overlapping spell effects are not deleted by an unrelated grant’s expiration.

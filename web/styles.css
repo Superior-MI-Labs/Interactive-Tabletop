@@ -677,3 +677,8 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 /* v0.24: per-character rules selection, not a separate rules database. */
 #page .ruleset-control{display:flex;flex:0 0 auto;align-items:center;gap:5px;color:#d5c09e;font-size:11px;white-space:nowrap}
 #page .ruleset-control select{width:auto;min-width:108px;max-width:160px;padding:5px 6px;font-size:11px;background:#202d37}
+
+/* A local demo is sheet data, never a second onboarding state store. */
+.demo-callout{display:flex;align-items:flex-start;gap:.75rem;flex-wrap:wrap;padding:.75rem 1rem;margin:.6rem 0;border:1px solid var(--border,#6b6557);border-radius:.6rem;background:rgba(198,155,83,.10);font-size:.86rem;line-height:1.55}
+.demo-callout strong{color:var(--text,#e9e5db)}
+.demo-callout span{flex:1;min-width:220px}

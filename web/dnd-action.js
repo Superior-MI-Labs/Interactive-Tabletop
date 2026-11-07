@@ -397,6 +397,10 @@ function grantEconomyAction(character,scope='any',source='manual'){
 }
 function verifyEconomy(character,validated){
  const state=combat(character),type=activationCost(validated.activation),units=validated.economyUnits??1;
+ // Feature charges must not be spent if the encounter ledger cannot receive
+ // the extra action. This is a generic grant rule, not a Fighter exception.
+ if(validated.grantEconomy&&!state.active)
+  throw Error('Start encounter tracking before granting an extra action.');
  if(!state.active||!state.economy.auto)return type;
  if(validated.triggerEvent&&!validated.eventId)
   throw Error('Confirm the '+validated.triggerEvent+' event and prepare this ability again.');
@@ -1110,6 +1114,12 @@ function advanceTargetTurn(character,id){
  if(!target)throw Error('Creature was removed from the encounter.');
  const turn=conditionTurn(character,id);
  const expired=expireConditionGrants(character,id,turn);
+ // A DM-confirmed creature-turn boundary retires event and workflow evidence
+ // tied to that creature, without guessing a global initiative order.
+ const event=combatEvent(character);
+ if(event&&(event.targetId===id||event.attackerId===id))expireCombatEvent(character);
+ if(state.pending_workflow?.targetId===id)delete state.pending_workflow;
+ if(state.last_save?.targetId===id)delete state.last_save;
  target.condition_turn=turn+1;delete state.undo_turn;
  return {targetId:id,turn:target.condition_turn,expired};
 }

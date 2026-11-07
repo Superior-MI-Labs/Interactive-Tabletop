@@ -1,4 +1,4 @@
-# Ruleset and effect automation contract (v0.26 alpha)
+# Ruleset and effect automation contract (v0.41 alpha)
 
 ## Source of truth
 
@@ -124,3 +124,10 @@ A configured, committed staged ability is tied to the character’s active encou
 2014 SRD 5.1 states separate sources of the same condition have separate durations; merely repeating the condition does not increase its intensity. The existing `conditions` array remains the visible condition state, while the original character's combat ledger tracks separately approved grant identities and their expiration ownership. Never expire a manually present condition merely because a later grant ends. Never strip an ongoing spell condition when a staged target condition ends, or vice versa.
 
 `workflow.on_failure.expiration` is a strictly validated configuration: `manual` (default, including imported and older workflow data), `source-next-turn-end`, or `target-next-turn-end`. The 2014 Stunning Strike opt-in preset selects the source's next-turn end. The physical save and DM confirmation remain mandatory; the app never starts a duration merely from the ability name or an unsuccessful hit. The source's own turn is the hero's optional tracked turn; **other creature** turn boundaries are advanced only with a DM-approved explicit command. There is no global initiative clock. Resetting encounters de-anchors unresolved grants to DM ownership rather than deleting them. The next personal turn's end is not the same as its start; for a grant acquired on turn N, `source-next-turn-end` expires on the transition out of turn N+1.
+
+
+## Starter character contract (v0.41)
+
+The fictional Fighter demo is a concrete, editable character JSON fixture with an explicit 2014 edition and manual spell automation. It exercises **existing** resource, encounter, attack and action-plan contracts, never a new rules interpreter. Import matching excludes demo entries by their `demo_id`. First-time static visitors get one demo only when no prior IndexedDB record or legacy character exists; a saved empty vault remains empty. The player must explicitly reset the demo to discard changes. A tracked extra-action grant must not spend its charge outside an active encounter.
+
+A DM-confirmed creature turn closes only that creature's event window, linked saving-throw evidence and targeted pending workflow. It preserves spent costs and does not advance other creatures or assume initiative.

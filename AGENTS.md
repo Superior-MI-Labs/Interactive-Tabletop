@@ -90,7 +90,7 @@ When extending staged abilities, **reuse `DndAction.plan` / `beginWorkflow` / `r
 
 ## Staged lifecycle release gate (v0.39)
 
-A staged flow is the single `effects.combat.pending_workflow` record. Check it through `DndAction.pendingWorkflow`, not a separate UI state cache; the stored turn and mode must still match before resolving any physical dice or offering/applying a follow-up. Combat mode/encounter/turn/target changes terminate the sequence without refunding the original committed costs. Undo must not resurrect an in-flight interrupted stage. A vault character switch leaves the stage persisted but drops transient prepared and in-flight dice; on returning, the original character can retry safely. Modal confirmations bind to the originating active character. Regression gates: `tests/test_workflow_interruptions.js` and `tests/browser_workflow_interruptions_smoke.py`; keep Chromium coverage count at 26.
+A staged flow is the single `effects.combat.pending_workflow` record. Check it through `DndAction.pendingWorkflow`, not a separate UI state cache; the stored turn and mode must still match before resolving any physical dice or offering/applying a follow-up. Combat mode/encounter/turn/target changes terminate the sequence without refunding the original committed costs. Undo must not resurrect an in-flight interrupted stage. A vault character switch leaves the stage persisted but drops transient prepared and in-flight dice; on returning, the original character can retry safely. Modal confirmations bind to the originating active character. Regression gates: `tests/test_workflow_interruptions.js` and `tests/browser_workflow_interruptions_smoke.py`; keep Chromium coverage count aligned with the current test suite.
 
 ## Condition provenance and DM turn boundaries (v0.40)
 
@@ -98,4 +98,9 @@ A staged flow is the single `effects.combat.pending_workflow` record. Check it t
 - `entity.conditions` is the visible/legacy state; `effects.combat.condition_grants` stores independent **sources and expiry metadata** only. Ending one source must not remove a condition still imposed by another grant, a spell effect, or a prior manual flag. All mutations go through the existing action engine; no direct UI array assignment.
 - The approved vocabulary is `manual` (default/legacy), `source-next-turn-end`, and `target-next-turn-end`. The next-turn **end** must not be confused with its start. The 2014 Stunning Strike template explicitly pins the source-next-turn end. Never infer timing from names, descriptions or unrelated editions.
 - Source IDs are stable per-character, remain unique when another grant expires, and preserve identity across vault round-trips. Malformed metadata is inert; turn undo restores source ownership and target conditions. A DM-confirmed creature turn advance is independent from the hero's action economy.
-- Regression owners: `tests/test_condition_provenance.js`, `tests/test_save_condition_workflow.js`, and `tests/browser_condition_sources_smoke.py`. Keep the single CI browser test count correct (27).
+- Regression owners: `tests/test_condition_provenance.js`, `tests/test_save_condition_workflow.js`, and `tests/browser_condition_sources_smoke.py`. Keep the single CI browser test count correct (28).
+
+
+## First-run demo invariants (v0.41)
+
+Keep sample data in `web/demo-character.js` and keep its persistence in the existing vault adapter. Only fresh static storage may auto-initialize a demo; never seed an existing empty vault or overwrite a saved/imported character. Manual demo creation must be idempotent, reset must require confirmation, and real PDF matching must exclude demo entries. Exercise the same action engine for demo attacks and feature costs. Any asset new to `web/` must be included in `web/index.html`, the service worker shell manifest, release contract and browser qualification.
