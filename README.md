@@ -129,6 +129,8 @@ The release publisher requires Playwright and Chromium to be installed for local
 
 ## Development and architecture
 
+**For a new developer or AI agent:** start with [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) for the current verified release, last completed work, architectural reasoning, known risks and next milestone. [AGENTS.md](AGENTS.md) contains binding engineering rules, while [ARCHITECTURE.md](ARCHITECTURE.md) and [CHANGELOG.md](CHANGELOG.md) contain the durable system contracts and release history.
+
 - `web/` — canonical vanilla JavaScript/CSS app and UI assets.
 - `docs/` — built GitHub Pages site. **Do not edit generated UI assets here manually.**
 - `web/dnd-slots.js` — single resource-identity contract for standard spell slots, including legacy labels and migration. Pact Magic remains separate until reviewed.

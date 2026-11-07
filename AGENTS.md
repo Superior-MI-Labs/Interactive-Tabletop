@@ -1,5 +1,7 @@
 # Interactive Tabletop — agent working contract
 
+**Resume checkpoint:** Read [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) first for last verified release, current implementation status, design tradeoffs, risks and the next bounded milestone. Update that checkpoint with every feature release so it remains aligned with `VERSION`. Its status/plan is advisory; the architecture and contracts below remain authoritative.
+
 Read `ARCHITECTURE.md`, `RULESET_AUTOMATION_CONTRACT.md`, and `DND_EFFECT_CAPABILITY_AUDIT.md` before changing gameplay rules. This is an early-alpha, local-first D&D tabletop application. Preserve user character data and explicit DM/player confirmation above feature count.
 
 ## Source-of-truth boundaries
