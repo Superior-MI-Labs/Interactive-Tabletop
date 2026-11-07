@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.41.0
+# Interactive Tabletop architecture — v0.42.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -235,3 +235,10 @@ The UI still owns transient physical dice. `abandonCharacterDice` discards prepa
 - Only the **initial** IndexedDB initialization on the static Pages site auto-creates a demo, and only if there is no legacy localStorage sheet. An existing empty vault records deliberate deletion and stays empty. The regular welcome and character vault offer manual demo creation for desktop users and anyone returning later. A confirmed demo reset only replaces that exact demo entry; it never overwrites other characters.
 - The Fighter's two attacks per Attack action, extra-action grant, resources and healing use existing `combat_profile`, ability plans and typed pools. These sample values are never inferred from imported text. A generic extra-action grant requires an active encounter before any charge can be spent.
 - `advanceTargetTurn` retires only events, save evidence and pending workflows associated with the creature whose boundary the DM confirmed. It does not infer any global initiative order or refund an earlier action; existing target condition clocks still own condition expiration.
+
+
+### v0.42 — Derived practice guidance and creature-turn projection
+
+The onboarding callout is a projection of the active demo's existing `DndAction.combat`, selected encounter target and physical-dice state. Each contextual action uses the normal `data-action` dispatch (`toggle-encounter`, `attack`, `auto-throw`, `advance-turn`) or the existing UI target selection. It never persists tutorial steps, fabricates attack outcomes or creates a parallel gameplay controller. Dice launch is still the only Attack action debit; canceled preparations are reversible. A specific `data-pointer-priority="control"` annotation gives instructional/turn-control buttons priority over die pickup when their hit regions overlap, leaving normal sheet/dice gestures unchanged.
+
+`DndAction.creatureTurns(character)` exposes a read-only, derived roster of each target's existing `condition_turn` and the condition grants anchored to it. This is presentation data, not a second turn ledger. Only `advanceTargetTurn` mutates it, only with explicit DM confirmation. The guard against a numeric turn-clock overflow must reject before expirations or event retirement. Unit and browser regression owners: `test_creature_turn_overview.js`, `browser_practice_turns_smoke.py`.

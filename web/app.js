@@ -240,6 +240,20 @@ function buffBar(){
  ${checks.map(check=>`<div class="buff-token buff-check"><strong>Concentration DC ${esc(check.dc)}</strong>${button('Roll CON save','concentration-check',check.id,'button mini primary')}</div>`).join('')}
  </section>`;
 }
+function creatureTurnBoard(){
+ const state=Action.combat(character);
+ if(!state.active)return '';
+ const creatures=Action.creatureTurns(character);
+ if(!creatures.length)return '';
+ return `<details class="creature-turn-board" data-panel="Creature turns" ${panelState.get('Creature turns')??Boolean(character.demo_id)?'open':''}>
+ <summary>Creature turns <small>${creatures.length} tracked · DM confirmed, no automatic initiative</small></summary>
+ <div class="creature-turn-list">${creatures.map(c=>`<div class="creature-turn-row">
+ <div class="creature-turn-identity"><strong>${esc(c.name)}</strong><small>Turn ${esc(c.turn)}${c.scheduled.length?` · ${c.scheduled.length} timed source${c.scheduled.length===1?'':'s'}`:''}</small></div>
+ <div class="creature-turn-due">${c.scheduled.length?c.scheduled.map(s=>`<small>${esc(s.condition)} on ${esc(Action.targetById(character,s.targetId)?.name||'removed creature')}: end turn ${esc(s.endTurn)}${s.due?' · due on confirmation':''}</small>`).join(''):'<small>No timed conditions anchored here</small>'}</div>
+ <div class="creature-turn-controls" data-pointer-priority="control">${button('Select','choose-creature',c.id,'button mini subtle')}${button('End turn','advance-target-turn',c.id,'button mini subtle')}</div>
+ </div>`).join('')}</div>
+ <p class="target-note">Ending a creature turn requires DM confirmation. It advances only that creature's condition clock; it does not change your turn, initiative, or spent actions.</p></details>`;
+}
 function combatActions(){
  const state=Action.combat(character);
  const limits=Action.poolLimits(character),economy=state.economy;
@@ -259,7 +273,7 @@ function combatActions(){
  <label class="field">Reset<select class="input" id="economy-new-resource-reset"><option value="manual">Manual</option><option value="turn">End of turn (zero)</option><option value="short rest">Short rest</option><option value="long rest">Long rest</option></select></label>
  ${button('Create pool','economy-add-resource','','button mini subtle')}</div>
  <small>Extra Attack adds attacks within one Attack action. Haste-style grants allow one additional attack, not another full Attack action. Pathfinder-style pools can be configured here; Pathfinder rules are not automated.</small></details>
- ${button('Next turn ↗','advance-turn','','button mini subtle')} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}</section>`;
+ ${button('Next turn ↗','advance-turn','','button mini subtle')} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}${creatureTurnBoard()}</section>`;
 }
 // The sheet is the complete combat screen. Details are never duplicated in another tab.
 function identityRibbon(){
@@ -408,6 +422,32 @@ function workspacePane(){
  let content=({overview:actionWorkspace,inventory,spells,features,background:backgroundPage,notes:notesPage,reference:referenceWorkspace}[view]||actionWorkspace)();
  return `<section class="game-workspace" aria-label="Tabbed gameplay workspace"><div class="workspace-caption">GAMEPLAY <span>• ${esc(character.name)}</span></div>${workspaceTabs()}<div class="workspace-content" data-scroll-key="workspace" role="tabpanel">${content}</div></section>`;
 }
+function demoPractice(){
+ if(character.demo_id!==window.TabletopDemo?.ID)return '';
+ const combat=Action.combat(character),dummy=Action.targets(character).find(t=>t.name==='Training Dummy');
+ const sword=character.attacks?.findIndex(a=>a.id==='demo-longsword')??-1;
+ const ready=Boolean(pendingRoll?.characterId===activeId);
+ const rolling=activeRolls.some(group=>group.characterId===activeId);
+ const made=combat.economy.attacks.made,remaining=combat.economy.attacks.remaining;
+ let instruction,control='';
+ if(!combat.active){instruction='Begin encounter tracking to practice spending an action and using Extra Attack.';
+  control=button('1 · Start practice encounter','toggle-encounter','','button mini primary');}
+ else if(!dummy){instruction='The sample training target was removed or renamed. Add a target in Encounter targets, or reset the demo from Characters.';}
+ else if(currentTargetId()!==dummy.id){instruction='Choose the Training Dummy (AC 13) as your practice target.';
+  control=button('2 · Target Training Dummy','choose-creature',dummy.id,'button mini primary');}
+ else if(ready){instruction=String(pendingRoll.label||'Dice')+' ready. Drag and release across the table, or use Throw. Right-click or Escape cancels only uncommitted throws.';
+  control=button('Throw prepared dice','auto-throw','','button mini primary');}
+ else if(rolling){instruction='The dice are settling. A hit will offer damage dice in Auto mode; confirm the result if the game asks.';}
+ else if(sword<0){instruction='The original longsword was edited or removed. Select an attack below to practice with your current sheet.';}
+ else if(made===0||remaining>0){instruction=made?'Extra Attack: your second attack uses the same Attack action, not another action.':'Choose the longsword attack, then throw its physical d20 to commit the action.';
+  let reason='';try{Action.verifyAttack(character,'action',Action.attackType(character.attacks[sword]));}catch(e){reason=e.message;}
+  control=reason?`<small>${esc(reason)} · use Next turn if the action is spent.</small>`:button(made?'4 · Try Extra Attack':'3 · Prepare longsword attack','attack',String(sword),'button mini primary');}
+ else{instruction='Both attacks for this turn are complete. Start your next turn to practice again.';
+  control=button('Next character turn','advance-turn','','button mini primary');}
+ return `<aside class="demo-callout" role="note" aria-label="Demo character instructions">
+ <div class="demo-practice-copy"><strong>Practice with Mara · D&amp;D 2014 Fighter</strong><span>${esc(instruction)}</span><small>Uses real character actions and dice. No tutorial progress is saved; you can edit, export or delete this demo in Characters.</small></div>
+ ${control?`<div class="demo-practice-action" data-pointer-priority="control">${control}</div>`:''}</aside>`;
+}
 function overview(){
  const hp=character.hp;
  const res=Object.entries(character.resources||{}).map(([key,v])=>resourcePips(key,v)).join('');
@@ -415,8 +455,7 @@ function overview(){
   `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
   <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- const demoHint=character.demo_id?`<aside class="demo-callout" role="note" aria-label="Demo character instructions"><strong>Practice character · fictional D&amp;D 2014 Fighter</strong><span>Choose <b>Actions</b>, start an encounter, select the Training Dummy, and try the physical dice. Extra Attack allows two attacks per Attack action. Your changes save locally; delete or export the demo from Characters.</span></aside>`:'';
- return identityRibbon()+demoHint+buffBar()+
+ return identityRibbon()+demoPractice()+buffBar()+
  `<section class="vitals-panel" aria-label="Hit points and conditions">
  <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
  ${heartMeter(hp)}
@@ -655,6 +694,10 @@ function handleAction(action,arg){
    dialog('End condition source?',`Confirm ending ${grant.condition} from ${grant.sourceId}. Other active sources remain in effect.`,()=>{
     if(Action.endConditionGrant(character,arg)){save();render();}else toast('Source already ended.');
    },'End source');break;
+  }
+  case 'choose-creature':{
+   if(!Action.targetById(character,arg)||arg==='self'){toast('This creature is no longer tracked.');break;}
+   selectedTargetId=arg;view='overview';render();toast('Selected '+Action.targetById(character,arg).name+'.');break;
   }
   case 'advance-target-turn':{
    const target=Action.targetById(character,arg);
@@ -927,6 +970,7 @@ function handleAction(action,arg){
   case 'attack':case 'bonus-attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId(),permission=action==='bonus-attack'?'bonus':'action',type=Action.attackType(a);
    try{Action.verifyAttack(character,permission,type);
     if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+(permission==='bonus'?' bonus strike':' attack')+' vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg),attackId:String(a.id||a.name),attackType:type,attackRange:Action.attackRange(a)},'attack')){pendingRoll.combatAttack=true;pendingRoll.attackPermission=permission;pendingRoll.attackType=type;}
+   if(character.demo_id===window.TabletopDemo?.ID&&pendingRoll)render();
    }catch(e){toast(e.message);}}break;}
   case 'damage':{
    const index=num(arg),targetId=currentTargetId();
@@ -1288,6 +1332,7 @@ function cancelPreparedRoll(){
  for(const die of dice)if(ids.has(die.id)){die.ready=false;die.held=false;die.sleeping=true;die.z=DP.height(die);}
  pendingRoll=null;queuedEffect=null;following=false;
  $('#dice-stage')?.classList.remove('dice-following');
+ if(character?.demo_id===window.TabletopDemo?.ID)render();
  $('#tray-help').textContent='Prepared roll canceled · no action or resource spent';
  return true;
 }
@@ -1366,6 +1411,9 @@ function initDiceCanvas(){
  },true);
  stage.addEventListener('pointerdown',e=>{
    if(pointer?.down||e.button!==0)return;
+   // Deliberately prioritized controls (e.g. the practice guide) must remain
+   // clickable even when a resting physical die overlaps their hit area.
+   if(e.target.closest?.('[data-pointer-priority="control"]'))return;
    const {x,y}=relative(e);pointerPosition={x,y};
    const followingGroup=following&&pendingRoll?dice.filter(d=>d.ready):[];
    // Mixed dice orbit the cursor; its exact position can fall between the dice.
@@ -1499,6 +1547,7 @@ function beginThrow(vx=120,vy=45,shake=80){
  }
  if(startDiceGroup(selected,p,vx,vy,shake,effect)){
    queuedEffect=null;pendingRoll=null;following=false;$('#dice-stage').classList.remove('dice-following');
+   if(character?.demo_id===window.TabletopDemo?.ID)render();
  }
 }
 function finishRollIfSettled(){
@@ -1593,7 +1642,7 @@ function finishRollIfSettled(){
  if(!completed.length)return;
  activeRolls=activeRolls.filter(g=>!completed.includes(g));activeRoll=activeRolls.at(-1)||null;
  updateTableResults();save();
- if(effectsChanged)render(); // Shared state changed when a charge expired; repaint the buff bar.
+ if(effectsChanged||character?.demo_id===window.TabletopDemo?.ID)render(); // Repaint verified buffs and demo guidance after settlement.
  // Finishing a throw must not trample a player-prepared roll or an open dialog.
  if(!pendingRoll&&attackFollowups.length===1){const next=attackFollowups[0];attackFollowup(next.result,next.group,next.knownHit);}
  else if(attackFollowups.length>1)toast('Multiple attacks settled; use Damage manually for the appropriate hit.');

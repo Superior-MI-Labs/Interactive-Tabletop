@@ -1104,6 +1104,20 @@ function expireConditionGrants(character,anchorId,turn){
  for(const row of due)endConditionGrant(character,row.id);
  return due.map(g=>({targetId:g.targetId,condition:g.condition,sourceId:g.sourceId}));
 }
+// Read-only projection of the existing independent creature turn clocks and
+// scheduled condition sources. No inferred initiative, automatic advancement,
+// or persisted UI progress is created here.
+function creatureTurns(character){
+ const grants=conditionGrants(character);
+ return targets(character).map(target=>{
+  const turn=conditionTurn(character,target.id);
+  const scheduled=grants.filter(g=>g.expiry?.anchorId===target.id).map(g=>({
+   condition:g.condition,sourceId:g.sourceId,targetId:g.targetId,endTurn:g.expiry.endTurn,
+   due:g.expiry.endTurn<=turn
+  }));
+  return {id:target.id,name:target.name,turn,scheduled};
+ });
+}
 // Advance an explicitly selected creature's turn independently of the player's
 // turn. This is a DM confirmation, NOT a guessed initiative scheduler.
 function advanceTargetTurn(character,id){
@@ -1113,6 +1127,7 @@ function advanceTargetTurn(character,id){
  const target=targetById(character,id);
  if(!target)throw Error('Creature was removed from the encounter.');
  const turn=conditionTurn(character,id);
+ if(turn>=Number.MAX_SAFE_INTEGER)throw Error('Creature turn clock exhausted.');
  const expired=expireConditionGrants(character,id,turn);
  // A DM-confirmed creature-turn boundary retires event and workflow evidence
  // tied to that creature, without guessing a global initiative order.
@@ -1275,6 +1290,6 @@ function commitDamage(character,planned){
  }
  return {...fresh,concentrationCheck:check};
 }
-const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,creatureTurns,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

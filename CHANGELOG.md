@@ -1,3 +1,12 @@
+## v0.42.0 — Contextual demo practice and creature-turn overview
+
+- Replace the static demo hint with contextual practice actions that route through existing combat and dice transactions; no separate tutorial state or auto-spending.
+- Make preparation, cancellation and settling update the demo instructions; preserve Extra Attack's one-action/two-attacks contract and the opt-in manual assistance modes.
+- Add a derived creature-turn overview with explicit DM-confirmed per-creature end-turn controls, scheduled condition expirations and target selection. Do not automate initiative.
+- Reject exhausted creature turn clocks before mutating any condition source. Preserve other creatures' independent clocks.
+- Give explicitly prioritized contextual controls precedence over die pickup when a resting die overlaps a button, without changing default dice gestures.
+- Add Node and real Chromium coverage for independent turn boundaries, source expiry, the demo practice lifecycle, cancellation and control pointer priority; retain one CI qualification gate.
+
 ## v0.41.0 — Safe first-visit demo and creature-turn event ownership
 
 - A truly new GitHub Pages IndexedDB vault automatically starts with an original, editable level-5 Fighter and training target. Previously saved vaults, including deliberately empty vaults or migrated legacy sheets, remain untouched. Desktop and existing users can add the same demo explicitly through the welcome screen or character vault.

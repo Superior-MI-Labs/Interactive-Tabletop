@@ -131,3 +131,10 @@ A configured, committed staged ability is tied to the character’s active encou
 The fictional Fighter demo is a concrete, editable character JSON fixture with an explicit 2014 edition and manual spell automation. It exercises **existing** resource, encounter, attack and action-plan contracts, never a new rules interpreter. Import matching excludes demo entries by their `demo_id`. First-time static visitors get one demo only when no prior IndexedDB record or legacy character exists; a saved empty vault remains empty. The player must explicitly reset the demo to discard changes. A tracked extra-action grant must not spend its charge outside an active encounter.
 
 A DM-confirmed creature turn closes only that creature's event window, linked saving-throw evidence and targeted pending workflow. It preserves spent costs and does not advance other creatures or assume initiative.
+
+
+## Contextual practice and independent creature-turn display (v0.42)
+
+The demo's practice instructions are derived from the existing vault character, selected target, pending dice and `DndAction` action ledger. No persistent tutorial flags or alternate action executor exist. The guide uses the same validated attack, encounter, and dice controls as the rest of the UI. Dice controls explicitly marked as pointer-priority controls remain accessible when a die overlaps their screen position. Their actions still pass through the shared planner and commit rules.
+
+The creature-turn summary is a derived view of `effects.combat.condition_grants` and `effects.targets[].condition_turn`, with no inferred initiative order. Only a DM-confirmed `advanceTargetTurn` may advance another creature's condition clock, retire eligible event/workflow evidence and expire condition grants anchored to that creature. Unknown, removed and numerically exhausted turns fail before mutation.

@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.41.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.42.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.41.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.42.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -24,6 +24,12 @@
 
 No signup or application server is needed. The hosted version parses PDF fields in your browser and stores a multi-character vault in IndexedDB. Previously saved single-character localStorage data is migrated without deleting the recovery copy. PDF.js code is downloaded from a pinned jsDelivr URL when importing a PDF; the **PDF itself is not intentionally uploaded to any server**. Do not assume local browser storage is permanent, private on shared computers, or synchronized across devices.
 
+
+### Guided practice and creature turns (v0.42)
+
+The demo character now displays **contextual practice steps** instead of a static instruction banner: start encounter tracking, select the Training Dummy, prepare and throw a longsword attack, and try the second attack granted by Extra Attack. The button at each stage invokes the ordinary combat engine. It does not maintain a second tutorial state or advance stages based on guesses. Prepared dice may be canceled without spending a turn action, and right-click/Escape follow the same cancellation rules as regular play.
+
+The **Actions → Creature turns** section lists every manually tracked creature, its current individual turn counter, and scheduled condition expirations anchored to that creature. Choose **Select** to target it or **End turn** to request DM confirmation of its turn boundary. This does not move other creatures or your action economy and does not infer initiative. Controls that explicitly opt into pointer priority remain clickable even when a physical die overlaps them; normal dice grabbing elsewhere is unchanged.
 
 ### Condition source and turn-boundary tracking (v0.40)
 
@@ -103,23 +109,23 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.41.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.42.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.41.0.zip" SkyBlueEyes-Tabletop-v0.41.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.42.0.zip" SkyBlueEyes-Tabletop-v0.42.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
 
 ## Release and publishing
 
-The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh` (Python, JavaScript and 24 actual Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same command is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
+The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh` (Python, JavaScript and 29 actual Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same command is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
 
-The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.41.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
+The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.42.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 
 ## Development and architecture
 

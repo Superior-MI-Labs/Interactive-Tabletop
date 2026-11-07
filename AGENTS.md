@@ -104,3 +104,8 @@ A staged flow is the single `effects.combat.pending_workflow` record. Check it t
 ## First-run demo invariants (v0.41)
 
 Keep sample data in `web/demo-character.js` and keep its persistence in the existing vault adapter. Only fresh static storage may auto-initialize a demo; never seed an existing empty vault or overwrite a saved/imported character. Manual demo creation must be idempotent, reset must require confirmation, and real PDF matching must exclude demo entries. Exercise the same action engine for demo attacks and feature costs. Any asset new to `web/` must be included in `web/index.html`, the service worker shell manifest, release contract and browser qualification.
+
+
+## Practice and creature-turn projection (v0.42)
+
+Keep the demo guide a pure UI projection of the actual character, attack, selected encounter target and physical dice lifecycle, never a scripted state machine or persisted onboarding progress. Practice buttons must dispatch existing combat actions and share their validation/cancel/commit boundaries. Physical dice pickup must not steal clicks from explicitly prioritized controls; preserve ordinary dice-over-sheet gestures elsewhere. The creature roster is read from `DndAction.creatureTurns`; only `advanceTargetTurn` mutates condition clocks with confirmation. Never infer initiative or expire another creature's sources. Regressions: `tests/test_creature_turn_overview.js`, `tests/browser_practice_turns_smoke.py`; Chromium count 29.
