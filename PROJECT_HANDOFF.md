@@ -25,6 +25,7 @@ This file answers five questions for a fresh contributor or coding agent: **What
 | --- | --- |
 | `PROJECT_HANDOFF.md` (this file) | Latest known state, design rationale, immediate priorities, outstanding risks, next-agent instructions |
 | `AGENTS.md` | Binding engineering rules, ownership boundaries, pre-commit/CI gates |
+| `AI_START_HERE.md` | Short, copy/paste onboarding prompt for future coding agents |
 | `ARCHITECTURE.md` | Durable subsystem contracts and why they exist |
 | `RULESET_AUTOMATION_CONTRACT.md` | Exact D&D/edition, event, resource and dice rules |
 | `DND_EFFECT_CAPABILITY_AUDIT.md` | What is actually qualified for automation |
