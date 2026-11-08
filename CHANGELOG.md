@@ -2,7 +2,7 @@
 
 - Added a shared `DndAction.requireOffensiveTarget` gate used by normal/bonus attacks, manual damage, attack-like ability rolls and configured damage actions/spells. The default self/saving-throw target can no longer silently receive offensive damage.
 - Made the selected target visible in a persistent combat bar with a direct roster control; in-flight attacks and damage keep their original target IDs.
-- Added opt-in `auto_damage` approval to an encounter target. A verified classified weapon/unarmed Auto hit with known damage type and approved defenses can use existing `planDamage`/`commitDamage` and Undo without another click. Changing damage traits revokes approval; missing/unsupported adjudication goes to review.
+- Added opt-in `auto_damage` approval to an encounter target. A verified classified weapon/unarmed Auto hit with a uniquely specified damage type from its attack entry and approved defenses can use existing `planDamage`/`commitDamage` and Undo without another click. Changing damage traits revokes approval; missing/unsupported adjudication goes to review.
 - Conservatively require DM hit adjudication when unqualified actor/defender conditions are present. Guided/Auto inline damage approval no longer opens a second confirm; Manual retains the confirm. Pending damage now permits an explicit type correction.
 - Expanded engine and browser regressions for no-target safety, damage modes, mitigation, target switch, Undo and resource spending. No second combat engine, scene state or inferred spell rules.
 

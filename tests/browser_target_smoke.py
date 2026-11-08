@@ -98,6 +98,9 @@ with sync_playwright() as playwright:
  # explicit defense review. The inline Apply button is a single approval.
  page.set_viewport_size({'width':1440,'height':900})
  page.locator('#combat-mode').select_option('auto')
+ # The floating dice controls can cover combat buttons; close them before a physical click.
+ if page.locator('#dice-widget').get_attribute('open') is not None:
+  page.locator('#dice-widget > summary').click()
  page.get_by_role('button',name='Start encounter').click()
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;

@@ -1262,10 +1262,11 @@ function prepareAttackDamage(index,targetId,critical=false,verifiedHit=false){
  if(!match){toast('Configure damage dice for '+attack.name+' before rolling damage.');return false;}
  try{
   const matchingTypes=Action.DAMAGE_TYPES.filter(t=>t!=='untyped'&&new RegExp('\\b'+t+'\\b','i').test(attack.damage));
-  const damageType=matchingTypes.length===1?matchingTypes[0]:selectedDamageType;
+  const verifiedDamageType=matchingTypes.length===1;
+  const damageType=verifiedDamageType?matchingTypes[0]:selectedDamageType;
   const expression=critical?Action.criticalDamageExpression(match[0]):Action.dice(match[0]).expression;
   return queueRoll(expression,attack.name+(critical?' critical':'')+' damage vs '+target.name,
-   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name,attackType:Action.attackType(attack),verifiedAttackHit:verifiedHit});
+   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name,attackType:Action.attackType(attack),verifiedDamageType,verifiedAttackHit:verifiedHit});
  }catch(error){toast(error.message);return false;}
 }
 function attackFollowup(result,group,knownHit){
@@ -1857,7 +1858,7 @@ function finishRollIfSettled(){
          source:group.effect.source||group.label,type:damageType,amount:result.total};
         // An automatic commit needs a verified hit plus explicit defense approval.
         // Otherwise keep the existing review flow without inferring mechanics.
-        if(group.effect.verifiedAttackHit===true&&Action.canAutoApplyAttackDamage(character,targetId,damageType,group.effect.attackType)){
+        if(group.effect.verifiedAttackHit===true&&Action.canAutoApplyAttackDamage(character,targetId,damageType,group.effect.attackType,group.effect.verifiedDamageType)){
          try{
           const planned=Action.planDamage(character,targetId,{amount:result.total,type:damageType});
           const applied=Action.commitDamage(character,planned);

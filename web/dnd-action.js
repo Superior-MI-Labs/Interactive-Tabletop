@@ -1074,9 +1074,9 @@ function canAutoEvaluateAttack(character,id){
   return !(character.conditions||[]).length&&!(target.conditions||[]).length;
  }catch{return false;}
 }
-function canAutoApplyAttackDamage(character,id,type,attackType){
+function canAutoApplyAttackDamage(character,id,type,attackType,verifiedDamageType){
  const state=combat(character);
- if(!state.active||state.economy.mode!=='auto'||!['weapon','unarmed'].includes(attackType)||!DAMAGE_TYPES.includes(type)||type==='untyped')return false;
+ if(!state.active||state.economy.mode!=='auto'||verifiedDamageType!==true||!['weapon','unarmed'].includes(attackType)||!DAMAGE_TYPES.includes(type)||type==='untyped')return false;
  try{return requireOffensiveTarget(character,id).auto_damage===true;}catch{return false;}
 }
 function damageTraits(values){
