@@ -124,7 +124,7 @@ with sync_playwright() as playwright:
  assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
  page.get_by_role('button',name='Next turn').click()
  page.locator('.attack-list [data-action=attack]').first.click()
- assert page.evaluate('pendingRoll') is not None, page.evaluate('''()=>({selectedTargetId,mode:Action.combat(character).economy.mode,combat:Action.combat(character).economy,pendingRoll,lastResult})''')
+ assert page.evaluate('pendingRoll') is not None, page.evaluate('''()=>{let eligibility;try{Action.verifyAttack(character,'action','weapon');eligibility='OK';}catch(e){eligibility=e.message;}return {selectedTargetId,active:Action.combat(character).active,mode:Action.combat(character).economy.mode,economy:Action.combat(character).economy,eligibility,activeRolls:activeRolls.length,diceCount:dice.length,diceSummary:dice.map(d=>({id:d.id,sides:d.sides,sleeping:d.sleeping,ready:d.ready,held:d.held})),selected:Action.targetById(character,selectedTargetId),pendingRoll,lastResult,toastText:document.querySelector('#toast')?.textContent};}''')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
