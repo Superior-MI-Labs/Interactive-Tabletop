@@ -60,6 +60,9 @@ function identityMatches(old,fresh){
 }
 function findMatch(vault,fresh){return vault.characters.find(c=>!c.character.demo_id&&identityMatches(c.character,fresh))||null;}
 function keyFor(record){return [canonical(record.name),canonical(record.level??''),canonical(record.source??'')].join('|');}
+// Manual spell IDs are authored by the sheet editor (and older "custom-" tools).
+// Their identity is stable across PDF indexes, source edits, and spell levels.
+const isManualSpell=record=>/^(?:manual-spell-|custom-)/.test(String(record?.id||''));
 function reconcile(old,fresh){
  if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot reconcile invalid characters.');
  const next=copy(fresh);next.resources=SlotPools.normalize(next.resources);
@@ -94,21 +97,28 @@ function reconcile(old,fresh){
  }
  merged.resources=resources;
  const priorSpells=before.spells||[],importedSpells=next.spells||[];
+ // The PDF only owns its own spells. Player-authored spell IDs are never
+ // candidates for matching or replacing imported records, even if names collide.
+ const oldPdf=priorSpells.filter(sp=>!isManualSpell(sp));
+ const newPdf=importedSpells.filter(sp=>!isManualSpell(sp));
  // Source labels can change between PDF exports or edits. Only fall back
- // to name+level when BOTH sides identify one unambiguous spell.
+ // to name+level when BOTH sides identify one unambiguous imported spell.
  const withoutSource=sp=>[canonical(sp.name),canonical(sp.level??'')].join('|');
  const uniqueMatch=(items,keyFn,key)=>{const found=items.filter(sp=>keyFn(sp)===key);return found.length===1?found[0]:null;};
  merged.spells=importedSpells.map(s=>{
-  const exactOld=uniqueMatch(priorSpells,keyFor,keyFor(s));
-  const exactNew=uniqueMatch(importedSpells,keyFor,keyFor(s));
+  if(isManualSpell(s))return s; // A supplied manual record remains authored data.
+  const exactOld=uniqueMatch(oldPdf,keyFor,keyFor(s));
+  const exactNew=uniqueMatch(newPdf,keyFor,keyFor(s));
   const previous=exactOld&&exactNew?exactOld:null;
-  const fallback=!previous&&uniqueMatch(importedSpells,withoutSource,withoutSource(s))?
-   uniqueMatch(priorSpells,withoutSource,withoutSource(s)):null;
+  const fallback=!previous&&uniqueMatch(newPdf,withoutSource,withoutSource(s))?
+   uniqueMatch(oldPdf,withoutSource,withoutSource(s)):null;
   const prev=previous||fallback;
   return prev?{...s,prepared:prev.prepared,available:prev.available,notes:prev.notes||s.notes,
    ...Object.fromEntries(['roll','effect_kind','effect_condition','damage_type','duration_rounds','concentration','automation','spellcasting_modifier','spellcasting_ability'].filter(k=>Object.prototype.hasOwnProperty.call(prev,k)).map(k=>[k,prev[k]]))}:s;
  });
- for(const sp of before.spells||[])if((sp.id||'').startsWith('custom-')&&!merged.spells.some(s=>keyFor(s)===keyFor(sp)))merged.spells.push(sp);
+ // Keep every separately authored entry by stable ID, not by display fields.
+ // The PDF may now contain an identically named spell; that is not the same record.
+ for(const sp of priorSpells)if(isManualSpell(sp)&&!merged.spells.some(s=>s.id===sp.id))merged.spells.push(sp);
  const inventoryByName=new Map();
  for(const item of before.inventory||[]){const name=canonical(item.name);if(!inventoryByName.has(name))inventoryByName.set(name,[]);inventoryByName.get(name).push(item);}
  merged.inventory=(next.inventory||[]).map(item=>{
@@ -183,6 +193,6 @@ function storage(staticSite){
   }
  };
 }
-const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,reconcile,importSummary,storage,validCharacter};
+const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,isManualSpell,reconcile,importSummary,storage,validCharacter};
 root.TabletopVault=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

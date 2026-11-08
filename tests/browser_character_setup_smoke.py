@@ -74,6 +74,7 @@ with sync_playwright() as pw:
  page.locator('[data-view="overview"]').click()
  setup.locator('.character-setup-row').filter(has_text='Spellbook (optional)').get_by_role('button',name='Open optional spells').click()
  page.get_by_role('button',name='+ Spell').click()
+ assert page.locator('details[data-spell-id]').first.get_attribute('open') is not None,'New spell editor must open automatically'
  assert page.evaluate('character.spells[0].level') is None
  assert page.evaluate('character.spells[0].automation')=='manual'
  assert page.evaluate('Object.keys(character.resources).length')==0
@@ -154,6 +155,24 @@ with sync_playwright() as pw:
  assert '3/3 core areas recorded' in page.locator('.character-setup').inner_text()
  assert page.evaluate('character.spells[0].spellcasting_ability')=='INT'
  assert page.evaluate('character.spells[0].spellcasting_modifier')==3
+ # Manual spells can be removed only after an explicit confirmation, while the
+ # original spell's prepared/settings remain unchanged. Cancel never mutates.
+ page.locator('[data-view="spells"]').click()
+ assert page.locator('[data-action="remove-manual-spell"]').count()==1
+ page.get_by_role('button',name='+ Spell').click()
+ assert page.evaluate('character.spells.length')==2
+ page.locator('details[data-spell-id]').last.evaluate('(el)=>{el.open=true;}')
+ page.locator('[data-action="remove-manual-spell"]').last.click()
+ assert page.evaluate('character.spells.length')==2,'Opening removal confirmation must not edit the vault'
+ page.locator('#dlg-no').click()
+ assert page.evaluate('character.spells.length')==2,'Canceled removal must not mutate the vault'
+ page.locator('[data-action="remove-manual-spell"]').last.click()
+ page.locator('#dlg-yes').click()
+ assert page.evaluate('character.spells.length')==1,'Only the selected authored spell is removed'
+ assert page.evaluate('character.spells[0].spellcasting_ability')=='INT'
+ assert page.evaluate('character.spells[0].spellcasting_modifier')==3
+ page.wait_for_function("window.__setupStorage()?.characters.some(x=>x.character.name==='Cassia Dawn' && x.character.spells.length===1)")
+ page.locator('[data-view="overview"]').click()
  page.set_viewport_size({'width':390,'height':730})
  assert page.locator('.character-setup').is_visible()
  assert not errors,errors

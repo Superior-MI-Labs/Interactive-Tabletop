@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.46.0
+# Interactive Tabletop architecture — v0.47.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -264,3 +264,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - The optional ability field is validated by character-import.js and edited through the existing app.js setPath contract. It lives on the ordinary spell record; no class-progression engine, rules database, or parallel spell state was added.
 - vault-store.js reimport preserves authored spell overrides on exact name+level+source matches; a source-label change may fall back to name+level only when unique on both sides. Duplicate/ambiguous records never inherit unrelated configuration. Imported source metadata remains authoritative.
 - Preparation, slots, and cost commits retain one path across Auto, Guided and Manual. No physical dice or event semantics change.
+
+## v0.47 — Spell record provenance, conservative reimport and deletion
+
+- `Vault.isManualSpell(record)` is the shared identity contract for sheet-authored `manual-spell-*` and legacy `custom-*` spell IDs. Editing the visible name, class/source or level does not change that provenance.
+- `Vault.reconcile` matches PDF-owned spells with PDF-owned spells only. Imported fact updates preserve manual preparation/overrides only on unique exact identity or unique name+level fallback; duplicate/unverified identity never transfers effects. Authored spell rows are restored by stable ID, including when they share all visible fields with a PDF row. No second spellbook ledger or migration is introduced.
+- `web/app.js` uses that same identity predicate for display and to gate confirmed manual-only deletion. The existing `dialog()` character-ownership check protects stale confirmations; a second lookup by stable ID rejects ambiguous or missing targets. Committed effects and resources are not implicitly undone when a descriptive spell entry is removed.
+- New manual spell IDs use the existing vault ID generator, not a timestamp-only key. Older IDs remain valid. PDF removal removes its corresponding imported row; it never deletes a separate authored row.

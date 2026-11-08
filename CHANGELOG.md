@@ -1,3 +1,11 @@
+## v0.47.0 — Preserve manual spells across PDF reimports
+
+- Fixed a data-loss mismatch: the editor creates `manual-spell-*` IDs, but PDF reimport had previously preserved only legacy `custom-*` spell IDs.
+- The vault now keeps manually authored spell entries by stable ID even when a new PDF lists a spell with exactly the same name, level and source; manual spells do not inject their rules or preparation into imported spell records.
+- Matching imported spells for preparation and configured effects remains conservative and operates only on PDF-owned records. Reordering or unambiguous source changes retain settings; ambiguous duplicates or changed levels never trigger guessed rules.
+- New manual spells use the shared vault ID generator. The spellbook distinguishes **Manual entry**, and Edit mode offers a confirmed, cancellable **Remove manual spell** action that never deletes PDF-owned spells or committed effects.
+- Added an extensive synthetic D&D Beyond-shaped lifecycle suite and browser confirmation/persistence coverage. No class progression, new spell rules or parallel character model.
+
 ## v0.46.0 — Explicit casting ability, safe spell reimport and modifier validation
 
 - Added optional per-spell ability selection and a validated fixed-modifier override in the existing editor. An explicit override takes precedence; qualified 2014 self-healing otherwise uses the selected ability modifier.
@@ -6,7 +14,7 @@
 - Extended model and Chromium setup regressions for all combat assistance modes, preparation, slot spending, validation, vault persistence and reimport.
 - Preserved the existing character vault, 2014 edition gates and one shared action engine. No automatic class progression, Pact Magic, or new effect profiles.
 
-## v0.46.0 — Explicit slot/resource configuration and manual entry validation
+## v0.45.0 — Explicit slot/resource configuration and manual entry validation
 
 - Added editable standard Spellcasting slot totals and remaining uses per level, through the existing canonical slot-identity module. Pact Magic stays separate; zero total deliberately removes a standard level.
 - Added validated editing for existing custom resource pools and routed current-use adjustments through the shared D&D action engine.

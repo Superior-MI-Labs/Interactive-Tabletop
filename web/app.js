@@ -721,7 +721,7 @@ function spells(){
  const ref=References?.match('spell',sp.name,character.system_edition);
  const preset=ref?.automation;
  const presetActive=Boolean(preset&&(sp.automation==='srd-2014'||(!sp.automation&&character.rules_profile==='srd-2014')));
- return `<div class="spell-entry" data-spell-name="${esc((sp.name||'').toLowerCase())}"><details class="work-entry" data-spell-id="${esc(sp.id||sp.index)}"><summary><span class="entry-title">${esc(sp.name)}</span><span class="entry-meta">${badge} · ${state}</span></summary>
+ return `<div class="spell-entry" data-spell-name="${esc((sp.name||'').toLowerCase())}"><details class="work-entry" data-spell-id="${esc(sp.id||sp.index)}"><summary><span class="entry-title">${esc(sp.name)}</span><span class="entry-meta">${badge} · ${state}${Vault.isManualSpell(sp)?' · Manual entry':''}</span></summary>
  <div class="entry-details"><div><b>Source:</b> ${esc(sp.source||'Unknown')}</div><div><b>Casting:</b> ${esc(sp.casting_time||'Unknown')} · ${esc(sp.range||'')}</div><div><b>Duration:</b> ${esc(sp.duration||'Unknown')}</div>
  <div><b>Components:</b> ${esc(sp.components||'')}</div><div><b>Save / attack:</b> ${esc(sp.save||'—')}</div>${sp.notes?`<p>${esc(sp.notes)}</p>`:''}${sourceBadge(ref)}
  ${preset?`<div class="srd-preset">${presetActive?`<strong>Qualified 2014 SRD effect enabled</strong> ${button('Use manual rules','spell-preset-off',String(sp.index),'button mini subtle')}`:`<span>Qualified 2014 SRD profile available (self only).</span> ${button('Enable 2014 effect','spell-preset-on',String(sp.index),'button mini')}`}</div>`:''}
@@ -734,6 +734,7 @@ function spells(){
  <label class="field"><span class="field-label">Self-condition</span><select class="input" data-spell-condition="${sp.index}"><option value="">Choose condition</option>${[...Action.CONDITIONS].map(n=>`<option value="${n}" ${sp.effect_condition===n?'selected':''}>${n}</option>`).join('')}</select></label>
  ${field('Duration in rounds (0 = untimed)',`spells.${sp.index}.duration_rounds`,sp.duration_rounds??0,'number')}</div>
  <label class="field"><input type="checkbox" data-spell-concentration="${sp.index}" ${concentration?'checked':''}> Track concentration (based on PDF duration; editable)</label></div>`:''}
+ ${editMode&&Vault.isManualSpell(sp)?`<div class="controls-row">${button('Remove manual spell','remove-manual-spell',String(sp.index),'button mini subtle')}</div>`:''}
  <p class="subtle-note">The character ruleset enables only qualified SRD profiles; individual overrides remain available. 2014 SRD presets require opt-in; imported/DM-edited rules stay unchanged. Self-target effects only. Casting spends slots after confirmation; healing is applied after dice settle.</p></div></details>
  <label class="prepared-control" data-tip="${esc(sp.name)} · ${state}"><input type="checkbox" data-prep="${sp.index}" ${sp.prepared||locked?'checked':''} ${locked?'disabled':''} aria-label="Prepare ${esc(sp.name)}"><span>${locked?'Ready':'Prep'}</span></label></div>`;
  }).join('')}</div>`;
@@ -1137,7 +1138,18 @@ function handleAction(action,arg){
    catch(e){toast('Could not heal: '+e.message);}break;
   }
   case 'add-feature-note':character.features=character.features||[];character.features.push({title:'New feature',text:'Describe the feature and confirm its effects with your DM.',source:'manual'});editMode=true;save();render();const createdFeature=$$('#page .feature').at(-1);if(createdFeature)createdFeature.open=true;break;
-  case 'add-spell':character.spells=character.spells||[];character.spells.push({id:'manual-spell-'+Date.now(),name:'New spell',source:'manual',casting_time:'',range:'',duration:'',components:'',save:'',notes:'Configure manually with your DM.',prepared:false,always_prepared:false,available:true,level:null,automation:'manual',roll:'',effect_kind:'none'});editMode=true;spellFilter='all';save();render();const createdSpell=$$('#page details[data-spell-id]').at(-1);if(createdSpell)createdSpell.open=true;break;
+  case 'add-spell':character.spells=character.spells||[];character.spells.push({id:'manual-spell-'+Vault.newId(),name:'New spell',source:'manual',casting_time:'',range:'',duration:'',components:'',save:'',notes:'Configure manually with your DM.',prepared:false,always_prepared:false,available:true,level:null,automation:'manual',roll:'',effect_kind:'none'});editMode=true;spellFilter='all';save();render();const createdSpell=Array.from(document.querySelectorAll('#page details[data-spell-id]')).at(-1);if(createdSpell)createdSpell.open=true;break;
+  case 'remove-manual-spell':{
+   const spell=character.spells?.[num(arg)];
+   if(!Vault.isManualSpell(spell)){toast('Only manually added spells can be removed here.');break;}
+   const spellId=spell.id;
+   dialog('Remove manual spell?',`Delete ${spell.name} from this character? This cannot be undone. Active effects already in play must be ended separately.`,()=>{
+    const matches=character.spells.map((sp,i)=>Vault.isManualSpell(sp)&&sp.id===spellId?i:-1).filter(i=>i>=0);
+    if(matches.length!==1){toast('Spell identity changed or is ambiguous. Nothing removed.');return;}
+    character.spells.splice(matches[0],1);save();render();toast('Manual spell removed.');
+   },'Remove spell');
+   break;
+  }
   case 'add-item':character.inventory.unshift({id:'custom-'+Date.now(),name:'New item',quantity:1,weight:'',archived:false,notes:''});save();render();const createdItem=$('#page .workspace-entries details.work-entry');if(createdItem)createdItem.open=true;break;
   case 'toggle-archived':showArchived=!showArchived;render();break;
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
@@ -1322,7 +1334,7 @@ function acceptImport(newCharacter,kind='json'){
   }catch(ex){toast('Import could not be saved: '+ex.message);}
  };
  if(match){
-  dialog('Update existing character?',`This PDF matches ${match.character.name}. Imported stats and equipment will update, while current HP, resources, preparation, notes and manual abilities are preserved. ${Vault.importSummary(match.character,newCharacter).replace(/\n/g,' · ')}`,install);
+  dialog('Update existing character?',`This PDF matches ${match.character.name}. Imported stats and equipment will update, while current HP, resources, preparation, notes, manual abilities and manually added spells are preserved. ${Vault.importSummary(match.character,newCharacter).replace(/\n/g,' · ')}`,install);
  }else install();
 }
 function acceptVaultBackup(raw){
