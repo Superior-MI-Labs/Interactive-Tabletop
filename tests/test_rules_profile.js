@@ -53,7 +53,7 @@ assert.equal(JSON.stringify(multi.resources),unchanged,'Rejected plan never spen
 multi.spells[0].spellcasting_ability='INT';
 assert.equal(A.planSpell(multi,multi.spells[0],1,ref).roll.expression,'1d8+3');
 multi.spells[0].spellcasting_modifier=0;
-assert.equal(A.planSpell(multi,multi.spells[0],1,ref).roll.expression,'1d8+0','Fixed zero overrides derived score');
+assert.equal(A.planSpell(multi,multi.spells[0],1,ref).roll.expression,'1d8','Fixed zero overrides derived score; canonical dice syntax omits +0');
 multi.spells[0].spellcasting_modifier='3';
 assert.throws(()=>A.planSpell(multi,multi.spells[0],1,ref),/Invalid spellcasting modifier/);
 delete multi.spells[0].spellcasting_modifier;
