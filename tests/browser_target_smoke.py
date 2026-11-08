@@ -104,12 +104,12 @@ with sync_playwright() as playwright:
  page.get_by_role('button',name='Start encounter').click()
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('pendingRoll?.expression')=='1d8+4','Verified hit should prepare damage dice'
  assert page.evaluate('queuedEffect?.verifiedAttackHit') is True
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('pendingDamage.length')==1,'Unapproved defenses must force review'
  assert page.evaluate('character.effects.targets[0].hp.current')==48
@@ -125,11 +125,11 @@ with sync_playwright() as playwright:
  page.get_by_role('button',name='Next turn').click()
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('pendingRoll?.expression')=='1d8+4'
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('pendingDamage.length')==0
  assert page.evaluate('character.effects.targets[0].hp.current')==44
@@ -140,11 +140,11 @@ with sync_playwright() as playwright:
  page.evaluate('''()=>{const second=Action.addTarget(character,{name:'Second Golem',ac:16,hp:30});selectedTargetId='target-1';render();}''')
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  page.locator('#combat-target').select_option('target-2')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('character.effects.targets[0].hp.current')==40
  assert page.evaluate('character.effects.targets[1].hp.current')==30,'Re-targeting cannot steal pending damage'
@@ -152,7 +152,7 @@ with sync_playwright() as playwright:
  page.locator('#combat-mode').select_option('manual')
  page.locator('.attack-list [data-action=damage]').first.click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('pendingDamage.length')==1
  page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
@@ -164,7 +164,7 @@ with sync_playwright() as playwright:
  page.locator('#combat-mode').select_option('guided')
  page.locator('.attack-list [data-action=damage]').first.click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
-  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('pendingDamage.length')==1
  page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
