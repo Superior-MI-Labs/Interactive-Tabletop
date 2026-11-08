@@ -117,6 +117,18 @@ with sync_playwright() as pw:
  assert page.evaluate('character.actions.length')==0,'Feature note does not authorize a combat action'
  assert page.evaluate('character.spells[0].name')=='Light'
  assert page.evaluate('character.spells[0].level')==1
+ # Spellcasting configuration reuses the ordinary editor and persistent spell record.
+ page.locator('details[data-spell-id]').first.evaluate('(el)=>{el.open=true;}')
+ page.locator('[data-input="spells.0.spellcasting_ability"]').select_option('INT')
+ assert page.evaluate('character.spells[0].spellcasting_ability')=='INT'
+ page.locator('details[data-spell-id]').first.evaluate('(el)=>{el.open=true;}')
+ page.locator('[data-spell-modifier="0"]').fill('3')
+ page.locator('[data-spell-modifier="0"]').press('Tab')
+ assert page.evaluate('character.spells[0].spellcasting_modifier')==3
+ page.locator('[data-spell-modifier="0"]').fill('31')
+ page.locator('[data-spell-modifier="0"]').press('Tab')
+ assert page.evaluate('character.spells[0].spellcasting_modifier')==3,'Invalid override must not overwrite the good value'
+ assert 'whole number' in page.locator('#status-msg').inner_text()
  # Named custom pools use the existing action-economy configuration, not spell-slot aliases.
  page.locator('.economy-config summary').click()
  page.locator('#economy-new-resource').fill('Focus Points')
@@ -138,6 +150,8 @@ with sync_playwright() as pw:
  page.locator('.vault-card').filter(has_text='Cassia Dawn').get_by_role('button',name='Play').click()
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Cassia Dawn'")
  assert '3/3 core areas recorded' in page.locator('.character-setup').inner_text()
+ assert page.evaluate('character.spells[0].spellcasting_ability')=='INT'
+ assert page.evaluate('character.spells[0].spellcasting_modifier')==3
  page.set_viewport_size({'width':390,'height':730})
  assert page.locator('.character-setup').is_visible()
  assert not errors,errors

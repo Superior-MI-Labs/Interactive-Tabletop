@@ -42,4 +42,33 @@ for(const edition of ['unspecified','dnd5e',null,'dnd-2024']){
  assert.equal(A.planSpell(unknown,unknown.spells[0],1,ref).automatic,false,'Manual spell plans remain available without edition');
 }
 
+// Per-spell casting selection must be explicit for mixed class sources.
+const multi=character();
+multi.rules_profile='srd-2014';
+multi.abilities.INT={score:16,modifier:3};
+multi.spells[0].source='Cleric / Wizard';
+const unchanged=JSON.stringify(multi.resources);
+assert.throws(()=>A.planSpell(multi,multi.spells[0],1,ref),/Choose a spellcasting ability/);
+assert.equal(JSON.stringify(multi.resources),unchanged,'Rejected plan never spends a slot');
+multi.spells[0].spellcasting_ability='INT';
+assert.equal(A.planSpell(multi,multi.spells[0],1,ref).roll.expression,'1d8+3');
+multi.spells[0].spellcasting_modifier=0;
+assert.equal(A.planSpell(multi,multi.spells[0],1,ref).roll.expression,'1d8+0','Fixed zero overrides derived score');
+multi.spells[0].spellcasting_modifier='3';
+assert.throws(()=>A.planSpell(multi,multi.spells[0],1,ref),/Invalid spellcasting modifier/);
+delete multi.spells[0].spellcasting_modifier;
+multi.spells[0].spellcasting_ability='ARCANE';
+assert.throws(()=>A.planSpell(multi,multi.spells[0],1,ref),/supported spellcasting ability/);
+multi.spells[0].spellcasting_ability='INT';
+const updated=character();updated.spells[0].source='Cleric';
+const kept=Vault.reconcile(multi,updated);
+assert.equal(kept.spells[0].spellcasting_ability,'INT','Name+level unique match retains selected ability');
+assert.equal(kept.spells[0].source,'Cleric','Reimport still owns class metadata');
+const duplicates=character();
+duplicates.spells.push({...duplicates.spells[0],id:'other-class',source:'Wizard'});
+const uncertain=Vault.reconcile(multi,duplicates);
+assert.equal(uncertain.spells[0].spellcasting_ability,undefined,'Duplicate names cannot inherit source-ambiguous configuration');
+const legacy=character();legacy.rules_profile='srd-2014';legacy.spells[0].source='cLeRiC';
+assert.equal(A.planSpell(legacy,legacy.spells[0],1,ref).roll.expression,'1d8+4','Single-class fallback is case-insensitive');
+
 console.log('PASS ruleset: verified global profiles, manual per-spell override, older opt-ins, reimport and 2024 fence');

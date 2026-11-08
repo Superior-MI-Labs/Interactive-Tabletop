@@ -1,4 +1,4 @@
-/* Interactive Tabletop v0.22.0 — offline and local-first.
+/* Interactive Tabletop — offline and local-first.
  * The versioned character JSON is the only source of character truth.
  */
 'use strict';
@@ -678,6 +678,14 @@ function inventory(){
  ${sourceBadge(References?.match('equipment',it.name,character.system_edition))}${field('Notes',`inventory.${it.index}.notes`,it.notes||'')}
  ${button(it.archived?'Restore':'Archive','archive',String(it.index),'button mini subtle')}</div></details>`).join('')}</div>`;
 }
+function spellcastingSettings(sp){
+ const choices=Action.ABILITIES.map(ability=>`<option value="${ability}" ${sp.spellcasting_ability===ability?'selected':''}>${ability}</option>`).join('');
+ return `<div class="entry-pair"><label class="field"><span class="field-label">Spellcasting ability (DM approved)</span>
+ <select class="input" data-input="spells.${sp.index}.spellcasting_ability" aria-label="Spellcasting ability for ${esc(sp.name)}">
+ <option value="" ${!sp.spellcasting_ability?'selected':''}>Legacy source (only if unambiguous)</option>${choices}</select></label>
+ <label class="field"><span class="field-label">Modifier override (optional)</span><input type="number" min="-30" max="30" step="1" class="input" data-spell-modifier="${sp.index}" value="${esc(sp.spellcasting_modifier??'')}" placeholder="Use selected ability" aria-label="Spellcasting modifier override for ${esc(sp.name)}"></label></div>
+ <small class="subtle-note">Only qualified 2014 self-healing automation currently uses this modifier. A fixed override takes precedence over the selected ability; mixed sources need explicit selection.</small>`;
+}
 function spellSlotSettings(){
  const existing=Action.spellSlots(character);
  return `<details class="spell-slot-settings" aria-label="Standard spell slot settings"><summary>Configure standard spell slots (DM approved)</summary>
@@ -721,7 +729,7 @@ function spells(){
  ${button('Cast spell','cast-spell',String(sp.index),'button mini primary')}${!ready?'<small>Prepare this spell first</small>':''}${sp.level==null?'<small>Set level in Edit sheet</small>':''}</div>
  ${editMode?`<div class="spell-execution-editor"><div class="entry-pair">${field('Name',`spells.${sp.index}.name`,sp.name)}${field('Source / class',`spells.${sp.index}.source`,sp.source||'')}${field('Casting time',`spells.${sp.index}.casting_time`,sp.casting_time||'')}${field('Notes / DM ruling',`spells.${sp.index}.notes`,sp.notes||'')}</div><div class="entry-pair"><label class="field"><span class="field-label">Spell level</span><select class="input" data-spell-level="${sp.index}">${['Unknown',...Array.from({length:10},(_,n)=>n)].map((level,i)=>`<option value="${i-1}" ${level===sp.level||(level==='Unknown'&&sp.level==null)?'selected':''}>${level}</option>`).join('')}</select></label>
  ${field('Optional dice expression',`spells.${sp.index}.roll`,sp.roll||'')}<label class="field">Damage type (when configured)<select class="input" data-input="spells.${sp.index}.damage_type">${Action.DAMAGE_TYPES.map(t=>`<option value="${t}" ${(sp.damage_type||'untyped')===t?'selected':''}>${t}</option>`).join('')}</select></label></div>
- ${preset&&editMode?`<label class="field">Spellcasting modifier for Cure Wounds (optional override)<input type="number" class="input" data-spell-modifier="${sp.index}" value="${sp.spellcasting_modifier??''}" placeholder="Auto from spell source" /></label>`:''}
+ ${spellcastingSettings(sp)}
  <div class="entry-pair"><label class="field"><span class="field-label">Effect after dice (DM approved)</span><select class="input" data-spell-effect="${sp.index}"><option value="none" ${(sp.effect_kind||'none')==='none'?'selected':''}>No automated effect</option><option value="heal" ${sp.effect_kind==='heal'?'selected':''}>Offer HP healing</option><option value="damage" ${sp.effect_kind==='damage'?'selected':''}>Offer damage to selected target</option><option value="condition" ${sp.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
  <label class="field"><span class="field-label">Self-condition</span><select class="input" data-spell-condition="${sp.index}"><option value="">Choose condition</option>${[...Action.CONDITIONS].map(n=>`<option value="${n}" ${sp.effect_condition===n?'selected':''}>${n}</option>`).join('')}</select></label>
  ${field('Duration in rounds (0 = untimed)',`spells.${sp.index}.duration_rounds`,sp.duration_rounds??0,'number')}</div>
@@ -768,9 +776,10 @@ function setPath(path,value){
  let obj=character;
  for(const p of parts.slice(0,-1)){if(!obj||!Object.prototype.hasOwnProperty.call(obj,p))return;obj=obj[p];}
  const key=parts.at(-1);
- if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
+ if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|spellcasting_ability|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
  if(/^actions\.\d+\.workflow\.save\.dc$/.test(path))value=value.trim()===''?null:Number(value);
- if(/^(?:attacks|spells)\.\d+\.(?:name|bonus|damage|roll)$/.test(path))value=window.CharacterImport.validateManualEntryField(parts[0],key,value);
+ if(/^(?:attacks|spells)\.\d+\.(?:name|bonus|damage|roll)$/.test(path)||/^spells\.\d+\.spellcasting_ability$/.test(path))
+  value=window.CharacterImport.validateManualEntryField(parts[0],key,value);
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
  obj[key]=value;
  if(/^actions\.\d+\.(?:economy_units|grant_amount|event_min_damage|event_min_hp_loss)$/.test(path))obj[key]=Math.max(0,Math.min(999999,Math.floor(num(value))));
@@ -1395,9 +1404,13 @@ document.addEventListener('change',e=>{
  }
  if(el.dataset.actionConcentration!==undefined){const a=character.actions?.[num(el.dataset.actionConcentration)];if(a){a.concentration=el.checked;a.source='manual';save();}return;}
  if(el.dataset.spellModifier!==undefined){const sp=character.spells?.[num(el.dataset.spellModifier)];if(sp){
-  if(el.value.trim()==='')delete sp.spellcasting_modifier;
-  else if(Number.isSafeInteger(Number(el.value))&&Math.abs(Number(el.value))<=30)sp.spellcasting_modifier=Number(el.value);
-  save();}return;}
+  const raw=el.value.trim();
+  if(raw===''){delete sp.spellcasting_modifier;save();return;}
+  const fixed=Number(raw);
+  if(!/^[+-]?\d+$/.test(raw)||!Number.isSafeInteger(fixed)||fixed< -30||fixed>30){
+   toast('Spellcasting modifier override must be a whole number from -30 to 30.');render();return;
+  }
+  sp.spellcasting_modifier=fixed;save();}return;}
  if(el.dataset.spellConcentration!==undefined){const sp=character.spells?.[num(el.dataset.spellConcentration)];if(sp){sp.concentration=el.checked;save();}return;}
  if(el.dataset.actionCondition!==undefined){const a=character.actions?.[num(el.dataset.actionCondition)];if(a){a.effect_condition=el.value;save();}return;}
  if(el.dataset.spellCondition!==undefined){const sp=character.spells?.[num(el.dataset.spellCondition)];if(sp){sp.effect_condition=el.value;save();}return;}

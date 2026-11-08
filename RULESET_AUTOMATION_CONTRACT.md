@@ -152,3 +152,9 @@ The derived checklist is not rules qualification. Feature notes are non-executab
 ## Explicit manual resource editing (v0.45)
 
 Manual standard Spellcasting slots are configured by **level** through `DndSlots.configure`, invoked exclusively via `DndAction.configureSpellSlots`. Alias labels normalize conservatively; generic resource creation may not impersonate a standard spell-slot name. Total and remaining uses are independently entered and checked before changing a character. Pact Magic and automatic class slot progression remain unsupported rather than silently merged. Custom pools use the existing action engine's validated edit path, not direct UI mutation. Manual attack and optional spell dice must be supported formulas; rejected values must not persist.
+
+## v0.46 — Explicit spellcasting ability
+
+Qualified SRD 2014 self-healing uses a bounded per-spell spellcasting_modifier when present; otherwise a selected spellcasting_ability reads the character's current saved ability modifier. Legacy unambiguous casting class/source text remains a compatibility fallback. Unknown or mixed class sources require explicit selection. Invalid overrides and missing modifiers fail in planning, without spending resources.
+
+On PDF reimport, unique spell identity can retain the DM-approved ability and modifier even if its source label changes. Duplicate or ambiguous records do not acquire guessed configuration. This does not add class progression, Pact Magic, new effect profiles or non-2014 automation.

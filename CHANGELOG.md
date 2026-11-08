@@ -1,4 +1,12 @@
-## v0.45.0 — Explicit slot/resource configuration and manual entry validation
+## v0.46.0 — Explicit casting ability, safe spell reimport and modifier validation
+
+- Added optional per-spell ability selection and a validated fixed-modifier override in the existing editor. An explicit override takes precedence; qualified 2014 self-healing otherwise uses the selected ability modifier.
+- Tightened legacy class-source fallback: single-ability labels remain compatible irrespective of case; mixed or unknown sources require explicit selection instead of a guess.
+- Preserved authored spell configuration when a PDF source label changes only if name+level uniquely match in both lists; duplicate/ambiguous spell records never inherit guessed overrides.
+- Extended model and Chromium setup regressions for all combat assistance modes, preparation, slot spending, validation, vault persistence and reimport.
+- Preserved the existing character vault, 2014 edition gates and one shared action engine. No automatic class progression, Pact Magic, or new effect profiles.
+
+## v0.46.0 — Explicit slot/resource configuration and manual entry validation
 
 - Added editable standard Spellcasting slot totals and remaining uses per level, through the existing canonical slot-identity module. Pact Magic stays separate; zero total deliberately removes a standard level.
 - Added validated editing for existing custom resource pools and routed current-use adjustments through the shared D&D action engine.

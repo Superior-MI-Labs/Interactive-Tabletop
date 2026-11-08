@@ -93,11 +93,20 @@ function reconcile(old,fresh){
   }else resources[name]=r; // Unknown resource could be manually configured; never silently remove.
  }
  merged.resources=resources;
- const oldSpells=new Map((before.spells||[]).map(s=>[keyFor(s),s]));
- merged.spells=(next.spells||[]).map(s=>{
-  const prev=oldSpells.get(keyFor(s));
+ const priorSpells=before.spells||[],importedSpells=next.spells||[];
+ // Source labels can change between PDF exports or edits. Only fall back
+ // to name+level when BOTH sides identify one unambiguous spell.
+ const withoutSource=sp=>[canonical(sp.name),canonical(sp.level??'')].join('|');
+ const uniqueMatch=(items,keyFn,key)=>{const found=items.filter(sp=>keyFn(sp)===key);return found.length===1?found[0]:null;};
+ merged.spells=importedSpells.map(s=>{
+  const exactOld=uniqueMatch(priorSpells,keyFor,keyFor(s));
+  const exactNew=uniqueMatch(importedSpells,keyFor,keyFor(s));
+  const previous=exactOld&&exactNew?exactOld:null;
+  const fallback=!previous&&uniqueMatch(importedSpells,withoutSource,withoutSource(s))?
+   uniqueMatch(priorSpells,withoutSource,withoutSource(s)):null;
+  const prev=previous||fallback;
   return prev?{...s,prepared:prev.prepared,available:prev.available,notes:prev.notes||s.notes,
-   ...Object.fromEntries(['roll','effect_kind','effect_condition','damage_type','duration_rounds','concentration','automation','spellcasting_modifier'].filter(k=>Object.prototype.hasOwnProperty.call(prev,k)).map(k=>[k,prev[k]]))}:s;
+   ...Object.fromEntries(['roll','effect_kind','effect_condition','damage_type','duration_rounds','concentration','automation','spellcasting_modifier','spellcasting_ability'].filter(k=>Object.prototype.hasOwnProperty.call(prev,k)).map(k=>[k,prev[k]]))}:s;
  });
  for(const sp of before.spells||[])if((sp.id||'').startsWith('custom-')&&!merged.spells.some(s=>keyFor(s)===keyFor(sp)))merged.spells.push(sp);
  const inventoryByName=new Map();

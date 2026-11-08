@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.45.0
+# Interactive Tabletop architecture — v0.46.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -257,3 +257,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - `web/dnd-action.js` owns generic pool settings, standard-slot commits and quick current-use changes. UI does not write resource amounts directly. Existing names and character vault storage are preserved; edit fields cannot authorize class mechanics.
 - `web/character-import.js` validates manual attack/spell dice and attack bonuses for both initial creation and later edits. Invalid edits are rejected before mutation; imported records remain editable without inferring new features. The UI uses the same existing `setPath` persistence flow.
 - `tests/test_manual_resource_configuration.js` and the extended `tests/browser_character_setup_smoke.py` protect slot identity, resource limits, negative inputs, vault persistence and editor wiring. No second spell-slot store or class-progression engine was added.
+
+## v0.46 — Casting modifier resolution and conservative reimport
+
+- DndAction.castingModifier resolves a numerical override (-30 through 30) or the character's current modifier from an explicitly selected spellcasting ability. Known unambiguous class/source labels remain a legacy fallback only; ambiguous sources fail closed before slot spending.
+- The optional ability field is validated by character-import.js and edited through the existing app.js setPath contract. It lives on the ordinary spell record; no class-progression engine, rules database, or parallel spell state was added.
+- vault-store.js reimport preserves authored spell overrides on exact name+level+source matches; a source-label change may fall back to name+level only when unique on both sides. Duplicate/ambiguous records never inherit unrelated configuration. Imported source metadata remains authoritative.
+- Preparation, slots, and cost commits retain one path across Auto, Guided and Manual. No physical dice or event semantics change.

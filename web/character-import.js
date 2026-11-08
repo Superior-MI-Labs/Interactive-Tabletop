@@ -130,6 +130,11 @@ function validateManualEntryField(section,key,value){
   if(key==='bonus')return manualInteger(value,'Attack bonus',-30,50);
  }
  if(section==='spells'&&key==='name')return manualLabel(value,'Spell name',100);
+ if(section==='spells'&&key==='spellcasting_ability'){
+  const ability=String(value??'').trim().toUpperCase();
+  if(ability&&!abb.includes(ability))throw Error('Choose a supported spellcasting ability.');
+  return ability;
+ }
  if((section==='attacks'&&key==='damage')||(section==='spells'&&key==='roll')){
   const text=String(value??'').replace(/\s+/g,'');
   if(!text)return ''; // Blank is unconfigured, not an executable roll.
