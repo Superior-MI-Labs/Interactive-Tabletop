@@ -1138,7 +1138,7 @@ function handleAction(action,arg){
    catch(e){toast('Could not heal: '+e.message);}break;
   }
   case 'add-feature-note':character.features=character.features||[];character.features.push({title:'New feature',text:'Describe the feature and confirm its effects with your DM.',source:'manual'});editMode=true;save();render();const createdFeature=$$('#page .feature').at(-1);if(createdFeature)createdFeature.open=true;break;
-  case 'add-spell':character.spells=character.spells||[];character.spells.push({id:'manual-spell-'+Vault.newId(),name:'New spell',source:'manual',casting_time:'',range:'',duration:'',components:'',save:'',notes:'Configure manually with your DM.',prepared:false,always_prepared:false,available:true,level:null,automation:'manual',roll:'',effect_kind:'none'});editMode=true;spellFilter='all';save();render();const createdSpell=$('#page details[data-spell-id]').at(-1);if(createdSpell)createdSpell.open=true;break;
+  case 'add-spell':character.spells=character.spells||[];character.spells.push({id:'manual-spell-'+Vault.newId(),name:'New spell',source:'manual',casting_time:'',range:'',duration:'',components:'',save:'',notes:'Configure manually with your DM.',prepared:false,always_prepared:false,available:true,level:null,automation:'manual',roll:'',effect_kind:'none'});editMode=true;spellFilter='all';save();render();const createdSpell=Array.from(document.querySelectorAll('#page details[data-spell-id]')).at(-1);if(createdSpell)createdSpell.open=true;break;
   case 'remove-manual-spell':{
    const spell=character.spells?.[num(arg)];
    if(!Vault.isManualSpell(spell)){toast('Only manually added spells can be removed here.');break;}
