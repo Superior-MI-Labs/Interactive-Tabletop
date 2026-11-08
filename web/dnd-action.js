@@ -532,13 +532,26 @@ function spellSlots(character){
 // Only an explicitly enabled, edition-pinned SRD profile may drive an imported spell.
 // Manual/homebrew overrides do not inherit effects from similar spell names.
 function castingModifier(character,spell){
- if(Number.isSafeInteger(spell.spellcasting_modifier))return spell.spellcasting_modifier;
- const source=String(spell.source||'');
- const override=/\b(Wisdom|Intelligence|Charisma)\b/i.exec(source);
- const klass=/\b(Cleric|Druid|Ranger|Paladin|Bard|Sorcerer|Warlock|Wizard)\b/i.exec(source);
- const ability=override?{wisdom:'WIS',intelligence:'INT',charisma:'CHA'}[override[1].toLowerCase()]:
-  klass?{Cleric:'WIS',Druid:'WIS',Ranger:'WIS',Paladin:'CHA',Bard:'CHA',Sorcerer:'CHA',Warlock:'CHA',Wizard:'INT'}[klass[1]]:null;
- if(!ability)throw Error('Set the spellcasting modifier in Edit sheet for this spell.');
+ const selected=spell.spellcasting_ability;
+ if(selected!==undefined&&selected!==null&&selected!==''&&!ABILITIES.includes(selected))
+  throw Error('Select a supported spellcasting ability in Edit sheet.');
+ const fixed=spell.spellcasting_modifier;
+ if(fixed!==undefined&&fixed!==null){
+  if(!Number.isSafeInteger(fixed)||fixed< -30||fixed>30)throw Error('Invalid spellcasting modifier override (expected -30 to 30).');
+  return fixed;
+ }
+ let ability=selected||null;
+ if(!ability){
+  // Preserve legacy single-class saves; never guess between mixed sources.
+  const source=String(spell.source||'');
+  const direct={wisdom:'WIS',intelligence:'INT',charisma:'CHA'};
+  const classes={cleric:'WIS',druid:'WIS',ranger:'WIS',paladin:'CHA',bard:'CHA',sorcerer:'CHA',warlock:'CHA',wizard:'INT'};
+  const mentioned=[...source.matchAll(/\b(wisdom|intelligence|charisma)\b/gi)].map(x=>direct[x[1].toLowerCase()]);
+  const inferred=mentioned.length?mentioned:[...source.matchAll(/\b(cleric|druid|ranger|paladin|bard|sorcerer|warlock|wizard)\b/gi)].map(x=>classes[x[1].toLowerCase()]);
+  const unique=[...new Set(inferred)];
+  if(unique.length!==1)throw Error('Choose a spellcasting ability in Edit sheet; the spell source is missing or ambiguous.');
+  ability=unique[0];
+ }
  const value=character.abilities?.[ability]?.modifier;
  if(!Number.isSafeInteger(value))throw Error('Missing '+ability+' spellcasting modifier.');
  return value;

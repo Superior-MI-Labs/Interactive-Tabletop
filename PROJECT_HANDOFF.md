@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.45.0`  
-**Release commit:** The v0.45.0 release commit will be the `main` commit containing this checkpoint; verify the exact SHA with `git log` and check GitHub Actions separately.  
+**Last verified application release:** `v0.46.0`  
+**Release commit:** Confirm the exact v0.46.0 main SHA and GitHub qualification/deployment; this checkpoint is authored before those checks run.  
 **Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.45.0 adds explicit manual slot and resource editing with shared validation; check the actual CI/Pages run before claiming it is deployed.
+**Current worktree:** v0.46.0 configures per-spell casting abilities and safely preserves unambiguous manual overrides across PDF source-label changes; verify Actions before calling it deployed.
 
 ## 1. Why this file exists / how to resume
 
@@ -25,6 +25,7 @@ This file answers five questions for a fresh contributor or coding agent: **What
 | --- | --- |
 | `PROJECT_HANDOFF.md` (this file) | Latest known state, design rationale, immediate priorities, outstanding risks, next-agent instructions |
 | `AGENTS.md` | Binding engineering rules, ownership boundaries, pre-commit/CI gates |
+| `AI_START_HERE.md` | Short, copy/paste onboarding prompt for future coding agents |
 | `ARCHITECTURE.md` | Durable subsystem contracts and why they exist |
 | `RULESET_AUTOMATION_CONTRACT.md` | Exact D&D/edition, event, resource and dice rules |
 | `DND_EFFECT_CAPABILITY_AUDIT.md` | What is actually qualified for automation |
@@ -35,7 +36,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.44.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.46.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -46,9 +47,11 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.41:** Original **Mara Vale (Demo)**, a level-5 Fighter with Training Dummy, created only for genuinely new browser vaults; manual add/reset for others. Real imports never merge into demos by name.
 - **v0.42:** Contextual, **state-derived** practice flow for Mara and read-only creature-turn overview. Practice controls route to normal action/dice handlers. Pointer priority fixed for controls obscured by resting dice.
 - **v0.43:** Three-stage manual 2014 character creation (identity, scores/proficiencies, combat). Uses `CharacterImport.createManual` plus the existing vault; no inferred class features or second rules engine. New Node and Chromium tests cover validation, cancellation, vault isolation and narrow layouts.
-- **v0.44:** Existing manual characters now show a derived setup checklist for attacks, features and equipment, with optional spellbook access. Explicit manual entries use the existing edit/vault contract and add no inferred slots or rules. **Latest functional patch.**
+- **v0.44:** Derived manual character setup with editable attacks, feature notes, equipment and optional spells.
+- **v0.45:** Manual spell-slot and resource configuration routes through canonical owners with validation.
+- **v0.46:** Casting ability selection and a bounded fixed modifier are available on spell records. Reimport preserves authored spell settings for unambiguous matches; unknown mixed class sources fail closed.
 
-The v0.42 release was verified by GitHub qualification and Pages deployment. v0.43 passed the local gate (19 Python tests, the JavaScript suite and 30 Chromium browser scenarios); independently check GitHub CI and deployment for the new release. Recheck live CI on any later commit rather than treating old green runs as evidence for new code.
+v0.45.0 passed GitHub qualification and Pages deployment at commit 14882f0. The v0.46.0 run must be checked separately; never treat the older green result as proof of a new release.
 
 ## 3. Architecture choices and rationale
 
@@ -85,15 +88,16 @@ These are engineering judgments based on current contracts, not eternal prohibit
 
 ## 5. Suggested next milestone — verify before implementing
 
-**Goal:** Finish validating the manual character-setup experience across multiple class patterns without inventing class progression.
+**Goal:** Validate imported-versus-manual spellbook lifecycles across single-class, multiclass and homebrew sheets, keeping all preparation and slot state on the ordinary character document.
 
-**Audit first:** Check martial, spellcaster and homebrew manual sheets, demo and PDF imports. Inspect ability/attack and spell metadata editing, resource/slot configuration and safe save/reload in all three combat-assistance modes.
+**Audit first:** Try duplicate same-name spells from distinct sources, changed source/level fields, learned or removed spells, rest and reimport cycles. Include Auto, Guided and Manual. Test both existing and newly created vaults.
 
-**Options:** (1) improve existing sheet editors and input validation or (2) introduce class-specific automated construction. Prefer (1) until verified edition-specific data and source-of-truth contracts justify the extra machinery.
+**Alternatives:** (1) Correct observed failures inside Vault.reconcile, the existing sheet and DndAction; or (2) generate spellbook progression from class names. Prefer (1) unless edition-qualified reference data and real acceptance scenarios justify (2).
 
-**Candidate next patch:** Audit spellcasting ability/modifier selection, spell preparation, and imported-versus-manual spellbook state with representative Fighter, Wizard and hybrid/homebrew sheets. Correct inconsistencies in the existing `DndAction.planSpell` and character editor only after reproducing failures. Keep class feature/slot progression DM-approved and manual.
+**Candidate next patch:** Examine duplicate spell identity and preparation toggles through save/reimport with representative anonymized PDF-shaped data; fix reproducible loss or unsafe matches only. Pact Magic is separate, DM-approved and not inferred.
 
-**Defer:** full automatic leveling/class features, 2024 and Pathfinder creators, global initiative, multiplayer and inferred homebrew mechanics.
+**Defer:** Automatic class progression and slots, 2024/Pathfinder creators, universal rules, global initiative, multiplayer, and arbitrary homebrew execution.
+
 
 ## 6. Execution and publication checklist
 
@@ -124,12 +128,4 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 5. Replace **Next milestone** with one actionable, bounded plan, alternatives considered and acceptance criteria. Leave enough information for a new agent with no chat history.
 6. Keep `AGENTS.md` and this file discoverable from `README.md`. The small `tests/test_handoff_contract.py` gate verifies the version and those links, preventing silent drift.
 
-**Coding-agent instruction audit (2026-11-07):** Added [`AI_START_HERE.md`](AI_START_HERE.md), a one-line-customizable coding prompt. Consolidated `AGENTS.md` into version-neutral rules and linked detailed system contracts instead of accumulating versioned instructions. Updated `tests/test_handoff_contract.py` to check the starter, file links and document size. This was **documentation/process only**, not a new application version; the v0.42.0 implementation checkpoint and next gameplay milestone are unchanged.
-
-**Checkpoint note (2026-11-07):** Documentation/process update only. No code behavior or release version changed. Last completed application work remains v0.42.0 (Mara demo guided practice and independent creature-turn overview). Next person should inspect current production behavior before implementing the candidate navigation/onboarding patch.
-
-**v0.43 release note:** The manual-creation form is transient UI state. Its committed output is a character-v1 document via the existing vault. No separate creator database, tutorial progress or automated class feature inference was introduced. A failed storage write rolls back the draft in memory. The next agent should inspect the delivered browser behavior before expanding it.
-
-**v0.44 handoff note:** The setup checklist observes ordinary character data and never holds completion progress. All new manual spell/feature entries are inert until explicitly configured and approved. Use the existing `DndAction` and vault contracts for subsequent expansions.
-
-**v0.45 checkpoint:** Standard slot configuration is owned by `DndSlots` for identity and `DndAction` for mutation; generic resources share the same action owner. The new editor exposes only explicit values. Reject malformed attack/spell entries before saving, and retain 2014/manual boundaries. Regression owners: `tests/test_manual_resource_configuration.js`, `tests/browser_character_setup_smoke.py`, and the existing slot identity / vault tests. Do not invent Pact Magic semantics or automatic class progression.
+**v0.46 checkpoint:** The spell editor stores an explicit ability on the ordinary spell record, and DndAction resolves its modifier only for qualified 2014 self-healing. A fixed numeric override takes precedence. Legacy unambiguous sources remain supported; mixed/unknown sources require selection. Reimport keeps overrides only for unambiguous identities. Regression owners: tests/test_rules_profile.js, tests/test_spell_actions.js, tests/browser_character_setup_smoke.py. No new class generator or parallel resource model.

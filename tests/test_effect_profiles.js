@@ -57,7 +57,7 @@ const die=A.consumeCharge(c,effect.id);assert.equal(die.expression,'1d4');
 assert.equal(A.activeEffects(c).length,0);
 assert.throws(()=>A.consumeCharge(c,effect.id),/No charged bonus/);
 const custom=mock();custom.spells[0].source='Unknown Magic';
-assert.throws(()=>A.planSpell(custom,custom.spells[0],1,ref(custom,'Cure Wounds')),/Set the spellcasting modifier/);
+assert.throws(()=>A.planSpell(custom,custom.spells[0],1,ref(custom,'Cure Wounds')),/Choose a spellcasting ability/);
 custom.spells[0].spellcasting_modifier=6;
 assert.equal(A.planSpell(custom,custom.spells[0],1,ref(custom,'Cure Wounds')).roll.expression,'1d8+6');
 custom.spells[0].automation=undefined;

@@ -56,4 +56,24 @@ const merged=Vault.reconcile(old,fresh);
 assert.equal(merged.spells[1].roll,'1d8+3');assert.equal(merged.spells[1].effect_kind,'heal');
 assert.equal(merged.spells[1].concentration,false);assert.equal(merged.spells[1].duration_rounds,7);
 assert.equal(merged.spells[1].notes,'DM ruling');assert.equal(merged.effects.active[0].rounds_remaining,2);
+// Manual preparation, canonical slots and commits share one contract in all modes.
+for(const mode of ['auto','guided','manual']){
+ const actor=sample();actor.system_edition='dnd-2014';
+ actor.abilities={INT:{score:16,modifier:3}};
+ actor.spells[1].spellcasting_ability='INT';
+ Engine.setCombatMode(actor,mode);
+ Engine.setEncounter(actor,true);
+ const before=actor.resources['Level 1 Spell Slots'].current;
+ assert.throws(()=>Engine.planSpell(actor,{...actor.spells[1],prepared:false},1),/Prepare/);
+ assert.equal(actor.resources['Level 1 Spell Slots'].current,before,mode+' unprepared spell has no cost');
+ const planned=Engine.planSpell(actor,actor.spells[1],1);
+ assert.equal(planned.cost,1);
+ Engine.commitUsage(actor,planned);
+ assert.equal(actor.resources['Level 1 Spell Slots'].current,before-1,mode+' commits one slot');
+ const vault=Vault.empty();Vault.upsert(vault,'actor',actor);
+ const restored=Vault.normalize(JSON.parse(JSON.stringify(vault))).characters[0].character;
+ assert.equal(restored.spells[1].spellcasting_ability,'INT',mode+' retains spell configuration');
+ assert.equal(restored.resources['Level 1 Spell Slots'].current,before-1);
+}
+
 console.log('D&D spell planning, slots, preparation, concentrations, timers, legacy migration, overrides PASS');
