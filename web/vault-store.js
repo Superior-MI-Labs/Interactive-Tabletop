@@ -63,6 +63,50 @@ function keyFor(record){return [canonical(record.name),canonical(record.level??'
 // Manual spell IDs are authored by the sheet editor (and older "custom-" tools).
 // Their identity is stable across PDF indexes, source edits, and spell levels.
 const isManualSpell=record=>/^(?:manual-spell-|custom-)/.test(String(record?.id||''));
+// The preview and reconciler share exactly one imported-spell identity contract.
+const spellNameLevel=sp=>[canonical(sp.name),canonical(sp.level??'')].join('|');
+function matchImportedSpells(oldPdf,newPdf){
+ const unique=(rows,keyFn,key)=>{
+  let match=-1;
+  rows.forEach((row,i)=>{if(keyFn(row)===key)match=match===-1?i:-2;});
+  return match>=0?match:-1;
+ };
+ return newPdf.map(sp=>{
+  const a=unique(oldPdf,keyFor,keyFor(sp)),b=unique(newPdf,keyFor,keyFor(sp));
+  if(a!==-1&&b!==-1)return {oldIndex:a,sourceChanged:false};
+  const oldIndex=unique(oldPdf,spellNameLevel,spellNameLevel(sp));
+  const newIndex=unique(newPdf,spellNameLevel,spellNameLevel(sp));
+  return {oldIndex:oldIndex!==-1&&newIndex!==-1?oldIndex:-1,sourceChanged:oldIndex!==-1&&newIndex!==-1};
+ });
+}
+function spellReimportPreview(old,fresh){
+ if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot preview invalid characters.');
+ const oldPdf=(old.spells||[]).filter(sp=>!isManualSpell(sp)),newPdf=(fresh.spells||[]).filter(sp=>!isManualSpell(sp));
+ const matches=matchImportedSpells(oldPdf,newPdf);
+ const usedOld=new Set(matches.filter(x=>x.oldIndex!==-1).map(x=>x.oldIndex));
+ const missingOld=oldPdf.filter((_,i)=>!usedOld.has(i));
+ const unmatchedNew=newPdf.filter((_,i)=>matches[i].oldIndex===-1);
+ const oldNames=new Set(missingOld.map(spellNameLevel));
+ const newNames=new Set(unmatchedNew.map(spellNameLevel));
+ const ambiguousKeys=new Set([...oldNames].filter(key=>newNames.has(key)));
+ const clean=x=>String(x||'').replace(/\s+/g,' ').trim();
+ const display=sp=>{
+  const name=clean(sp.name||'Unnamed spell').slice(0,80);
+  const level=sp.level===0?'cantrip':Number.isInteger(sp.level)?'level '+sp.level:'level unknown';
+  const source=clean(sp.source).slice(0,50);
+  return name+' ('+level+(source?', '+source:'')+')';
+ };
+ const ambiguous=new Set(unmatchedNew.filter(sp=>ambiguousKeys.has(spellNameLevel(sp)))
+  .map(sp=>clean(sp.name||'Unnamed spell').slice(0,80)+' ('+(sp.level===0?'cantrip':sp.level==null?'level unknown':'level '+sp.level)+')'));
+ return {
+  matched:matches.filter(x=>x.oldIndex!==-1).length,
+  added:unmatchedNew.filter(sp=>!ambiguousKeys.has(spellNameLevel(sp))).map(display),
+  removed:missingOld.filter(sp=>!ambiguousKeys.has(spellNameLevel(sp))).map(display),
+  ambiguous:[...ambiguous],
+  sourceChanged:matches.flatMap((m,i)=>m.sourceChanged?[display(newPdf[i])+' (from '+clean(oldPdf[m.oldIndex].source||'unknown').slice(0,50)+')']:[]),
+  manualPreserved:(old.spells||[]).filter(isManualSpell).length
+ };
+}
 function reconcile(old,fresh){
  if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot reconcile invalid characters.');
  const next=copy(fresh);next.resources=SlotPools.normalize(next.resources);
@@ -101,18 +145,12 @@ function reconcile(old,fresh){
  // candidates for matching or replacing imported records, even if names collide.
  const oldPdf=priorSpells.filter(sp=>!isManualSpell(sp));
  const newPdf=importedSpells.filter(sp=>!isManualSpell(sp));
- // Source labels can change between PDF exports or edits. Only fall back
- // to name+level when BOTH sides identify one unambiguous imported spell.
- const withoutSource=sp=>[canonical(sp.name),canonical(sp.level??'')].join('|');
- const uniqueMatch=(items,keyFn,key)=>{const found=items.filter(sp=>keyFn(sp)===key);return found.length===1?found[0]:null;};
+ const spellMatches=matchImportedSpells(oldPdf,newPdf);
+ let pdfIndex=0;
  merged.spells=importedSpells.map(s=>{
   if(isManualSpell(s))return s; // A supplied manual record remains authored data.
-  const exactOld=uniqueMatch(oldPdf,keyFor,keyFor(s));
-  const exactNew=uniqueMatch(newPdf,keyFor,keyFor(s));
-  const previous=exactOld&&exactNew?exactOld:null;
-  const fallback=!previous&&uniqueMatch(newPdf,withoutSource,withoutSource(s))?
-   uniqueMatch(oldPdf,withoutSource,withoutSource(s)):null;
-  const prev=previous||fallback;
+  const {oldIndex}=spellMatches[pdfIndex++];
+  const prev=oldIndex===-1?null:oldPdf[oldIndex];
   return prev?{...s,prepared:prev.prepared,available:prev.available,notes:prev.notes||s.notes,
    ...Object.fromEntries(['roll','effect_kind','effect_condition','damage_type','duration_rounds','concentration','automation','spellcasting_modifier','spellcasting_ability'].filter(k=>Object.prototype.hasOwnProperty.call(prev,k)).map(k=>[k,prev[k]]))}:s;
  });
@@ -138,6 +176,18 @@ function importSummary(old,fresh){
  const stats=Object.keys(fresh.abilities||{}).filter(k=>old.abilities?.[k]?.score!==fresh.abilities[k]?.score);
  if(stats.length)diffs.push(`Updated ability scores: ${stats.join(', ')}`);
  diffs.push(`PDF records: ${(fresh.attacks||[]).length} attacks, ${(fresh.spells||[]).length} spells, ${(fresh.inventory||[]).length} inventory entries`);
+ const p=spellReimportPreview(old,fresh);
+ diffs.push(`Imported spellbook: ${p.matched} matched, ${p.added.length} added, ${p.removed.length} removed, ${p.ambiguous.length} ambiguous matching groups.`);
+ const list=(heading,items)=>{
+  if(!items.length)return;
+  diffs.push(`${heading} (${items.length}): ${items.slice(0,6).join('; ')}${items.length>6?'; and '+(items.length-6)+' more':''}`);
+ };
+ list('Added imported spells',p.added);
+ list('Removed imported spells',p.removed);
+ list('Ambiguous imported spell matches',p.ambiguous);
+ if(p.ambiguous.length)diffs.push('Ambiguous imported spells use the new PDF values; previous preparation and configured effects are not transferred for those identities.');
+ list('Source labels changed; prior settings retained',p.sourceChanged);
+ diffs.push(`Player-authored spell entries preserved independently: ${p.manualPreserved}. Existing active effects are not ended by this import.`);
  return diffs.join('\n');
 }
 function indexedDb(){
@@ -193,6 +243,6 @@ function storage(staticSite){
   }
  };
 }
-const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,isManualSpell,reconcile,importSummary,storage,validCharacter};
+const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,isManualSpell,reconcile,spellReimportPreview,importSummary,storage,validCharacter};
 root.TabletopVault=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -1,3 +1,11 @@
+## v0.48.0 — Preview the actual spellbook changes before PDF reimport
+
+- Extracted one pure imported-spell identity matcher inside `web/vault-store.js` and reused it for both reconciliation and the new preview. No second diff pipeline, spellbook store or inferred mechanics.
+- A matching PDF now shows imported spell additions, removals, ambiguous same-name/level identities, source-label changes whose settings survive, and the count of separately authored spells preserved.
+- Ambiguous identities explicitly warn that previous preparation, notes and approved configured effects may not carry forward; the preview neither mutates vault data nor promises an unverified transfer.
+- The existing confirmation dialog displays readable line-separated changes, scrolls within the viewport on narrow screens, and still requires explicit acceptance. Canceled imports do not change the active character.
+- Extended the synthetic spellbook reconciliation tests and Chromium vault smoke test for matching/ambiguity, preview purity, cancellation, confirm, mobile scrolling and escaped untrusted spell names. No class progression, new automation or extra persistent state.
+
 ## v0.47.0 — Preserve manual spells across PDF reimports
 
 - Fixed a data-loss mismatch: the editor creates `manual-spell-*` IDs, but PDF reimport had previously preserved only legacy `custom-*` spell IDs.
