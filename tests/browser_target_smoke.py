@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 hero={'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','name':'Synthetic Duelist','class_level':'Fighter 5',
  'species':'Human','background':'','hp':{'current':25,'max':35,'temp':0},'ac':17,'initiative':1,'proficiency':3,'speed':'30 ft.',
  'abilities':{'STR':{'score':18,'modifier':4}},'saves':{'Constitution':3,'Strength':7},'skills':{'Athletics':7},
- 'attacks':[{'name':'Flame Sword','bonus':7,'damage':'1d8+4 Fire'}],
+ 'attacks':[{'name':'Flame Sword','bonus':7,'damage':'1d8+4 Fire','attack_type':'weapon','attack_range':'melee'}],
  'inventory':[],'conditions':[],'features':[],'actions':[],'roll_history':[],'effects':{},'spells':[],'resources':{}}
 with sync_playwright() as playwright:
  b=launch_chromium(playwright)
@@ -31,6 +31,13 @@ with sync_playwright() as playwright:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Synthetic Duelist'")
+ # No target: attack and damage cannot fall through to the character's own HP.
+ old_hp=page.evaluate('character.hp.current')
+ page.locator('.attack-list [data-action=attack]').first.click()
+ assert page.evaluate('pendingRoll') is None
+ assert page.evaluate('character.hp.current')==old_hp
+ assert page.locator('.encounter-targets').get_attribute('open') is not None
+ assert 'Choose a creature' in page.locator('.combat-target-status').inner_text()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  new=page.locator('#target-add-form')
  new.locator('[name=name]').fill('Training Golem')
@@ -71,22 +78,102 @@ with sync_playwright() as playwright:
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48-roll_amount//2
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
- page.get_by_role('button',name='Undo last damage').click()
+ page.locator('[data-action="undo-last-damage"]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  # Saving throws are independent rolls; they report but do not silently damage a creature.
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-save-ability').select_option('CON')
  page.locator('#target-save-dc').fill('17')
- page.get_by_role('button',name='Roll target save').click()
+ page.locator('[data-action="target-roll-save"]').evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('Action.recentSave(character).dc')==17
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-manual-damage').fill('12')
- page.get_by_role('button',name='Preview damage').click()
+ page.locator('[data-action="target-manual-damage"]').evaluate('(el)=>el.click()')
  assert 'Training Golem' in page.locator('#dialog-layer').inner_text()
  page.locator('#dlg-no').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48
+ # Auto-mode attack hit prepares typed damage, but never applies HP without
+ # explicit defense review. The inline Apply button is a single approval.
+ page.set_viewport_size({'width':1440,'height':900})
+ page.locator('#combat-mode').select_option('auto')
+ # The floating dice controls can cover combat buttons; close them before a physical click.
+ if page.locator('#dice-widget').get_attribute('open') is not None:
+  page.locator('#dice-widget > summary').click()
+ page.get_by_role('button',name='Start encounter').click()
+ page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingRoll?.expression')=='1d8+4','Verified hit should prepare damage dice'
+ assert page.evaluate('queuedEffect?.verifiedAttackHit') is True
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==1,'Unapproved defenses must force review'
+ assert page.evaluate('character.effects.targets[0].hp.current')==48
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ assert page.locator('#dlg-yes').count()==0,'Auto inline review must not ask for a second click'
+ assert page.evaluate('character.effects.targets[0].hp.current')==44,'9 fire damage resisted = 4 applied'
+ page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
+ page.locator('[data-action="undo-last-damage"]').first.evaluate('(el)=>el.click()')
+ assert page.evaluate('character.effects.targets[0].hp.current')==48
+ # A reviewed creature's verified, typed hit can auto-commit damage at settle.
+ page.locator('[data-target-auto-damage]').evaluate('(el)=>{el.checked=true;el.dispatchEvent(new Event("change",{bubbles:true}));}')
+ assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
+ page.locator('[data-action="advance-turn"]').first.evaluate('(el)=>el.click()')
+ # Resting dice on the tabletop can intercept pointer clicks where they overlap
+ # controls; this checks the DOM action handler, not tabletop hit-testing.
+ page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
+ assert page.evaluate('pendingRoll') is not None, page.evaluate('''()=>{let eligibility;try{Action.verifyAttack(character,'action','weapon');eligibility='OK';}catch(e){eligibility=e.message;}return {selectedTargetId,active:Action.combat(character).active,mode:Action.combat(character).economy.mode,economy:Action.combat(character).economy,eligibility,activeRolls:activeRolls.length,diceCount:dice.length,diceSummary:dice.map(d=>({id:d.id,sides:d.sides,sleeping:d.sleeping,ready:d.ready,held:d.held})),selected:Action.targetById(character,selectedTargetId),pendingRoll,lastResult,toastText:document.querySelector('#toast')?.textContent};}''')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingRoll?.expression')=='1d8+4', page.evaluate('''()=>({selectedTargetId,mode:Action.combat(character).economy.mode,combat:Action.combat(character).economy,lastResult,lastAttackOutcome,queuedEffect,pendingRoll})''')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==0
+ assert page.evaluate('character.effects.targets[0].hp.current')==44
+ assert page.evaluate('lastResult.appliedDamage.amount')==4
+ assert page.evaluate('character.effects.combat.last_damage_undo') is not None
+ # The original target ID is frozen in the dice group even after selecting another.
+ page.locator('[data-action="advance-turn"]').first.evaluate('(el)=>el.click()')
+ page.evaluate('''()=>{const second=Action.addTarget(character,{name:'Second Golem',ac:16,hp:30});selectedTargetId='target-1';render();}''')
+ page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ page.locator('#combat-target').select_option('target-2')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('character.effects.targets[0].hp.current')==40
+ assert page.evaluate('character.effects.targets[1].hp.current')==30,'Re-targeting cannot steal pending damage'
+ # Manual remains an explicit confirmation; cancel does not touch HP.
+ page.locator('#combat-mode').select_option('manual')
+ page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==1
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ assert page.locator('#dlg-yes').count()==1
+ page.locator('#dlg-no').click()
+ assert page.evaluate('character.effects.targets[1].hp.current')==30
+ page.locator('#roll-effect [data-action="dismiss-target-damage"]').evaluate('(el)=>el.click()')
+ # Guided mode also uses the single inline Apply as its confirmation.
+ page.locator('#combat-mode').select_option('guided')
+ page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==1
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ assert page.locator('#dlg-yes').count()==0
+ assert page.evaluate('character.effects.targets[1].hp.current')==21
+
  page.set_viewport_size({'width':390,'height':844})
  page.wait_for_timeout(100)
  assert page.evaluate('document.documentElement.scrollWidth')<=400,'Horizontal overflow in narrow layout'

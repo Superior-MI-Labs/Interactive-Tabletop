@@ -741,3 +741,23 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 #page .setup-attack-fields .field{flex:1 1 90px}
 #page .setup-feature-editor{padding:9px;display:grid;gap:8px}
 @media(max-width:640px){#page .character-setup-list{grid-template-columns:1fr}#page .character-setup-row{flex-wrap:wrap}}
+
+/* Combat target is always visible in the action workspace; the selected
+   creature is never inferred from the self/saving-throw selector. */
+#page .target-quick{padding:0;margin:0 0 7px}
+#page .combat-target-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:100%;padding:8px 10px;border:1px solid #79765d;border-radius:7px;background:#202c36f7;box-shadow:0 3px 12px #0005}
+#page .combat-target-bar.needs-target{border-color:#bb765d;background:#352a2aef}
+#page .combat-target-bar .target-label{display:flex;flex:1 1 210px;flex-direction:column;gap:4px;font-size:11px;font-weight:650;color:#edd1a1;min-width:0}
+#page .combat-target-bar #combat-target{width:100%;max-width:none}
+#page .combat-target-status{flex:1 1 240px;font-size:11px;color:#c7d9d5;line-height:1.45}
+#page .combat-target-bar.needs-target .combat-target-status{color:#ffccae}
+#page .combat-target-bar .button{white-space:nowrap}
+#page .target-auto-damage{margin:5px 10px 10px;padding:8px;border:1px solid #637464;border-radius:6px;background:#25332f}
+#page .target-auto-damage label{display:flex;gap:8px;align-items:center;font-size:12px;color:#e1eadc;font-weight:650}
+#page .target-auto-damage input{accent-color:#e2b675;width:16px;height:16px;flex:0 0 16px}
+#page .target-auto-damage small{display:block;margin:5px 0 0 24px;font-size:10px;line-height:1.55;color:#b8cfbf}
+@media(max-width:700px){
+ #page .combat-target-bar{gap:6px;padding:7px}
+ #page .combat-target-bar .target-label,#page .combat-target-status{flex-basis:100%}
+ #page .combat-target-bar .button{width:100%}
+}

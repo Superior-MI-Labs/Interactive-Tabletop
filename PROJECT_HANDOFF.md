@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.48.0`  
-**Release commit:** Verify the exact v0.48.0 `main` commit and qualification/deployment after publication. Previous verified release: v0.47.0 `0669f28` (Actions `42505229563`).  
+**Last verified application release:** `v0.49.0`  
+**Release commit:** Verify the exact v0.49.0 main commit and Actions/Pages result after publication. Previous verified release: v0.48.0 `72231d3` (Actions `42506514275`).  
 **Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.48.0 previews PDF spellbook additions, removals, ambiguous identities and safe source changes before confirmation. The preview shares the exact matcher used by reconciliation; verify the new CI/Pages run before calling this release live.
+**Current worktree:** v0.49.0 enforces explicit offensive target IDs and conservatively automates only qualified typed, verified-hit weapon damage to approved targets. Verify v0.49 CI/Pages before calling it live.
 
 ## 1. Why this file exists / how to resume
 
@@ -36,7 +36,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.48.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.49.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -52,8 +52,9 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.46:** Casting ability selection and a bounded fixed modifier are available on spell records. Unambiguous PDF source changes preserve configuration; mixed sources fail closed.
 - **v0.47:** Authored `manual-spell-*` / legacy `custom-*` records survive reimport by stable ID even if a PDF record has the same name/source/level. PDF matching excludes authored rows; manual-only deletion is confirmed and identity-guarded.
 - **v0.48:** Read-only PDF spellbook preview shares imported-spell identity decisions with vault reconciliation. It lists added/removed imported spells, ambiguity warnings and safely matched source changes before the player confirms.
+- **v0.49:** Offensive actions require a real selected creature; Auto applies typed weapon damage after a verified hit only if the target's defenses have been explicitly approved. The roll group retains original target identity, existing Undo stays intact and other modes continue through review.
 
-v0.47.0 passed GitHub qualification and Pages deployment at commit `0669f28` (Actions run `42505229563`). Check the v0.48.0 CI and Pages result separately before claiming deployment.
+v0.48.0 passed GitHub qualification and Pages deployment at commit `72231d3` (Actions run `42506514275`). Check v0.49's independent qualification and Pages result before claiming it deployed.
 
 ## 3. Architecture choices and rationale
 
@@ -88,17 +89,17 @@ These are engineering judgments based on current contracts, not eternal prohibit
 - Dice physics is approximate, not a certified fairness simulation. The sample Fighter is demonstration data, not a comprehensive rules fixture.
 - A GitHub push is **not** equivalent to a live deployment. Check Actions qualification and Pages deployment separately; do not guess run IDs or report success prematurely.
 
-## 5. Suggested next milestone — inventory reimport safety audit
+## 5. Suggested next milestone — unify tooltip cards and active condition presentation
 
-**Goal:** Protect player-authored equipment notes and item identity when a D&D Beyond PDF is reimported. The spellbook now has explicit provenance and a shared preview; other imported collections should meet the same safety standard without adding parallel stores.
+**Goal:** Bring the immediate heart/effect hover behavior to actions, targets and conditions, and show active conditions once without losing provenance or duplicating underlying status data.
 
-**Audit first:** Reproduce duplicate same-name inventory entries with different quantities or weights, reordered PDF field indexes, manually added `custom-*` items, zero-quantity archived items, and edited notes. Current `Vault.reconcile` uses a name-indexed queue for equipment and may attach player notes to the wrong identical item. Verify this with synthetic D&D Beyond-shaped fields before modifying behavior.
+**Inspect first:** Enumerate `title` versus `data-tip` controls and the existing `hud-tooltip` renderer, `conditionRail`, `buffBar`, condition-source grants, keyboard/focus/touch handling, scroll clipping and licensed 2014 reference content.
 
-**Compare approaches:** (1) Conservatively match unique imported equipment identities and preserve authored items by stable ID within the existing vault, extending the existing import preview only if changes need explicit user confirmation; (2) create a separate inventory-import engine or silently deduplicate by name. Prefer (1) if reproduced. Never infer equip/attunement mechanics from names.
+**Two approaches:** (1) Evolve the existing HUD tooltip into one accessible, anchored quick-preview and optional pinned-card presenter, rendering condition/buff information from the current engine and reference catalog; (2) add another tooltip framework and collapse all persisted condition/effect/source records into one array. Choose (1); do not duplicate status state.
 
-**Acceptance criteria:** No custom items disappear, ambiguous duplicate equipment never inherits another item's notes, inventory quantities and imported stat fields remain PDF-authored, canceled updates are side-effect-free, and a full browser/vault regression suite passes.
+**Acceptance criteria:** The same immediate hover works for combat buttons, conditions, hearts and active effects; inactive conditions are accessible behind a compact picker, active statuses are displayed once, long descriptions are sourced/edition-scoped, and mobile/keyboard UI is qualified. Combat target safety and Auto damage tests stay green.
 
-**Defer:** Class/level progression, arbitrary homebrew effects, automatic initiative and a universal TTRPG engine.
+**Carry-over:** Inventory duplicate-note reconciliation still needs a separate audit. The isometric encounter view should eventually use the same authoritative target IDs and combat engine, not a parallel rules system.
 
 ## 6. Execution and publication checklist
 
@@ -130,3 +131,5 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 6. Keep `AGENTS.md` and this file discoverable from `README.md`. The small `tests/test_handoff_contract.py` gate verifies the version and those links, preventing silent drift.
 
 **v0.48 checkpoint:** `matchImportedSpells` is the sole matching decision used by `Vault.reconcile` and `Vault.spellReimportPreview`; the latter is pure and reports added/removed/ambiguous imported spells, safe source changes, and separately preserved manual spell count. `Vault.importSummary` formats the bounded preview and the existing confirmation UI displays it as escaped, scrollable text. Cancel has no gameplay mutation. Regression owners: `tests/test_spell_reimport.js` and `tests/browser_vault_smoke.py`. Next audit: duplicate inventory identity and manual item preservation, not a separate importer.
+
+**v0.49 checkpoint:** Engine-level `requireOffensiveTarget`, `canAutoEvaluateAttack`, `setTargetAutoDamage`, and `canAutoApplyAttackDamage` are the sole qualification contracts. The UI requires an opponent before offensive dice or costs; only verified-hit, typed weapon/unarmed damage with source-qualified damage type and explicit target permission auto-commits through the same planner and Undo. Pending review offers typed selection and one-step Guided/Auto application, while Manual keeps a dialog. Tests: `tests/test_combat_target_safety.js`, `tests/browser_target_smoke.py`, `tests/browser_attack_permissions_smoke.py`, and `tests/browser_economy_smoke.py`. Next: unify hover/status presentation.

@@ -36,6 +36,7 @@ with sync_playwright() as pw:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Bonus QA'")
  page.get_by_role('button',name='Start encounter').click()
+ page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Practice Dummy',ac:15,hp:40});selectedTargetId=foe.id;render();}")
  entry=page.locator('.action-entry').filter(has_text='Flurry of Blows');entry.locator('summary').click()
  assert entry.get_by_role('button',name='Use ability').is_disabled()
  assert not page.locator('[data-action="bonus-attack"]').count()

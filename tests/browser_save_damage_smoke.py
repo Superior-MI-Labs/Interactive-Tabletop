@@ -50,13 +50,12 @@ with sync_playwright() as pw:
  assert page.locator('#dlg-yes').count()==0
  assert page.evaluate('Action.targetById(character,selectedTargetId).hp.current')==24
  assert page.evaluate('Action.recentSave(character)?.id')!=old
- # Re-render a fresh association and confirm this exact save for damage.
+ # A fresh, explicitly selected save association is applied on the one inline click.
  page.evaluate('updateTableResults()')
  page.locator('[data-pending-save]').evaluate("el=>{el.value='half';el.dispatchEvent(new Event('change',{bubbles:true}));}")
  amount=page.evaluate('pendingDamage[0].amount')
  page.locator('[data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
- assert page.locator('#dlg-yes').count()==1
- page.locator('#dlg-yes').click()
+ assert page.locator('#dlg-yes').count()==0,'Guided/Auto review is the explicit approval'
  assert page.evaluate('Action.targetById(character,selectedTargetId).hp.current')==24-amount
  # A committed self-damage event is tied to this character and undo retires it.
  page.evaluate("()=>{Action.commitDamage(character,Action.planDamage(character,'self',{amount:4}));render();}")

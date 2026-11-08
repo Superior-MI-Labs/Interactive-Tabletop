@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.48.0
+# Interactive Tabletop architecture — v0.49.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -278,3 +278,12 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - Exact name/level/source matches on both sides take precedence; a change in source is matched by name/level only if unique in both lists. Unmatched records sharing a name/level across old and new are reported as ambiguous, not misleadingly counted as certain additions/removals. Changed spell levels remain explicit removal/addition, with no inferred continuity.
 - `spellReimportPreview` is a pure projection of actual reconciliation results. `importSummary` formats a bounded human-readable report; the modal escapes all imported text and caps scrolling to the viewport. The existing confirmation/commit flow remains unchanged. No staging store, new save schema or gameplay mutator was added.
 - Manual spells remain preserved by stable ID and imported records remain authoritative for new metadata. Ambiguous imported identities never inherit unverified preparation or configured effects. Active effects survive unrelated import changes.
+
+## v0.49 — Offensive target and Auto damage contracts
+
+- `DndAction.requireOffensiveTarget` rejects `self`, missing and removed opponent IDs. The same gate is used by the UI and must be used by future encounter-board and token controls; `self` remains legal for defensive and explicit HP/condition operations.
+- `selectedTargetId` is transient presentation state. A prepared dice group captures the original encounter `targetId`, unaffected by later selector changes. Invalidated/removed targets cannot receive settled automatic damage.
+- Per-target `auto_damage` is an explicit DM/player-reviewed permission on the existing target record. Editing damage traits revokes the permission; no parallel approval store or resolver is introduced. `canAutoEvaluateAttack` declines automatic hit verdicts where unqualified actor or target conditions may change attack semantics.
+- Only verified classified weapon/unarmed hits on target-approved creatures with a uniquely identified damage type from the attack entry (not a previously selected UI damage-type fallback) are automatically committed in Auto mode. All other rolls use the existing review path. Guided/Auto's inline Apply is a single approval; Manual adds an explicit dialog. The authoritative engine still plans and validates mitigated HP damage, and retains its bounded Undo.
+- Cover, full condition rules, Dodge, monster statblocks, automatic saving-throw rules and arbitrary homebrew remain unqualified. Unknown mechanics must be reviewed rather than invented.
+

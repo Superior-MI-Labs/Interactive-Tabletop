@@ -42,6 +42,7 @@ with sync_playwright() as pw:
  assert page.evaluate('character.resources["Level 1 Spell Slots"].current')==1
  page.wait_for_function('window.testVault.characters[0].character.resources["Level 1 Spell Slots"]?.current===1')
  page.get_by_role('tab',name='Actions').click()
+ page.evaluate("()=>{const target=Action.addTarget(character,{name:'Practice Opponent',ac:15,hp:25});selectedTargetId=target.id;render();}")
  page.locator('#dice-widget > summary').click() if page.locator('#dice-widget').get_attribute('open') is None else None
  page.locator('#d20-mode').select_option('advantage')
  page.locator('#dice-widget > summary').click() # Close floating controls before hitting the sheet

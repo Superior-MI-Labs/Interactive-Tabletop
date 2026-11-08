@@ -42,6 +42,7 @@ with sync_playwright() as pw:
  assert page.evaluate("Action.activeEffects(character)[0].bonus_mode")=='sustained'
  assert page.get_by_role('checkbox',name='Automatically use Bless').is_checked()
  page.get_by_role('tab',name='Actions').click()
+ page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Bless Target',ac:14,hp:30});selectedTargetId=foe.id;render();}")
  attack=page.get_by_role('button',name='Attack',exact=True).first
  attack.focus();page.keyboard.press('Enter')
  assert page.evaluate("pendingRoll?.rollKind === 'attack' && pendingRoll.bonuses?.length === 1 && pendingRoll.count === 2")
