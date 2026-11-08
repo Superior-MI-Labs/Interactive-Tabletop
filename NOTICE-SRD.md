@@ -8,12 +8,12 @@ This work includes material taken from the System Reference Document 5.1 (“SRD
 
 ## Changes to the source material
 
-We have converted selected SRD entries to versioned JSON, normalized some punctuation, and abbreviated or paraphrased descriptive text for compact lookup. The catalog is **not the complete SRD**. Refer to the [full SRD 5.1](https://media.dndbeyond.com/compendium-images/srd/5.1/SRD_CC_v5.1.pdf) for complete rules, limitations, and exceptions.
+We have converted selected SRD entries to versioned JSON, normalized some punctuation, and abbreviated or paraphrased spell, equipment, and condition descriptions for compact lookup. Condition card summaries are explanatory, not complete condition rules or approved automatic calculations. The catalog is **not the complete SRD**. Refer to the [full SRD 5.1](https://media.dndbeyond.com/compendium-images/srd/5.1/SRD_CC_v5.1.pdf) for complete rules, limitations, and exceptions.
 
 ## Edition and content scope
 
 - The catalog is **SRD 5.1 (2014-compatible)** only. It is not a 2024-compatible catalog.
-- It contains only selected spells, weapons, armor and adventuring gear. It does not include paid supplements, D&D Beyond account content, private characters, or unlicensed homebrew.
+- It contains selected spells, weapons, armor, adventuring gear, and 15 compact condition summaries. It does not include paid supplements, D&D Beyond account content, private characters, or unlicensed homebrew.
 - Read-only reference values **never replace** imported or player/DM-modified character data.
 - SRD references are not a claim that the app is affiliated with or endorsed by the SRD author.
 
