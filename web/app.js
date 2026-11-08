@@ -1083,13 +1083,13 @@ function handleAction(action,arg){
    const flow=Action.pendingWorkflow(character);
    if(!flow||flow.id!==arg||flow.status!=='optional-followup'){toast('No eligible follow-up.');break;}
    if(pendingRoll){toast('Finish the prepared dice first.');break;}
+   const returnTarget=requireCombatTarget();if(!returnTarget)break;
    dialog('Catch and return missile?',`Confirm with the DM: damage was reduced to zero; the projectile is small enough to catch, one hand is free, and the return target is within range. Spend ${flow.followup.cost} ${flow.followup.resource} ONLY if you choose to throw back. No second reaction is spent.`,()=>{
     try{
      const attack=Action.previewWorkflowFollowup(character,arg,{catchable:true,freeHand:true});
      const cfg=Action.dice(attack.roll);
      if(!canPrepareDice(cfg.count,cfg.sides))throw Error('Not enough room for return dice.');
-     const targetId=currentTargetId(),target=Action.targetById(character,targetId);
-     Action.requireOffensiveTarget(character,targetId);
+     const target=Action.requireOffensiveTarget(character,returnTarget.id),targetId=target.id;
      if(queueRoll(attack.roll,attack.label+' vs '+target.name,
       {kind:'target-attack',characterId:activeId,targetId,sourceId:attack.sourceId},'attack')){
       pendingRoll.workflowId=arg;
