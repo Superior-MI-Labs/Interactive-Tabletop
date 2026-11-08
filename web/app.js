@@ -1095,7 +1095,7 @@ function handleAction(action,arg){
    save();render();toast('Custom resource pool created.');
   }catch(e){toast(e.message);}break;
   case 'configure-spell-slots':try{
-   const level=Number(arg),row=$('#page [data-slot-level]').find(el=>Number(el.dataset.slotLevel)===level);
+   const level=Number(arg),row=$$('#page [data-slot-level]').find(el=>Number(el.dataset.slotLevel)===level);
    if(!row)throw Error('Spell slot editor is unavailable.');
    Action.configureSpellSlots(character,level,$('[data-slot-total]',row).valueAsNumber,$('[data-slot-remaining]',row).valueAsNumber);
    save();render();const settings=$('#page .spell-slot-settings');if(settings)settings.open=true;toast('Level '+level+' standard slots updated.');
