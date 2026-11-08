@@ -59,10 +59,6 @@ with sync_playwright() as pw:
  page.locator('[data-input="attacks.0.bonus"]').press('Tab')
  page.locator('[data-attack-type="0"]').select_option('weapon')
  page.locator('[data-attack-range="0"]').select_option('melee')
- page.locator('[data-view="inventory"]').click()
- assert page.evaluate('character.attacks[0].name')=='Training Spear'
- assert page.evaluate('character.attacks[0].attack_type')=='weapon'
- assert page.evaluate('character.attacks[0].attack_range')=='melee'
  # Reject invalid attack dice before saving; valid replacements remain editable.
  page.locator('[data-input="attacks.0.damage"]').fill('21d6')
  page.locator('[data-input="attacks.0.damage"]').press('Tab')
@@ -70,6 +66,10 @@ with sync_playwright() as pw:
  page.locator('[data-input="attacks.0.damage"]').fill('1d8+2')
  page.locator('[data-input="attacks.0.damage"]').press('Tab')
  assert page.evaluate('character.attacks[0].damage')=='1d8+2'
+ page.locator('[data-view="inventory"]').click()
+ assert page.evaluate('character.attacks[0].name')=='Training Spear'
+ assert page.evaluate('character.attacks[0].attack_type')=='weapon'
+ assert page.evaluate('character.attacks[0].attack_range')=='melee'
  # Optional spell draft does not grant a spell slot or enable automation.
  page.locator('[data-view="overview"]').click()
  setup.locator('.character-setup-row').filter(has_text='Spellbook (optional)').get_by_role('button',name='Open optional spells').click()
@@ -79,6 +79,7 @@ with sync_playwright() as pw:
  assert page.evaluate('Object.keys(character.resources).length')==0
  page.locator('[data-input="spells.0.name"]').fill('Light')
  page.locator('[data-input="spells.0.name"]').press('Tab')
+ page.locator('details[data-spell-id]').first.evaluate('(el)=>{el.open=true;}')
  page.locator('[data-spell-level="0"]').select_option('1')
  settings=page.locator('.spell-slot-settings')
  settings.locator('summary').click()
