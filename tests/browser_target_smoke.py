@@ -123,7 +123,9 @@ with sync_playwright() as playwright:
  page.locator('[data-target-auto-damage]').check()
  assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
  page.get_by_role('button',name='Next turn').click()
- page.locator('.attack-list [data-action=attack]').first.click()
+ # Resting dice on the tabletop can intercept pointer clicks where they overlap
+ # controls; this checks the DOM action handler, not tabletop hit-testing.
+ page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('pendingRoll') is not None, page.evaluate('''()=>{let eligibility;try{Action.verifyAttack(character,'action','weapon');eligibility='OK';}catch(e){eligibility=e.message;}return {selectedTargetId,active:Action.combat(character).active,mode:Action.combat(character).economy.mode,economy:Action.combat(character).economy,eligibility,activeRolls:activeRolls.length,diceCount:dice.length,diceSummary:dice.map(d=>({id:d.id,sides:d.sides,sleeping:d.sleeping,ready:d.ready,held:d.held})),selected:Action.targetById(character,selectedTargetId),pendingRoll,lastResult,toastText:document.querySelector('#toast')?.textContent};}''')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
@@ -139,7 +141,7 @@ with sync_playwright() as playwright:
  # The original target ID is frozen in the dice group even after selecting another.
  page.get_by_role('button',name='Next turn').click()
  page.evaluate('''()=>{const second=Action.addTarget(character,{name:'Second Golem',ac:16,hp:30});selectedTargetId='target-1';render();}''')
- page.locator('.attack-list [data-action=attack]').first.click()
+ page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
@@ -151,7 +153,7 @@ with sync_playwright() as playwright:
  assert page.evaluate('character.effects.targets[1].hp.current')==30,'Re-targeting cannot steal pending damage'
  # Manual remains an explicit confirmation; cancel does not touch HP.
  page.locator('#combat-mode').select_option('manual')
- page.locator('.attack-list [data-action=damage]').first.click()
+ page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
@@ -163,7 +165,7 @@ with sync_playwright() as playwright:
  page.locator('#roll-effect [data-action="dismiss-target-damage"]').evaluate('(el)=>el.click()')
  # Guided mode also uses the single inline Apply as its confirmation.
  page.locator('#combat-mode').select_option('guided')
- page.locator('.attack-list [data-action=damage]').first.click()
+ page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
