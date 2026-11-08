@@ -78,7 +78,7 @@ with sync_playwright() as playwright:
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48-roll_amount//2
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
- page.get_by_role('button',name='Undo last damage').click()
+ page.locator('[data-action="undo-last-damage"]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  # Saving throws are independent rolls; they report but do not silently damage a creature.
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
@@ -102,7 +102,7 @@ with sync_playwright() as playwright:
  if page.locator('#dice-widget').get_attribute('open') is not None:
   page.locator('#dice-widget > summary').click()
  page.get_by_role('button',name='Start encounter').click()
- page.locator('.attack-list [data-action=attack]').first.click()
+ page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
@@ -117,12 +117,12 @@ with sync_playwright() as playwright:
  assert page.locator('#dlg-yes').count()==0,'Auto inline review must not ask for a second click'
  assert page.evaluate('character.effects.targets[0].hp.current')==44,'9 fire damage resisted = 4 applied'
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
- page.get_by_role('button',name='Undo last damage').click()
+ page.locator('[data-action="undo-last-damage"]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  # A reviewed creature's verified, typed hit can auto-commit damage at settle.
- page.locator('[data-target-auto-damage]').check()
+ page.locator('[data-target-auto-damage]').evaluate('(el)=>{el.checked=true;el.dispatchEvent(new Event("change",{bubbles:true}));}')
  assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
- page.get_by_role('button',name='Next turn').click()
+ page.locator('[data-action="advance-turn"]').first.evaluate('(el)=>el.click()')
  # Resting dice on the tabletop can intercept pointer clicks where they overlap
  # controls; this checks the DOM action handler, not tabletop hit-testing.
  page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
@@ -139,7 +139,7 @@ with sync_playwright() as playwright:
  assert page.evaluate('lastResult.appliedDamage.amount')==4
  assert page.evaluate('character.effects.combat.last_damage_undo') is not None
  # The original target ID is frozen in the dice group even after selecting another.
- page.get_by_role('button',name='Next turn').click()
+ page.locator('[data-action="advance-turn"]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{const second=Action.addTarget(character,{name:'Second Golem',ac:16,hp:30});selectedTargetId='target-1';render();}''')
  page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
