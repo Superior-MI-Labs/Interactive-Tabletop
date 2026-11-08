@@ -7,7 +7,7 @@
 
 > **v0.42.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.42.0.zip) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.42.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -129,7 +129,7 @@ The release publisher requires Playwright and Chromium to be installed for local
 
 ## Development and architecture
 
-**For a new developer or AI agent:** start with [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) for the current verified release, last completed work, architectural reasoning, known risks and next milestone. [AGENTS.md](AGENTS.md) contains binding engineering rules, while [ARCHITECTURE.md](ARCHITECTURE.md) and [CHANGELOG.md](CHANGELOG.md) contain the durable system contracts and release history.
+**Want an AI agent to make something?** [AI_START_HERE.md](AI_START_HERE.md) has one copy/paste prompt: replace the idea line, then let the agent read [AGENTS.md](AGENTS.md) and [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md). Detailed [architecture](ARCHITECTURE.md), [rules](RULESET_AUTOMATION_CONTRACT.md), and [release history](CHANGELOG.md) are read only when relevant.
 
 - `web/` — canonical vanilla JavaScript/CSS app and UI assets.
 - `docs/` — built GitHub Pages site. **Do not edit generated UI assets here manually.**

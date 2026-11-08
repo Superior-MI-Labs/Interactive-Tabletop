@@ -1,4 +1,6 @@
-# Ruleset and effect automation contract (v0.41 alpha)
+# Ruleset and effect automation contract
+
+Living engine contract. Check `VERSION` and `CHANGELOG.md` for the current shipped version; this document is not a second rules engine.
 
 ## Source of truth
 

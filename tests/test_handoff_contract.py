@@ -19,6 +19,22 @@ class ProjectHandoffContractTests(unittest.TestCase):
         ):
             self.assertIn(heading, handoff)
 
+    def test_copy_paste_agent_entry_point(self):
+        starter = (ROOT / "AI_START_HERE.md").read_text(encoding="utf-8")
+        agent = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("What I want to make or fix:", starter)
+        self.assertIn("AGENTS.md and PROJECT_HANDOFF.md", starter)
+        self.assertEqual(starter.count("```text"), 1)
+        self.assertIn("AI_START_HERE.md", readme)
+        self.assertIn("AI_START_HERE.md",
+                      (ROOT / "PROJECT_HANDOFF.md").read_text(encoding="utf-8"))
+        self.assertLess(len(agent), 6000)
+        self.assertIn("bash tools/qualify.sh", agent)
+        self.assertIn("web/dnd-action.js", agent)
+        self.assertIn("web/vault-store.js", agent)
+        self.assertNotRegex(agent, r"(?m)^## .*\\(v0\\.\\d+\\)")
+
     def test_checkpoint_is_in_agent_and_reader_entry_points(self):
         for name in ("AGENTS.md", "README.md"):
             self.assertIn("PROJECT_HANDOFF.md",

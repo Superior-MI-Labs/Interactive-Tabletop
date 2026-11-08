@@ -131,4 +131,6 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 5. Replace **Next milestone** with one actionable, bounded plan, alternatives considered and acceptance criteria. Leave enough information for a new agent with no chat history.
 6. Keep `AGENTS.md` and this file discoverable from `README.md`. The small `tests/test_handoff_contract.py` gate verifies the version and those links, preventing silent drift.
 
+**Coding-agent instruction audit (2026-11-07):** Added [`AI_START_HERE.md`](AI_START_HERE.md), a one-line-customizable coding prompt. Consolidated `AGENTS.md` into version-neutral rules and linked detailed system contracts instead of accumulating versioned instructions. Updated `tests/test_handoff_contract.py` to check the starter, file links and document size. This was **documentation/process only**, not a new application version; the v0.42.0 implementation checkpoint and next gameplay milestone are unchanged.
+
 **Checkpoint note (2026-11-07):** Documentation/process update only. No code behavior or release version changed. Last completed application work remains v0.42.0 (Mara demo guided practice and independent creature-turn overview). Next person should inspect current production behavior before implementing the candidate navigation/onboarding patch.
