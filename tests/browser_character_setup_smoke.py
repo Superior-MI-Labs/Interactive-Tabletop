@@ -74,6 +74,7 @@ with sync_playwright() as pw:
  page.locator('[data-view="overview"]').click()
  setup.locator('.character-setup-row').filter(has_text='Spellbook (optional)').get_by_role('button',name='Open optional spells').click()
  page.get_by_role('button',name='+ Spell').click()
+ assert page.locator('details[data-spell-id]').first.get_attribute('open') is not None,'New spell editor must open automatically'
  assert page.evaluate('character.spells[0].level') is None
  assert page.evaluate('character.spells[0].automation')=='manual'
  assert page.evaluate('Object.keys(character.resources).length')==0
