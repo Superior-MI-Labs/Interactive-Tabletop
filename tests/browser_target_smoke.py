@@ -124,10 +124,11 @@ with sync_playwright() as playwright:
  assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
  page.get_by_role('button',name='Next turn').click()
  page.locator('.attack-list [data-action=attack]').first.click()
+ assert page.evaluate('pendingRoll') is not None, page.evaluate('''()=>({selectedTargetId,mode:Action.combat(character).economy.mode,combat:Action.combat(character).economy,pendingRoll,lastResult})''')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
- assert page.evaluate('pendingRoll?.expression')=='1d8+4'
+ assert page.evaluate('pendingRoll?.expression')=='1d8+4', page.evaluate('''()=>({selectedTargetId,mode:Action.combat(character).economy.mode,combat:Action.combat(character).economy,lastResult,lastAttackOutcome,queuedEffect,pendingRoll})''')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
