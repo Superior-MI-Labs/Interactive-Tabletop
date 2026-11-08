@@ -1,14 +1,14 @@
 {
   "schema": "interactive-tabletop-reference/1",
   "edition": "dnd-2014",
-  "catalog_version": "0.17.0",
+  "catalog_version": "0.50.0",
   "source": {
     "id": "srd-5.1",
     "name": "System Reference Document 5.1",
     "license": "CC-BY-4.0",
     "source_url": "https://media.dndbeyond.com/compendium-images/srd/5.1/SRD_CC_v5.1.pdf",
     "attribution": "This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.",
-    "modifications": "Curated SRD spell metadata and short descriptions are structured and paraphrased for lookup. These are summaries, not the complete spell rules; follow the linked SRD and your DM for all requirements, exceptions, and upcasting.",
+    "modifications": "Curated SRD spell metadata and short descriptions are structured and paraphrased for lookup. These are summaries, not the complete spell rules; follow the linked SRD and your DM for all requirements, exceptions, and upcasting. Added short paraphrased 2014 condition summaries for hover/reference use; they are explanatory only and never infer automation.",
     "verification": "SRD 5.1 official document; 2014 spell metadata also cross-referenced against the archived 5e-bits SRD database (commit c59553ae0d80d24f9801b21761aa7c851da28999)."
   },
   "spells": [
@@ -1903,7 +1903,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "1 sp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d4 bludgeoning",
       "properties": "Light",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1916,7 +1916,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "2 gp",
-      "weight_lb": 1.0,
+      "weight_lb": 1,
       "damage": "1d4 piercing",
       "properties": "Finesse, light, thrown (20/60)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1929,7 +1929,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "2 sp",
-      "weight_lb": 10.0,
+      "weight_lb": 10,
       "damage": "1d8 bludgeoning",
       "properties": "Two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1942,7 +1942,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "5 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d6 slashing",
       "properties": "Light, thrown (20/60)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1955,7 +1955,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "5 sp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d6 piercing",
       "properties": "Thrown (30/120)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1968,7 +1968,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "2 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d4 bludgeoning",
       "properties": "Light, thrown (20/60)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1981,7 +1981,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "5 gp",
-      "weight_lb": 4.0,
+      "weight_lb": 4,
       "damage": "1d6 bludgeoning",
       "properties": "",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -1994,7 +1994,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "2 sp",
-      "weight_lb": 4.0,
+      "weight_lb": 4,
       "damage": "1d6 bludgeoning",
       "properties": "Versatile (1d8)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2007,7 +2007,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "1 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d4 slashing",
       "properties": "Light",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2020,7 +2020,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "1 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "damage": "1d6 piercing",
       "properties": "Thrown (20/60), versatile (1d8)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2033,7 +2033,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "25 gp",
-      "weight_lb": 5.0,
+      "weight_lb": 5,
       "damage": "1d8 piercing",
       "properties": "Ammunition (80/320), loading, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2059,7 +2059,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "25 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d6 piercing",
       "properties": "Ammunition (80/320), two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2085,7 +2085,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "10 gp",
-      "weight_lb": 4.0,
+      "weight_lb": 4,
       "damage": "1d8 slashing",
       "properties": "Versatile (1d10)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2098,7 +2098,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "10 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d8 bludgeoning",
       "properties": "",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2111,7 +2111,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "20 gp",
-      "weight_lb": 6.0,
+      "weight_lb": 6,
       "damage": "1d10 slashing",
       "properties": "Heavy, reach, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2124,7 +2124,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "30 gp",
-      "weight_lb": 7.0,
+      "weight_lb": 7,
       "damage": "1d12 slashing",
       "properties": "Heavy, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2137,7 +2137,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "50 gp",
-      "weight_lb": 6.0,
+      "weight_lb": 6,
       "damage": "2d6 slashing",
       "properties": "Heavy, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2150,7 +2150,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "20 gp",
-      "weight_lb": 6.0,
+      "weight_lb": 6,
       "damage": "1d10 slashing",
       "properties": "Heavy, reach, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2163,7 +2163,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "10 gp",
-      "weight_lb": 6.0,
+      "weight_lb": 6,
       "damage": "1d12 piercing",
       "properties": "Reach, special",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2176,7 +2176,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "15 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "damage": "1d8 slashing",
       "properties": "Versatile (1d10)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2189,7 +2189,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "10 gp",
-      "weight_lb": 10.0,
+      "weight_lb": 10,
       "damage": "2d6 bludgeoning",
       "properties": "Heavy, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2202,7 +2202,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "15 gp",
-      "weight_lb": 4.0,
+      "weight_lb": 4,
       "damage": "1d8 piercing",
       "properties": "",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2215,7 +2215,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "5 gp",
-      "weight_lb": 18.0,
+      "weight_lb": 18,
       "damage": "1d10 piercing",
       "properties": "Heavy, reach, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2228,7 +2228,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "25 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d8 piercing",
       "properties": "Finesse",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2241,7 +2241,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "25 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "damage": "1d6 slashing",
       "properties": "Finesse, light",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2254,7 +2254,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "10 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d6 piercing",
       "properties": "Finesse, light",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2267,7 +2267,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "5 gp",
-      "weight_lb": 4.0,
+      "weight_lb": 4,
       "damage": "1d6 piercing",
       "properties": "Thrown (20/60), versatile (1d8)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2280,7 +2280,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "5 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d8 piercing",
       "properties": "",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2293,7 +2293,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "15 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d8 bludgeoning",
       "properties": "Versatile (1d10)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2306,7 +2306,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "2 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "damage": "1d4 slashing",
       "properties": "Finesse, reach",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2319,7 +2319,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "10 gp",
-      "weight_lb": 1.0,
+      "weight_lb": 1,
       "damage": "1 piercing",
       "properties": "Ammunition (25/100), loading",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2332,7 +2332,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "75 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "damage": "1d6 piercing",
       "properties": "Ammunition (30/120), light, loading",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2345,7 +2345,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "50 gp",
-      "weight_lb": 18.0,
+      "weight_lb": 18,
       "damage": "1d10 piercing",
       "properties": "Ammunition (100/400), heavy, loading, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2358,7 +2358,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "50 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "damage": "1d8 piercing",
       "properties": "Ammunition (150/600), heavy, two-handed",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2371,7 +2371,7 @@
       "source_id": "srd-5.1",
       "category": "weapon",
       "cost": "1 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "damage": "—",
       "properties": "Special, thrown (5/15)",
       "description": "Standard weapon statistics; a character’s imported attack bonus and custom damage remain authoritative."
@@ -2384,7 +2384,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "5 gp",
-      "weight_lb": 8.0,
+      "weight_lb": 8,
       "armor_class": "11 + Dex modifier",
       "properties": "Disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2397,7 +2397,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "10 gp",
-      "weight_lb": 10.0,
+      "weight_lb": 10,
       "armor_class": "11 + Dex modifier",
       "properties": "",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2410,7 +2410,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "45 gp",
-      "weight_lb": 13.0,
+      "weight_lb": 13,
       "armor_class": "12 + Dex modifier",
       "properties": "",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2423,7 +2423,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "10 gp",
-      "weight_lb": 12.0,
+      "weight_lb": 12,
       "armor_class": "12 + Dex modifier (max 2)",
       "properties": "",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2436,7 +2436,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "50 gp",
-      "weight_lb": 20.0,
+      "weight_lb": 20,
       "armor_class": "13 + Dex modifier (max 2)",
       "properties": "",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2449,7 +2449,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "50 gp",
-      "weight_lb": 45.0,
+      "weight_lb": 45,
       "armor_class": "14 + Dex modifier (max 2)",
       "properties": "Disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2462,7 +2462,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "400 gp",
-      "weight_lb": 20.0,
+      "weight_lb": 20,
       "armor_class": "14 + Dex modifier (max 2)",
       "properties": "",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2475,7 +2475,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "750 gp",
-      "weight_lb": 40.0,
+      "weight_lb": 40,
       "armor_class": "15 + Dex modifier (max 2)",
       "properties": "Disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2488,7 +2488,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "30 gp",
-      "weight_lb": 40.0,
+      "weight_lb": 40,
       "armor_class": "14",
       "properties": "Disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2501,7 +2501,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "75 gp",
-      "weight_lb": 55.0,
+      "weight_lb": 55,
       "armor_class": "16",
       "properties": "Strength 13; disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2514,7 +2514,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "200 gp",
-      "weight_lb": 60.0,
+      "weight_lb": 60,
       "armor_class": "17",
       "properties": "Strength 15; disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2527,7 +2527,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "1500 gp",
-      "weight_lb": 65.0,
+      "weight_lb": 65,
       "armor_class": "18",
       "properties": "Strength 15; disadvantage on Stealth",
       "description": "Standard armor statistics; does not override character AC or DM-approved item effects."
@@ -2540,7 +2540,7 @@
       "source_id": "srd-5.1",
       "category": "armor",
       "cost": "10 gp",
-      "weight_lb": 6.0,
+      "weight_lb": 6,
       "armor_class": "+2 AC",
       "properties": "",
       "description": "Standard nonmagical shield grants +2 AC when worn. Does not override DM-approved shield properties."
@@ -2553,7 +2553,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:acidvial",
@@ -2563,7 +2563,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "25 gp",
-      "weight_lb": 1.0,
+      "weight_lb": 1,
       "description": "Use an action to splash or throw as an improvised attack; a hit deals 2d6 acid damage."
     },
     {
@@ -2574,7 +2574,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "50 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:arrows20",
@@ -2584,7 +2584,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:blowgunneedles50",
@@ -2594,7 +2594,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:crossbowbolts20",
@@ -2635,7 +2635,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:orb",
@@ -2645,7 +2645,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "20 gp",
-      "weight_lb": 3.0
+      "weight_lb": 3
     },
     {
       "id": "srd51:equipment:rod",
@@ -2655,7 +2655,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:staff",
@@ -2665,7 +2665,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:wand",
@@ -2675,7 +2675,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:backpack",
@@ -2685,7 +2685,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:ballbearingsbagof1000",
@@ -2695,7 +2695,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "description": "As an action, spread across a 10-foot square; a creature moving through normally risks falling prone (DC 10 Dexterity save)."
     },
     {
@@ -2706,7 +2706,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 70.0
+      "weight_lb": 70
     },
     {
       "id": "srd51:equipment:basket",
@@ -2716,7 +2716,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "4 sp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:bedroll",
@@ -2726,7 +2726,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 7.0
+      "weight_lb": 7
     },
     {
       "id": "srd51:equipment:bell",
@@ -2746,7 +2746,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 sp",
-      "weight_lb": 3.0
+      "weight_lb": 3
     },
     {
       "id": "srd51:equipment:blockandtackle",
@@ -2756,7 +2756,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:book",
@@ -2766,7 +2766,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "25 gp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:bottleglass",
@@ -2776,7 +2776,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:bucket",
@@ -2786,7 +2786,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 cp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:caltropsbagof20",
@@ -2796,7 +2796,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 2.0,
+      "weight_lb": 2,
       "description": "As an action, spread across a 5-foot square; moving creatures risk taking 1 piercing damage and reduced speed (DC 15 Dexterity save)."
     },
     {
@@ -2817,7 +2817,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:casemaporscroll",
@@ -2827,7 +2827,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:chain10feet",
@@ -2837,7 +2837,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 10.0
+      "weight_lb": 10
     },
     {
       "id": "srd51:equipment:chalk1piece",
@@ -2857,7 +2857,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 25.0
+      "weight_lb": 25
     },
     {
       "id": "srd51:equipment:climberskit",
@@ -2867,7 +2867,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "25 gp",
-      "weight_lb": 12.0
+      "weight_lb": 12
     },
     {
       "id": "srd51:equipment:clothescommon",
@@ -2877,7 +2877,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 sp",
-      "weight_lb": 3.0
+      "weight_lb": 3
     },
     {
       "id": "srd51:equipment:clothescostume",
@@ -2887,7 +2887,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:clothesfine",
@@ -2897,7 +2897,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "15 gp",
-      "weight_lb": 6.0
+      "weight_lb": 6
     },
     {
       "id": "srd51:equipment:clothestravelers",
@@ -2907,7 +2907,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:componentpouch",
@@ -2917,7 +2917,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "25 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:crowbar",
@@ -2927,7 +2927,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:sprigofmistletoe",
@@ -2957,7 +2957,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:yewwand",
@@ -2967,7 +2967,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:fishingtackle",
@@ -2977,7 +2977,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:flaskortankard",
@@ -2987,7 +2987,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 cp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:grapplinghook",
@@ -2997,7 +2997,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:hammer",
@@ -3007,7 +3007,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 3.0
+      "weight_lb": 3
     },
     {
       "id": "srd51:equipment:hammersledge",
@@ -3017,7 +3017,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 10.0
+      "weight_lb": 10
     },
     {
       "id": "srd51:equipment:healerskit",
@@ -3027,7 +3027,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 3.0
+      "weight_lb": 3
     },
     {
       "id": "srd51:equipment:amulet",
@@ -3037,7 +3037,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:emblem",
@@ -3057,7 +3057,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:holywaterflask",
@@ -3067,7 +3067,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "25 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:hourglass",
@@ -3077,7 +3077,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "25 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:huntingtrap",
@@ -3087,7 +3087,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 25.0
+      "weight_lb": 25
     },
     {
       "id": "srd51:equipment:ink1ouncebottle",
@@ -3117,7 +3117,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 cp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:ladder10foot",
@@ -3127,7 +3127,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 sp",
-      "weight_lb": 25.0
+      "weight_lb": 25
     },
     {
       "id": "srd51:equipment:lamp",
@@ -3137,7 +3137,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 sp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:lanternbullseye",
@@ -3147,7 +3147,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:lanternhooded",
@@ -3157,7 +3157,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:lock",
@@ -3167,7 +3167,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:magnifyingglass",
@@ -3187,7 +3187,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 6.0
+      "weight_lb": 6
     },
     {
       "id": "srd51:equipment:messkit",
@@ -3197,7 +3197,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 sp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:mirrorsteel",
@@ -3217,7 +3217,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 sp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:paperonesheet",
@@ -3257,7 +3257,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 10.0
+      "weight_lb": 10
     },
     {
       "id": "srd51:equipment:piton",
@@ -3287,7 +3287,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 cp",
-      "weight_lb": 7.0
+      "weight_lb": 7
     },
     {
       "id": "srd51:equipment:potiron",
@@ -3297,7 +3297,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 10.0
+      "weight_lb": 10
     },
     {
       "id": "srd51:equipment:potionofhealing",
@@ -3321,7 +3321,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 sp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:quiver",
@@ -3331,7 +3331,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:ramportable",
@@ -3341,7 +3341,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "4 gp",
-      "weight_lb": 35.0
+      "weight_lb": 35
     },
     {
       "id": "srd51:equipment:rations1day",
@@ -3351,7 +3351,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 sp",
-      "weight_lb": 2.0
+      "weight_lb": 2
     },
     {
       "id": "srd51:equipment:robes",
@@ -3361,7 +3361,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 4.0
+      "weight_lb": 4
     },
     {
       "id": "srd51:equipment:ropehempen50feet",
@@ -3371,7 +3371,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 10.0,
+      "weight_lb": 10,
       "description": "Rope has 2 hit points and can be burst with a DC 17 Strength check.",
       "aliases": [
         "Rope, Hempen (50 feet)",
@@ -3386,7 +3386,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "10 gp",
-      "weight_lb": 5.0,
+      "weight_lb": 5,
       "description": "Rope has 2 hit points and can be burst with a DC 17 Strength check."
     },
     {
@@ -3407,7 +3407,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 gp",
-      "weight_lb": 3.0
+      "weight_lb": 3
     },
     {
       "id": "srd51:equipment:sealingwax",
@@ -3427,7 +3427,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:signalwhistle",
@@ -3467,7 +3467,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "50 gp",
-      "weight_lb": 3.0,
+      "weight_lb": 3,
       "description": "A leather-bound book with 100 blank vellum pages for recording spells."
     },
     {
@@ -3478,7 +3478,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 gp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:spyglass",
@@ -3488,7 +3488,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1000 gp",
-      "weight_lb": 1.0
+      "weight_lb": 1
     },
     {
       "id": "srd51:equipment:tenttwoperson",
@@ -3498,7 +3498,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 gp",
-      "weight_lb": 20.0
+      "weight_lb": 20
     },
     {
       "id": "srd51:equipment:tinderbox",
@@ -3508,7 +3508,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "5 sp",
-      "weight_lb": 1.0,
+      "weight_lb": 1,
       "description": "Lighting a torch is an action; lighting a more difficult fire takes one minute."
     },
     {
@@ -3519,7 +3519,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 cp",
-      "weight_lb": 1.0,
+      "weight_lb": 1,
       "description": "Burns for 1 hour, shedding bright light for 20 feet and dim light for 20 more."
     },
     {
@@ -3540,7 +3540,7 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "2 sp",
-      "weight_lb": 5.0
+      "weight_lb": 5
     },
     {
       "id": "srd51:equipment:whetstone",
@@ -3550,7 +3550,129 @@
       "source_id": "srd-5.1",
       "category": "gear",
       "cost": "1 cp",
-      "weight_lb": 1.0
+      "weight_lb": 1
+    }
+  ],
+  "conditions": [
+    {
+      "id": "srd51:condition:blinded",
+      "name": "Blinded",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Cannot see and fails checks requiring sight. Its attacks have disadvantage; attacks against it have advantage."
+    },
+    {
+      "id": "srd51:condition:charmed",
+      "name": "Charmed",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Cannot attack or target the charmer with harmful abilities or magical effects. The charmer has advantage on social interaction checks with it."
+    },
+    {
+      "id": "srd51:condition:deafened",
+      "name": "Deafened",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Cannot hear and fails ability checks requiring hearing."
+    },
+    {
+      "id": "srd51:condition:exhaustion",
+      "name": "Exhaustion",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Has six cumulative severity levels. The penalties grow from disadvantage on checks through movement, attacks, saves and maximum HP; level six causes death. Track the level with the DM, not this on/off icon."
+    },
+    {
+      "id": "srd51:condition:frightened",
+      "name": "Frightened",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Has disadvantage on attack rolls and ability checks while the source of fear is in sight; cannot willingly move closer to that source."
+    },
+    {
+      "id": "srd51:condition:grappled",
+      "name": "Grappled",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Speed becomes zero; it gains no movement bonuses. The grapple may end when the grappler is incapacitated or the target is moved beyond reach."
+    },
+    {
+      "id": "srd51:condition:incapacitated",
+      "name": "Incapacitated",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Cannot take actions or reactions. Other conditions may add further restrictions."
+    },
+    {
+      "id": "srd51:condition:invisible",
+      "name": "Invisible",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Cannot be seen without special senses or magic. Its attacks generally have advantage; attacks against it generally have disadvantage. Actual perception and positioning still matter."
+    },
+    {
+      "id": "srd51:condition:paralyzed",
+      "name": "Paralyzed",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Incapacitated; cannot move or speak. Automatically fails Strength and Dexterity saves; attacks against it have advantage, and hits from within 5 feet are critical."
+    },
+    {
+      "id": "srd51:condition:petrified",
+      "name": "Petrified",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Transformed into a solid substance; incapacitated, unable to move or speak, unaware, and restrained. Has resistance to all damage and immunity to poison and disease under the 2014 rules."
+    },
+    {
+      "id": "srd51:condition:poisoned",
+      "name": "Poisoned",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Has disadvantage on attack rolls and ability checks."
+    },
+    {
+      "id": "srd51:condition:prone",
+      "name": "Prone",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "May crawl or spend movement to stand. Its own attacks have disadvantage; attacks from within 5 feet have advantage, while farther attacks have disadvantage."
+    },
+    {
+      "id": "srd51:condition:restrained",
+      "name": "Restrained",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Speed is zero. Its attacks have disadvantage, attacks against it have advantage, and its Dexterity saving throws have disadvantage."
+    },
+    {
+      "id": "srd51:condition:stunned",
+      "name": "Stunned",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Incapacitated; cannot move and can speak only falteringly. Automatically fails Strength and Dexterity saves; attackers have advantage."
+    },
+    {
+      "id": "srd51:condition:unconscious",
+      "name": "Unconscious",
+      "kind": "condition",
+      "edition": "dnd-2014",
+      "source_id": "srd-5.1",
+      "description": "Incapacitated, unaware, unable to move or speak, and prone; drops held items. Fails Strength and Dexterity saves; attackers have advantage, and hits within 5 feet are critical."
     }
   ]
 }

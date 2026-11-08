@@ -4,12 +4,13 @@
 (function(root){'use strict';
 let catalog=null,index=new Map();
 const norm=x=>String(x??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const validKinds=new Set(['spell','equipment']);
+const validKinds=new Set(['spell','equipment','condition']);
 function validate(data){
- if(!data||data.schema!=='interactive-tabletop-reference/1'||data.edition!=='dnd-2014'||data.source?.id!=='srd-5.1'||!Array.isArray(data.spells)||!Array.isArray(data.equipment))throw Error('Invalid D&D reference catalog');
+ if(!data||data.schema!=='interactive-tabletop-reference/1'||data.edition!=='dnd-2014'||data.source?.id!=='srd-5.1'||!Array.isArray(data.spells)||!Array.isArray(data.equipment)||(data.conditions!==undefined&&!Array.isArray(data.conditions)))throw Error('Invalid D&D reference catalog');
  const seen=new Set();
- for(const [kind,records] of [['spell',data.spells],['equipment',data.equipment]])for(const r of records){
+ for(const [kind,records] of [['spell',data.spells],['equipment',data.equipment],['condition',data.conditions||[]]])for(const r of records){
   if(!r||r.kind!==kind||r.edition!==data.edition||r.source_id!==data.source.id||!r.name||!r.id||seen.has(r.id)||!r.id.startsWith('srd51:'))throw Error('Invalid or duplicate reference record');
+  if(kind==='condition'&&(typeof r.description!=='string'||!r.description.trim()||r.description.length>800||r.automation!==undefined))throw Error('Invalid condition reference');
   if(r.aliases!==undefined&&(!Array.isArray(r.aliases)||r.aliases.some(a=>typeof a!=='string'||!a.trim())))throw Error('Invalid reference aliases');
   if(r.automation!==undefined){
    const a=r.automation;
@@ -27,7 +28,7 @@ function validate(data){
  return data;
 }
 function init(data){catalog=validate(data);index=new Map();
- for(const [kind,records] of [['spell',catalog.spells],['equipment',catalog.equipment]])for(const item of records){
+ for(const [kind,records] of [['spell',catalog.spells],['equipment',catalog.equipment],['condition',catalog.conditions||[]]])for(const item of records){
   for(const name of [item.name,...(item.aliases||[])]){
    const key=kind+':'+norm(name);
    // Never silently choose between ambiguous aliases.
@@ -91,7 +92,7 @@ function actionDraft(record){
  reference_id:record.id,source:'manual',archived:false};
 }
 
-function list(kind){if(!catalog)return [];return kind==='spell'?[...catalog.spells]:kind==='equipment'?[...catalog.equipment]:[...catalog.spells,...catalog.equipment];}
+function list(kind){if(!catalog)return [];return kind==='spell'?[...catalog.spells]:kind==='equipment'?[...catalog.equipment]:kind==='condition'?[...(catalog.conditions||[])]:[...catalog.spells,...catalog.equipment];}
 const api={init,load,match,list,compareSpell,actionDraft,source:()=>catalog?.source||null,counts:()=>({spells:catalog?.spells.length||0,equipment:catalog?.equipment.length||0}),ready:()=>Boolean(catalog)};
 root.ReferenceCatalog=api;
 if(typeof module==='object'&&module.exports)module.exports=api;

@@ -1,3 +1,11 @@
+## v0.50.0 — One fast hover/card presenter and compact active-condition HUD
+
+- Consolidated browser-native title hints and custom `data-tip` into the existing instant HUD tooltip. Optional structured title/details/source cards use the same owner, with keyboard focus, Escape, safe text rendering, and deliberate click-to-pin info controls for touch users.
+- Consolidated the condition panel and active condition chips visually: the Effects strip shows active condition icons once; `+ Conditions` reveals the existing manual toggle icons. Character condition flags, source grants, durations, concentration, and effect records retain their original owners.
+- Added 15 short, read-only 2014 condition reference summaries to `web/dnd-2014-reference.json` and its existing validated catalog index. Explicitly revised-edition characters do not receive 2014 rules text. Summaries are explanatory only, not automation permissions.
+- Enriched active effect cards from existing live effect data (bonus dice, charges, concentration, AC modifiers, remaining duration) rather than guessing homebrew mechanics or fetching remote content on hover.
+- Added catalog validation and a browser hover/status regression covering provenance, pin/focus, inactive picker, unknown edition, untrusted labels and narrow layouts. No vault schema, combat engine, or GitHub workflow changes.
+
 ## v0.49.0 — Explicit target safety and verified Auto damage
 
 - Added a shared `DndAction.requireOffensiveTarget` gate used by normal/bonus attacks, manual damage, attack-like ability rolls and configured damage actions/spells. The default self/saving-throw target can no longer silently receive offensive damage.

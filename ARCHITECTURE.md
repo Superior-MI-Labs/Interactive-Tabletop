@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.49.0
+# Interactive Tabletop architecture — v0.50.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -286,4 +286,12 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - Per-target `auto_damage` is an explicit DM/player-reviewed permission on the existing target record. Editing damage traits revokes the permission; no parallel approval store or resolver is introduced. `canAutoEvaluateAttack` declines automatic hit verdicts where unqualified actor or target conditions may change attack semantics.
 - Only verified classified weapon/unarmed hits on target-approved creatures with a uniquely identified damage type from the attack entry (not a previously selected UI damage-type fallback) are automatically committed in Auto mode. All other rolls use the existing review path. Guided/Auto's inline Apply is a single approval; Manual adds an explicit dialog. The authoritative engine still plans and validates mitigated HP damage, and retains its bounded Undo.
 - Cover, full condition rules, Dodge, monster statblocks, automatic saving-throw rules and arbitrary homebrew remain unqualified. Unknown mechanics must be reviewed rather than invented.
+
+## v0.50 — Unified hover cards; statuses remain a view of canonical state
+
+- The existing `#hud-tooltip` in `web/app.js` is the sole quick-help/card renderer. `data-tip` is the immediate label; optional `data-tip-detail` and `data-tip-source` add a concise card. Browser-native `title` is migrated on first hover/focus to this owner, preventing competing delayed popups. All text uses DOM `textContent`, never untrusted HTML; status info controls explicitly pin for touch; focus and Escape work without adding another library.
+- `buffBar()` projects active `character.conditions` as icons alongside `Action.activeEffects` and concentration checks. `conditionRail()` now renders only the manual toggle grid behind the existing Conditions panel-state key in the same Effects bar. Neither status projection owns or saves a condition.
+- `Action.conditionGrants` and effect ownership/expiry remain authoritative in `web/dnd-action.js`. A displayed status may have multiple sources; clicking its info icon does not toggle or end grants. The manual picker continues to use the engine's `setTargetCondition` gate, including refusal to clear a live effect-owned condition.
+- `web/dnd-2014-reference.json` adds 15 SRD 5.1 condition descriptions. `web/reference-catalog.js` validates and matches them by edition without changing the existing 261 spell/equipment browse records or qualified automation. 2024 and unknown conditions get an explicit manual/unsupported explanation; no source guessing or hidden server calls.
+- This batch intentionally does not automate disadvantage/advantage from condition text, add Doom/Dodge mechanics, or merge spell and condition stores. Any later rule automation requires a separate evidence/edition contract.
 

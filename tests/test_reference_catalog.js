@@ -7,6 +7,12 @@ const json=JSON.parse(fs.readFileSync(path.join(dir,'dnd-2014-reference.json'),'
 assert.equal(Catalog.init(json).schema,'interactive-tabletop-reference/1');
 assert.equal(Catalog.list('spell').length,112);
 assert.equal(Catalog.list('equipment').length,149);
+// 2014 condition explanations share the read-only catalog, not character state.
+assert.equal(Catalog.list('condition').length,15);
+assert.equal(Catalog.list().length,261,'Existing spell/equipment Reference browser does not change');
+assert.match(Catalog.match('condition','Invisible','dnd-2014').description,/attacks/);
+assert.equal(Catalog.match('condition','Invisible','dnd-2024'),null);
+assert.equal(Catalog.match('condition','Invented Status','dnd-2014'),null);
 assert.equal(Catalog.match('equipment','Glaive').damage,'1d10 slashing');
 assert.equal(Catalog.match('equipment','Shield').cost,'10 gp');
 assert.equal(Catalog.match('equipment','Potion of Healing').description.includes('2d4 + 2'),true);
@@ -40,4 +46,11 @@ const tampered=structuredClone(require('../web/dnd-2014-reference.json'));
 tampered.spells.find(s=>s.name==='Healing Word').automation.activation='action';
 assert.throws(()=>Catalog.init(tampered),/activation/);
 Catalog.init(json);
-console.log('SRD catalog: 112 spells, 149 equipment, edition guards, ritual annotations, aliases, counts, exact match, non-SRD guards, edition fence, no mutation, duplicate validation PASS');
+const invalidCondition=structuredClone(json);
+invalidCondition.conditions[0].automation={type:'heal'};
+assert.throws(()=>Catalog.init(invalidCondition),/condition reference/);
+const missingDescription=structuredClone(json);
+delete missingDescription.conditions[0].description;
+assert.throws(()=>Catalog.init(missingDescription),/condition reference/);
+Catalog.init(json);
+console.log('SRD catalog: 112 spells, 149 equipment, edition guards, ritual annotations, aliases, counts, exact match, non-SRD guards, edition fence, 15 read-only conditions, no mutation, duplicate validation PASS');

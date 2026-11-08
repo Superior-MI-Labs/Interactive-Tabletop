@@ -260,13 +260,24 @@ const conditionPaths={
  Stunned:'M13 2 5 13h7l-1 9 8-11h-7z',
  Unconscious:'M19 3a9 9 0 1 0 2 15A9 9 0 0 1 19 3Z'
 };
+// UI projections only: the combat engine and vault own condition flags and
+// independent source grants; the SRD catalog supplies optional descriptions.
+function conditionTip(name,active){
+ const reference=References?.match('condition',name,character.system_edition);
+ const grants=active?Action.conditionGrants(character,'self').filter(g=>g.condition===name):[];
+ const detail=reference?.description||'No matching 2014 reference description is available. Confirm the condition rules with your DM.';
+ const sources=grants.length?` · ${grants.length} tracked source${grants.length===1?'':'s'}`:'';
+ return `data-tip='${esc(name+' · '+(active?'Active':'Inactive')+sources)}' data-tip-detail='${esc(detail)}' data-tip-source='${esc(reference?'SRD 5.1 (2014) · Reference only; no automatic condition rules':'Manual/unsupported rules · DM adjudicates')}'`;
+}
+function conditionIcon(name,active,interactive){
+ const path=conditionPaths[name];
+ if(!path)return `<span class='unknown-condition' data-tip='${esc(name+' · Active')}' data-tip-detail='Unrecognized imported condition; resolve with your DM.'>${esc(name)}</span>`;
+ return `<button type='button' class='condition-icon ${active?'on':''} ${interactive?'condition-toggle':'condition-status'}' ${interactive?`data-action='condition' data-arg='${esc(name)}' aria-pressed='${active}'`:'data-tip-pin'} ${conditionTip(name,active)} aria-label='${esc(name)}: ${active?'active':'inactive'}${interactive?'; toggle condition':'; show details'}'><svg aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='${path}'/></svg></button>`;
+}
 function conditionRail(){
  const active=character.conditions||[];
- return `<div class="condition-rail"><div class="condition-head"><strong>Conditions</strong><span>${active.length?`${active.length} active`:'None active'}</span></div>
- <div class="condition-icons" aria-label="Toggle character conditions">${Object.entries(conditionPaths).map(([name,path])=>{
-  const on=active.includes(name);
-  return `<button type="button" class="condition-icon ${on?'on':''}" data-action="condition" data-arg="${esc(name)}" data-tip="${esc(name)} · ${on?'Active':'Inactive'}" aria-label="${esc(name)}: ${on?'active':'inactive'}" aria-pressed="${on}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></button>`;
- }).join('')}</div></div>`;
+ return `<div class='condition-rail'><p class='condition-guidance'>Toggle a condition manually. Tracked spell and ability sources still end through their own controls.</p>
+ <div class='condition-icons' aria-label='Toggle character conditions'>${Object.keys(conditionPaths).map(name=>conditionIcon(name,active.includes(name),true)).join('')}</div></div>`;
 }
 function heartMeter(hp){
  const total=Math.max(1,Math.ceil(hp.max/5));
@@ -317,20 +328,31 @@ function rollRows(kind,mode='compact'){
  const entries=kind==='ability'?Object.entries(character.abilities||{}).map(([key,v])=>[key+' check',v.modifier,key]):Object.entries(character[kind]||{}).map(([key,v])=>[kind==='saves'?key+' save':key,v,key]);
  return entries.map(([label,modifier,key])=>`<div data-filter-row="${esc(label.toLowerCase())}">${rollButton(label,modifier,`1d20${sgn(modifier)}`,mode==='detailed'||mode==='editable'?kind:'',key,kind==='skills'||kind==='ability'?'ability-check':kind==='saves'?'save':'untyped')}</div>`).join('');
 }
+function effectDetails(effect){
+ const details=[];
+ if(effect.condition)details.push('Grants '+effect.condition+' while its source remains active.');
+ if(effect.ac_bonus)details.push('Armor class '+(effect.ac_bonus>0?'+':'')+effect.ac_bonus+'.');
+ if(effect.bonus_dice)details.push('Roll bonus: '+effect.bonus_dice+' on '+(effect.bonus_scopes||[effect.bonus_scope||'ability-check']).join(', ')+'. '+(effect.bonus_mode==='sustained'?'Available while active.':'Remaining charges: '+effect.charges+'.'));
+ if(effect.concentration)details.push('Requires concentration; ending it also ends the effect.');
+ details.push(effect.rounds_remaining==null?'Duration: until ended by its rules or DM.':'Rounds remaining: '+effect.rounds_remaining+'.');
+ return details.join(' ');
+}
 function buffBar(){
  if(!character)return '';
  const active=Action.activeEffects(character),checks=character.effects?.pending_concentration||[],conditions=character.conditions||[];
- if(!active.length&&!checks.length&&!conditions.length)return '';
- return `<section class="buff-bar" aria-label="Active buffs, debuffs and concentration checks">
- <span class="buff-caption">EFFECTS</span>
- ${active.map(effect=>`<div class="buff-token" data-tip="${esc(effect.name)}${effect.concentration?' · Concentration':''}${effect.ac_bonus?' · AC +'+effect.ac_bonus:''}${effect.charges?' · '+effect.charges+' charge(s)':''}">
+ return `<section class='buff-bar' aria-label='Active buffs, debuffs and conditions'>
+ <span class='buff-caption'>EFFECTS</span>
+ ${!active.length&&!conditions.length&&!checks.length?`<small class='buff-empty'>No active effects</small>`:''}
+ ${active.map(effect=>`<div class='buff-token' data-tip='${esc(effect.name)}' data-tip-detail='${esc(effectDetails(effect))}' data-tip-source='Character effect · Configured source and DM rules'>
   <strong>${effect.concentration?'◉ ':'✦ '}${esc(effect.name)}</strong>
   ${effect.ac_bonus?`<span>AC +${esc(effect.ac_bonus)}</span>`:''}
-  ${effect.bonus_dice?`<span>${effect.bonus_mode==='sustained'?'Active':esc(effect.charges)+' ×'} ${esc(effect.bonus_dice)} · ${esc((effect.bonus_scopes||[effect.bonus_scope||'ability-check']).join(' / '))}</span><label class="effect-auto-toggle" data-tip="Add ${esc(effect.bonus_dice)} to compatible rolls. ${effect.bonus_mode==='sustained'?'No charges: applies while the buff lasts.':'Consumes one charge when the dice settle.'}"><input type="checkbox" data-effect-auto="${esc(effect.id)}" ${effect.auto_use!==false?'checked':''} aria-label="Automatically use ${esc(effect.name)} on compatible rolls"><span>Auto</span></label>`:''}
+  ${effect.bonus_dice?`<span>${effect.bonus_mode==='sustained'?'Active':esc(effect.charges)+' ×'} ${esc(effect.bonus_dice)} · ${esc((effect.bonus_scopes||[effect.bonus_scope||'ability-check']).join(' / '))}</span><label class='effect-auto-toggle' data-tip='Add ${esc(effect.bonus_dice)} to compatible rolls. ${effect.bonus_mode==='sustained'?'Available while the effect lasts.':'Consumes one charge when the dice settle.'}'><input type='checkbox' data-effect-auto='${esc(effect.id)}' ${effect.auto_use!==false?'checked':''} aria-label='Automatically use ${esc(effect.name)} on compatible rolls'><span>Auto</span></label>`:''}
   <small>${effect.rounds_remaining==null?'Until ended':`${esc(effect.rounds_remaining)} rounds`}</small>
+  <button type='button' class='status-info' data-tip-pin data-tip='${esc(effect.name)}' data-tip-detail='${esc(effectDetails(effect))}' data-tip-source='Character effect · Configured source and DM rules' aria-label='Effect details: ${esc(effect.name)}'>ⓘ</button>
   ${button('×','effect-end',effect.id,'button mini subtle')}</div>`).join('')}
- ${conditions.map(name=>`<div class="buff-token debuff-token" data-tip="${esc(name)} · active condition"><strong>! ${esc(name)}</strong></div>`).join('')}
- ${checks.map(check=>`<div class="buff-token buff-check"><strong>Concentration DC ${esc(check.dc)}</strong>${button('Roll CON save','concentration-check',check.id,'button mini primary')}</div>`).join('')}
+ ${conditions.map(name=>conditionIcon(name,true,false)).join('')}
+ ${checks.map(check=>`<div class='buff-token buff-check'><strong>Concentration DC ${esc(check.dc)}</strong>${button('Roll CON save','concentration-check',check.id,'button mini primary')}</div>`).join('')}
+ <details class='condition-picker' data-panel='Conditions' ${panelState.get('Conditions')?'open':''}><summary aria-label='Add or remove conditions'>+ Conditions</summary>${conditionRail()}</details>
  </section>`;
 }
 function creatureTurnBoard(){
@@ -616,7 +638,7 @@ function overview(){
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
  <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
  <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
- <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}${panel('Conditions',conditionRail())}</div>
+ <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}</div>
  <div class="hud-zone hud-main">${workspacePane()}</div>
  </div>`;
 }
@@ -1954,27 +1976,69 @@ function drawDie(d){
  ctx.restore();
 }
 
-// One hover/focus tooltip for every game HUD control, above scrollable sheets.
+// One HUD tooltip/card owner. Existing data-tip and legacy title controls
+// share its immediate hover/focus behavior; only explicit info controls pin.
 const hudTip=document.createElement('div');hudTip.className='hud-tooltip';hudTip.hidden=true;
 hudTip.id='hud-tooltip';hudTip.setAttribute('role','tooltip');document.body.append(hudTip);
-let tipAnchor=null;
-function hideHudTip(){hudTip.hidden=true;tipAnchor=null;}
-function showHudTip(el){
- if(!el?.dataset.tip)return;
- tipAnchor=el;hudTip.textContent=el.dataset.tip;hudTip.hidden=false;
+let tipAnchor=null,tipPinned=false;
+function hideHudTip(){
+ if(tipAnchor?.getAttribute('aria-describedby')==='hud-tooltip')tipAnchor.removeAttribute('aria-describedby');
+ hudTip.hidden=true;tipAnchor=null;tipPinned=false;
+}
+function tipTarget(target){
+ const el=target?.closest?.('[data-tip],[title]');
+ if(!el)return null;
+ // Remove the browser-native delayed tooltip the first time a control is
+ // encountered. Keep one fast presenter; explicit data-tip wins.
+ const native=el.getAttribute('title');
+ if(native!==null){if(!el.dataset.tip)el.dataset.tip=native;el.removeAttribute('title');}
+ return el.dataset.tip?el:null;
+}
+function showHudTip(el,pin=false){
+ if(!el?.isConnected)return;
+ if(tipAnchor!==el)hideHudTip();
+ tipAnchor=el;tipPinned=pin;
+ const heading=document.createElement('strong');heading.className='hud-tip-title';heading.textContent=el.dataset.tip||'';
+ const nodes=[heading];
+ if(el.dataset.tipDetail){const detail=document.createElement('span');detail.className='hud-tip-detail';detail.textContent=el.dataset.tipDetail;nodes.push(detail);}
+ if(el.dataset.tipSource){const source=document.createElement('small');source.className='hud-tip-source';source.textContent=el.dataset.tipSource;nodes.push(source);}
+ hudTip.replaceChildren(...nodes);
+ hudTip.classList.toggle('has-detail',nodes.length>1);hudTip.classList.toggle('is-pinned',pin);
+ el.setAttribute('aria-describedby','hud-tooltip');hudTip.hidden=false;
  const r=el.getBoundingClientRect(),width=hudTip.offsetWidth,height=hudTip.offsetHeight;
- hudTip.style.left=Math.max(9,Math.min(innerWidth-width-9,r.left+r.width/2-width/2))+'px';
- hudTip.style.top=(r.top>height+14?r.top-height-7:Math.min(innerHeight-height-9,r.bottom+7))+'px';
+ hudTip.style.left=Math.max(8,Math.min(innerWidth-width-8,r.left+r.width/2-width/2))+'px';
+ hudTip.style.top=Math.max(8,Math.min(innerHeight-height-8,r.top>height+14?r.top-height-7:r.bottom+7))+'px';
 }
 document.addEventListener('pointerover',e=>{
- const el=e.target.closest?.('[data-tip]');if(el&&el!==tipAnchor)showHudTip(el);
+ if(tipPinned||e.pointerType==='touch')return;
+ const el=tipTarget(e.target);if(el&&el!==tipAnchor)showHudTip(el);
 });
 document.addEventListener('pointerout',e=>{
- if(tipAnchor&&!tipAnchor.contains(e.relatedTarget)&&tipAnchor.contains(e.target))hideHudTip();
+ if(!tipPinned&&tipAnchor?.contains(e.target)&&!tipAnchor.contains(e.relatedTarget))hideHudTip();
 });
-document.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-tip]');if(el)showHudTip(el);});
-document.addEventListener('focusout',e=>{if(tipAnchor===e.target)hideHudTip();});
+document.addEventListener('focusin',e=>{
+ if(tipPinned)return;
+ const el=tipTarget(e.target);if(el)showHudTip(el);
+});
+document.addEventListener('focusout',e=>{
+ if(!tipPinned&&tipAnchor?.contains(e.target)&&!tipAnchor.contains(e.relatedTarget))hideHudTip();
+});
+document.addEventListener('click',e=>{
+ const el=e.target.closest?.('[data-tip-pin]');
+ if(el){
+  tipTarget(el);
+  if(tipAnchor===el&&tipPinned)hideHudTip();else showHudTip(el,true);
+ }else if(tipPinned)hideHudTip();
+});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&tipAnchor){hideHudTip();return;}
+ if((e.key==='Enter'||e.key===' ')&&e.target.matches?.('[data-tip-pin]')){
+  // Native buttons already emit a click from keyboard; no second action.
+  return;
+ }
+});
 document.getElementById('page').addEventListener('scroll',hideHudTip,{passive:true});
+window.addEventListener('resize',hideHudTip,{passive:true});
 
 const sheetHandle=$('#sheet-handle');
 function updateLayoutButtons(){

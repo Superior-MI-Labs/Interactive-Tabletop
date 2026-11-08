@@ -203,17 +203,15 @@ button,select,input,textarea {min-width:0}
 #page .vital-edit[open] {flex-basis:100%;margin:3px 0 0}
 #page .vital-edit[open] summary {width:max-content}
 #page .vital-edit .form-grid {margin:7px 0}
-#page .condition-rail {display:flex;gap:10px;align-items:center;padding-top:7px;margin-top:7px;border-top:1px solid #47545b}
-#page .condition-head {display:flex;gap:5px;flex:0 0 auto;align-items:baseline}
-#page .condition-head strong {color:#e2c39a;font:12px Georgia,serif}
-#page .condition-head span {color:#a7afb5;font-size:10px}
-#page .condition-icons {display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:visible;padding:3px 0 5px;flex:1;scrollbar-color:#66523e transparent;scrollbar-width:thin}
+#page .condition-rail {display:block;padding:7px 0 0;border-top:1px solid #47545b}
+#page .condition-guidance{margin:0 0 7px;color:#bbcad3;font-size:11px;line-height:1.4}
+#page .condition-icons {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:3px 0 5px;max-width:100%}
 #page .condition-icon {display:inline-grid;place-items:center;position:relative;flex:0 0 27px;width:27px;height:27px;padding:4px;border:1px solid #44515c;background:#2c3842;border-radius:5px;color:#a2b0bd}
 #page .condition-icon svg {width:18px;height:18px}
 #page .condition-icon:hover,#page .condition-icon:focus-visible {background:#3a4550;color:#f3d6a5;border-color:#c4a171}
 #page .condition-icon.on {background:#735042;border-color:#e1a268;color:#ffdbad;box-shadow:inset 0 0 7px #eab35a36,0 0 0 1px #a95d393c}
 #page .condition-icon.on::before {content:'';width:4px;height:4px;position:absolute;top:-3px;right:-3px;background:#f0ad79;border-radius:50%}
-/* Browser title + aria-label provide hover and keyboard condition names without another data store. */
+/* Icons share the one fast card presenter; the edition reference owns rules text. */
 #page .resource-pips {padding:6px 0 8px;border-bottom:1px solid #44505b}
 #page .resource-pips:first-child {padding-top:1px}
 #page .resource-pips:last-child {border:0;padding-bottom:1px}
@@ -238,8 +236,13 @@ button,select,input,textarea {min-width:0}
 
 
 
-.hud-tooltip {position:fixed;z-index:90;pointer-events:none;border:1px solid #c99c65;border-radius:5px;background:#131d26f7;color:#ffe3b9;padding:6px 9px;font:12px/1.3 system-ui,sans-serif;box-shadow:0 5px 18px #000c;white-space:nowrap;max-width:calc(100vw - 18px);overflow:hidden;text-overflow:ellipsis}
+.hud-tooltip {position:fixed;z-index:90;pointer-events:none;border:1px solid #c99c65;border-radius:6px;background:#131d26f7;color:#ffe3b9;padding:7px 10px;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 18px #000c;white-space:nowrap;max-width:calc(100vw - 16px);overflow:hidden;text-overflow:ellipsis}
 .hud-tooltip[hidden]{display:none}
+.hud-tooltip.has-detail{width:max-content;max-width:min(340px,calc(100vw - 16px));white-space:normal;overflow-wrap:anywhere}
+.hud-tip-title{display:block;font-weight:700;color:#ffe2ad}
+.hud-tip-detail{display:block;margin-top:6px;color:#e0e6e9;line-height:1.5;font-size:12px}
+.hud-tip-source{display:block;margin-top:7px;padding-top:5px;border-top:1px solid #53616b;color:#a9bcc7;font-size:10px;line-height:1.35}
+.hud-tooltip.is-pinned{border-color:#f1c989;box-shadow:0 5px 22px #000e}
 
 
 
@@ -289,7 +292,6 @@ button,select,input,textarea {min-width:0}
 #page .vital-controls{margin-top:4px;gap:4px}
 #page .vital-controls .button{min-height:25px;padding:3px 7px}
 #page .vital-controls .input{min-height:25px}
-#page .condition-rail{margin-top:5px;padding-top:5px}
 #page .condition-icon{width:25px;height:25px;flex-basis:25px}
 /* Three distinct columns; panels never stretch to a neighbor's height. */
 #page .ability-card{padding:5px 6px;min-width:0;background:#303d46;border:1px solid #5b6973;border-radius:5px}
@@ -359,7 +361,6 @@ button,select,input,textarea {min-width:0}
  #page .status-chips{flex:1 1 100%;justify-content:flex-start}
  #page .identity-editor{margin-left:auto}
  #page .identity-fields{right:0}
- #page .condition-rail{align-items:flex-start;flex-direction:column;gap:4px}
  #page .condition-icons{width:100%}
  .sheet-handle span{display:none}
  .sheet-hidden .sheet-handle span{display:inline}
@@ -402,9 +403,6 @@ button,select,input,textarea {min-width:0}
 #page .mod-readout{font:700 14px/1 system-ui;color:#a9dbf5;min-width:27px;text-align:center}
 #page .hud-four[data-edit-bonuses] .bonus-editor{display:inline-block}
 #page .hud-skills .skills-list{max-width:100%}
-#page .hud-resources .condition-rail{display:block}
-#page .hud-resources .condition-head{margin-bottom:5px}
-#page .hud-resources .condition-icons{display:flex;flex-wrap:wrap}
 #page .game-workspace{min-width:0;border:1px solid #62707b;border-radius:7px;background:#222c37ef;overflow:hidden}
 #page .workspace-caption{font:700 10px system-ui,sans-serif;letter-spacing:.16em;color:#e9bc79;padding:8px 10px 5px}
 #page .workspace-caption span{font-weight:400;color:#a8b2bf;letter-spacing:0}
@@ -630,7 +628,18 @@ body.dice-dragging .dice-stage{cursor:grabbing}
  background:#3d372b66;color:#eed9b7;font-size:11px}
 #page .srd-preset .button{min-height:25px;padding:3px 6px}
 @media(max-width:720px){#page .buff-bar{padding:6px;gap:4px}#page .buff-token{flex-wrap:wrap}#page .buff-token strong{white-space:normal}}
-#page .debuff-token{border-color:#a96e6c;background:#422c33}#page .debuff-token strong{color:#f5d4cc}
+#page .buff-empty{color:#acb8c1;font-size:11px;line-height:1.3}
+#page .condition-status{flex-basis:25px;width:25px;height:25px;border-color:#b67665;color:#ffd1a7;background:#583640}
+#page .condition-status:hover,#page .condition-status:focus-visible{background:#68464b;color:#ffe5bf}
+#page .condition-picker{margin-left:auto;min-width:0}
+#page .condition-picker>summary{list-style:none;cursor:pointer;border:1px solid #786b54;background:#2b3a45;color:#f5d3a0;padding:5px 9px;border-radius:5px;font-size:11px;font-weight:650}
+#page .condition-picker>summary::-webkit-details-marker{display:none}
+#page .condition-picker>summary:hover,#page .condition-picker>summary:focus-visible{border-color:#e3b776;background:#40505d}
+#page .condition-picker[open]{flex-basis:100%;order:2}
+#page .condition-picker[open]>summary{display:inline-block;margin-bottom:4px}
+#page .status-info{border:0;background:transparent;color:#b8cfda;cursor:pointer;font-size:14px;padding:0 3px;min-width:19px;min-height:22px;border-radius:4px}
+#page .status-info:hover,#page .status-info:focus-visible{color:#ffdfa9;background:#49535d}
+#page .condition-picker .condition-rail{max-width:100%}
 
 /* v0.20: one compact encounter surface inside the existing gameplay workspace.
    Target state comes from the character's saved combat record, never DOM fields. */
