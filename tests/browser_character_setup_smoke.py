@@ -118,6 +118,7 @@ with sync_playwright() as pw:
  assert page.evaluate('character.spells[0].name')=='Light'
  assert page.evaluate('character.spells[0].level')==1
  # Spellcasting configuration reuses the ordinary editor and persistent spell record.
+ page.locator('[data-view="spells"]').click()
  page.locator('details[data-spell-id]').first.evaluate('(el)=>{el.open=true;}')
  page.locator('[data-input="spells.0.spellcasting_ability"]').select_option('INT')
  assert page.evaluate('character.spells[0].spellcasting_ability')=='INT'
@@ -129,6 +130,7 @@ with sync_playwright() as pw:
  page.locator('[data-spell-modifier="0"]').press('Tab')
  assert page.evaluate('character.spells[0].spellcasting_modifier')==3,'Invalid override must not overwrite the good value'
  assert 'whole number' in page.locator('#status-msg').inner_text()
+ page.locator('[data-view="overview"]').click()
  # Named custom pools use the existing action-economy configuration, not spell-slot aliases.
  page.locator('.economy-config summary').click()
  page.locator('#economy-new-resource').fill('Focus Points')
