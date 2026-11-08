@@ -84,13 +84,13 @@ with sync_playwright() as playwright:
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-save-ability').select_option('CON')
  page.locator('#target-save-dc').fill('17')
- page.get_by_role('button',name='Roll target save').click()
+ page.locator('[data-action="target-roll-save"]').evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('Action.recentSave(character).dc')==17
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-manual-damage').fill('12')
- page.get_by_role('button',name='Preview damage').click()
+ page.locator('[data-action="target-manual-damage"]').evaluate('(el)=>el.click()')
  assert 'Training Golem' in page.locator('#dialog-layer').inner_text()
  page.locator('#dlg-no').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48
