@@ -55,6 +55,62 @@ with sync_playwright() as p:
     page.locator('#dlg-yes').click()
     page.wait_for_function('document.querySelector(".hp-total")?.textContent.includes("222")')
     assert '93' in page.locator('.hp-total').inner_text()
+    # Reimport preview is read-only and reports the actual vault matching rules.
+    page.evaluate('''()=>{
+      character.spells=[
+       {id:'spell-0',name:'Shield',level:1,source:'Wizard',prepared:true,notes:'DM confirmed'},
+       {id:'spell-1',name:'Cure Wounds',level:1,source:'Cleric / Wizard',prepared:true,spellcasting_ability:'WIS'},
+       {id:'spell-2',name:'Disguise Self',level:1,source:'Bard',prepared:false},
+       {id:'spell-3',name:'Duplicated',level:1,source:'Wizard',prepared:true,notes:'Old duplicate ruling'},
+       {id:'manual-spell-existing',name:'Shield',level:1,source:'Wizard',prepared:true,automation:'manual'}
+      ];
+      save();render();
+    }''')
+    existing_state=page.evaluate('JSON.stringify(character)')
+    fresh_spellbook={**changed,'spells':[
+     {'id':'spell-7','name':'Shield','level':1,'source':'Wizard','prepared':False},
+     {'id':'spell-8','name':'Cure Wounds','level':1,'source':'Cleric','prepared':False},
+     {'id':'spell-9','name':'Healing Word','level':1,'source':'Cleric','prepared':False},
+     {'id':'spell-10','name':'Duplicated','level':1,'source':'Wizard','prepared':False},
+     {'id':'spell-11','name':'Duplicated','level':1,'source':'Wizard','prepared':False}
+    ]}
+    page.set_viewport_size({'width':390,'height':730})
+    page.evaluate('(ch)=>acceptImport(ch,"pdf")',fresh_spellbook)
+    dlg=page.locator('#dialog-layer .dialog')
+    assert dlg.is_visible()
+    preview_text=dlg.inner_text()
+    for phrase in ('Added imported spells (1): Healing Word',
+                   'Removed imported spells (1): Disguise Self',
+                   'Ambiguous imported spell matches (1): Duplicated',
+                   'Source labels changed; prior settings retained (1): Cure Wounds',
+                   'Player-authored spell entries preserved independently: 1'):
+        assert phrase in preview_text,phrase
+    assert page.evaluate('JSON.stringify(character)')==existing_state,'Opening preview must not change gameplay state'
+    assert dlg.evaluate('(el)=>getComputedStyle(el).overflowY === "auto"'),'Long reviews scroll on mobile'
+    page.locator('#dlg-no').click()
+    assert page.evaluate('JSON.stringify(character)')==existing_state,'Cancel must leave all gameplay records untouched'
+    page.evaluate('(ch)=>acceptImport(ch,"pdf")',fresh_spellbook)
+    page.locator('#dlg-yes').click()
+    page.wait_for_function("character.spells.length === 6")
+    final_spells=page.evaluate('character.spells')
+    shield=next(x for x in final_spells if x['name']=='Shield' and not x['id'].startswith('manual-spell-'))
+    cure=next(x for x in final_spells if x['name']=='Cure Wounds')
+    assert shield['prepared'] and shield['notes']=='DM confirmed'
+    assert cure['prepared'] and cure['spellcasting_ability']=='WIS'
+    assert len([x for x in final_spells if x['name']=='Duplicated'])==2
+    assert all('notes' not in x for x in final_spells if x['name']=='Duplicated')
+    assert not any(x['name']=='Disguise Self' for x in final_spells)
+    assert any(x['id']=='manual-spell-existing' for x in final_spells)
+    # Untrusted PDF spell names remain escaped, never parsed into modal HTML.
+    injected={**fresh_spellbook,'spells':fresh_spellbook['spells']+[
+       {'id':'spell-99','name':'<img src=x onerror=alert(1)>','level':1,'source':'Wizard','prepared':False}
+    ]}
+    page.evaluate('(ch)=>acceptImport(ch,"pdf")',injected)
+    assert page.locator('#dialog-layer .dialog img').count()==0
+    assert '<img src=x onerror=alert(1)>' in page.locator('#dialog-layer .dialog').inner_text()
+    page.locator('#dlg-no').click()
+    assert page.evaluate('character.spells.length')==6
+    page.set_viewport_size({'width':1440,'height':900})
     page.locator('#vault-open').click()
     with page.expect_download() as down:page.locator('#vault-backup').click()
     backup=json.loads(Path(down.value.path()).read_text())

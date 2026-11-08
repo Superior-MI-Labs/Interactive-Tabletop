@@ -109,4 +109,70 @@ for(const mode of ['auto','guided','manual']){
 assert.equal(Vault.isManualSpell(authored('manual-spell-a','Foo')),true);
 assert.equal(Vault.isManualSpell(authored('custom-a','Foo')),true);
 assert.equal(Vault.isManualSpell({id:'spell-1',name:'Foo'}),false);
+
+// The preview must describe the same reimport decisions as the vault mutation.
+// It is a pure projection, not another persisted ledger or a simulated reimport.
+const reviewOld=pdf([row('Shield',1,'Wizard'),row('Aid',2,'Cleric'),row('Duplicated',1,'Wizard')]);
+reviewOld.spells[0].prepared=true;
+reviewOld.spells[0].notes='Important preparation';
+reviewOld.spells[2].notes='Do not guess duplicate rules';
+reviewOld.spells.push(authored('manual-spell-review','Shield',{prepared:true,source:'Wizard'}));
+const reviewIncoming=pdf([row('Shield',1,'Wizard'),row('Healing Word',1,'Cleric'),
+ row('Duplicated',1,'Wizard'),row('Duplicated',1,'Wizard')]);
+const reviewOldJson=JSON.stringify(reviewOld),reviewIncomingJson=JSON.stringify(reviewIncoming);
+const review=Vault.spellReimportPreview(reviewOld,reviewIncoming);
+assert.equal(JSON.stringify(reviewOld),reviewOldJson,'Preview must not modify existing character');
+assert.equal(JSON.stringify(reviewIncoming),reviewIncomingJson,'Preview must not modify incoming PDF data');
+assert.equal(review.matched,1);
+assert.equal(review.added.length,1);
+assert.match(review.added[0],/Healing Word/);
+assert.equal(review.removed.length,1);
+assert.match(review.removed[0],/Aid/);
+assert.equal(review.ambiguous.length,1);
+assert.match(review.ambiguous[0],/Duplicated/);
+assert.equal(review.manualPreserved,1,'Manual Shield is not counted as a removed PDF spell');
+const reviewText=Vault.importSummary(reviewOld,reviewIncoming);
+for(const phrase of ['Added imported spells (1):','Removed imported spells (1):',
+ 'Ambiguous imported spell matches (1):','Player-authored spell entries preserved independently: 1',
+ 'previous preparation and configured effects are not transferred']){
+ assert.ok(reviewText.includes(phrase),phrase);
+}
+const reviewMerged=Vault.reconcile(reviewOld,reviewIncoming);
+assert.equal(reviewMerged.spells.find(s=>s.name==='Shield'&&!Vault.isManualSpell(s)).prepared,true);
+assert.equal(reviewMerged.spells.filter(s=>s.name==='Aid').length,0);
+assert.equal(reviewMerged.spells.filter(s=>s.name==='Healing Word').length,1);
+assert.equal(reviewMerged.spells.find(s=>s.id==='manual-spell-review').prepared,true);
+assert.equal(reviewMerged.spells.filter(s=>s.name==='Duplicated'&&s.notes).length,0,
+ 'Ambiguous preview warns about genuinely lost configured notes');
+assert.equal(reviewMerged.spells.length,5);
+assert.equal(JSON.stringify(reviewOld),reviewOldJson,'Reconciliation stays pure');
+
+// Source changes keep approved preparation only if unique on BOTH PDF sides.
+const changePreview=Vault.spellReimportPreview(sourceOld,sourceFresh);
+assert.equal(changePreview.matched,1);
+assert.equal(changePreview.sourceChanged.length,1);
+assert.match(changePreview.sourceChanged[0],/from Cleric \/ Wizard/);
+assert.equal(changePreview.manualPreserved,1);
+assert.equal(changePreview.added.length,0);
+assert.equal(changePreview.removed.length,0);
+assert.ok(Vault.importSummary(sourceOld,sourceFresh).includes('Source labels changed; prior settings retained (1)'));
+const duplicatePreview=Vault.spellReimportPreview(dupOld,identical);
+assert.deepEqual(duplicatePreview.added,[]);
+assert.deepEqual(duplicatePreview.removed,[]);
+assert.equal(duplicatePreview.ambiguous.length,1);
+assert.equal(duplicatePreview.matched,0);
+const levelPreview=Vault.spellReimportPreview(levelOld,levelNew);
+assert.equal(levelPreview.added.length,1);
+assert.equal(levelPreview.removed.length,1);
+assert.equal(levelPreview.matched,0);
+const emptyPreview=Vault.spellReimportPreview(pdf([]),pdf([]));
+assert.equal(emptyPreview.matched,0);
+assert.deepEqual(emptyPreview.added,[]);
+assert.deepEqual(emptyPreview.removed,[]);
+assert.deepEqual(emptyPreview.ambiguous,[]);
+assert.throws(()=>Vault.spellReimportPreview({},reviewIncoming),/invalid characters/);
+const many=Vault.importSummary(pdf([]),pdf(Array.from({length:9},(_,i)=>row('Catalog Spell '+i))));
+assert.ok(many.includes('Added imported spells (9):'));
+assert.ok(many.includes('and 3 more'),'Long imports must keep review reasonably compact');
+
 console.log('PASS spellbook lifecycle: source/level identity, authored collisions, duplicate guards, preparation, slots, vault and mode isolation');

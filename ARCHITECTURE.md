@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.47.0
+# Interactive Tabletop architecture — v0.48.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -271,3 +271,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - `Vault.reconcile` matches PDF-owned spells with PDF-owned spells only. Imported fact updates preserve manual preparation/overrides only on unique exact identity or unique name+level fallback; duplicate/unverified identity never transfers effects. Authored spell rows are restored by stable ID, including when they share all visible fields with a PDF row. No second spellbook ledger or migration is introduced.
 - `web/app.js` uses that same identity predicate for display and to gate confirmed manual-only deletion. The existing `dialog()` character-ownership check protects stale confirmations; a second lookup by stable ID rejects ambiguous or missing targets. Committed effects and resources are not implicitly undone when a descriptive spell entry is removed.
 - New manual spell IDs use the existing vault ID generator, not a timestamp-only key. Older IDs remain valid. PDF removal removes its corresponding imported row; it never deletes a separate authored row.
+
+## v0.48 — Read-only PDF spellbook change preview
+
+- `web/vault-store.js` now contains `matchImportedSpells(oldPdf,newPdf)`, the single imported-spell identity decision used by both `reconcile` and `spellReimportPreview`. Both operate only on PDF-owned rows, excluding separately authored `manual-spell-*` and `custom-*` IDs.
+- Exact name/level/source matches on both sides take precedence; a change in source is matched by name/level only if unique in both lists. Unmatched records sharing a name/level across old and new are reported as ambiguous, not misleadingly counted as certain additions/removals. Changed spell levels remain explicit removal/addition, with no inferred continuity.
+- `spellReimportPreview` is a pure projection of actual reconciliation results. `importSummary` formats a bounded human-readable report; the modal escapes all imported text and caps scrolling to the viewport. The existing confirmation/commit flow remains unchanged. No staging store, new save schema or gameplay mutator was added.
+- Manual spells remain preserved by stable ID and imported records remain authoritative for new metadata. Ambiguous imported identities never inherit unverified preparation or configured effects. Active effects survive unrelated import changes.
