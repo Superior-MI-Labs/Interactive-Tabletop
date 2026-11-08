@@ -88,9 +88,11 @@ with sync_playwright() as pw:
  row.locator('[data-slot-remaining]').fill('4')
  row.get_by_role('button',name='Save slots').click()
  assert page.evaluate('Object.keys(character.resources).length')==0,'Invalid slots cannot mutate the vault'
+ assert 'whole totals' in page.locator('#status-msg').inner_text()
  row.locator('[data-slot-remaining]').fill('2')
  row.get_by_role('button',name='Save slots').click()
  assert page.evaluate('character.resources["Level 1 Spell Slots"].current')==2
+ assert 'updated' in page.locator('#status-msg').inner_text()
  assert page.evaluate('character.resources["Level 1 Spell Slots"].max')==3
  page.locator('details[data-spell-id]').first.evaluate('(el)=>{el.open=true;}')
  page.locator('[data-input="spells.0.roll"]').fill('2d3')
