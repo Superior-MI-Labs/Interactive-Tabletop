@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.42.0`  
-**Release commit:** `5e3704f394f2f576b4896a50513df73c5a0adc02` on `main`  
-**Handoff reviewed:** 2026-11-07  
+**Last verified application release:** `v0.43.0`  
+**Release commit:** This checkpoint is part of the v0.43.0 release commit on `main`; check `git log -1 --oneline` for the exact SHA.  
+**Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** No pending application implementation is recorded here. This documentation checkpoint does **not** change the app version or claim a new functional release.
+**Current worktree:** The v0.43.0 manual character builder is locally qualified; check the corresponding GitHub Actions qualification and deployment before describing it as live.
 
 ## 1. Why this file exists / how to resume
 
@@ -35,7 +35,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.42.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.43.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -44,9 +44,10 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.38–v0.39:** Existing `pending_workflow` ledger extended for activate → resource cost → physical save → optional condition. Character switching, turn changes, stale dialogs, and interrupted dice cannot commit the wrong character's resources or outcomes.
 - **v0.40:** Independent condition-source grants and DM-confirmed creature turn boundaries, without falsely assuming full initiative. Existing manual/imported conditions survive unrelated grant expiry.
 - **v0.41:** Original **Mara Vale (Demo)**, a level-5 Fighter with Training Dummy, created only for genuinely new browser vaults; manual add/reset for others. Real imports never merge into demos by name.
-- **v0.42:** Contextual, **state-derived** practice flow for Mara and read-only creature-turn overview. Practice controls route to normal action/dice handlers. Pointer priority fixed for controls obscured by resting dice. This is the **last finished functional patch**.
+- **v0.42:** Contextual, **state-derived** practice flow for Mara and read-only creature-turn overview. Practice controls route to normal action/dice handlers. Pointer priority fixed for controls obscured by resting dice.
+- **v0.43:** Three-stage manual 2014 character creation (identity, scores/proficiencies, combat). Uses `CharacterImport.createManual` plus the existing vault; no inferred class features or second rules engine. New Node and Chromium tests cover validation, cancellation, vault isolation and narrow layouts. **This is the latest functional patch.**
 
-The v0.42 release was verified by the repository's GitHub qualification and Pages deployment; the regression gate included 19 Python tests, JavaScript tests, and 29 Chromium browser scenarios. Recheck live CI on any later commit rather than treating old green runs as evidence for new code.
+The v0.42 release was verified by GitHub qualification and Pages deployment. v0.43 passed the local gate (19 Python tests, the JavaScript suite and 30 Chromium browser scenarios); independently check GitHub CI and deployment for the new release. Recheck live CI on any later commit rather than treating old green runs as evidence for new code.
 
 ## 3. Architecture choices and rationale
 
@@ -83,24 +84,17 @@ These are engineering judgments based on current contracts, not eternal prohibit
 
 ## 5. Suggested next milestone — verify before implementing
 
-**Goal:** Make first-run play and multi-creature navigation less confusing, while preserving the one-action pipeline and DM-confirmed boundaries.
+**Goal:** Make newly created manual sheets genuinely playable without guessing class, species or spell rules.
 
-**First investigate (do not code on assumptions):**
-- Walk through a fresh vault as Mara on desktop-sized and narrow-screen layouts. Confirm the player can discover the target, action economy, attack/Extra Attack, dice cancellation, and how to end a creature turn. Record where guidance is confusing or obscures controls.
-- Exercise 2–3 encounter creatures with overlapping conditions and distinct turn clocks. Verify target selection, source-specific expiration labels and independent progression. Check what changes when a creature is removed or the active character changes.
-- Compare two approaches for any improvement: (1) adjust existing `web/app.js` derived guidance/roster using `DndAction.creatureTurns`, versus (2) add stored navigation/progression state. **Favor (1)** unless a reproducible requirement proves the projection insufficient.
-- Only then assess whether a **second optional demo class** adds meaningful coverage. If needed, use the same vault demo factory/config contract and existing action engine; never seed additional sample characters automatically or build a distinct tutorial runner.
+**Inspect before coding:** Use a brand-new manually created character, a filled PDF import, and the Mara demo to compare editing and first-session discoverability. Test Auto/Guided/Manual, resource-free attacks, modifiers, encounter setup, cross-character selection, and mobile layouts. Verify existing feature/spell editing capabilities before proposing new forms.
 
-**Candidate patch scope, subject to inspection:** clarify active/next creature selection, expose why turn-based effects expire, add keyboard/pointer accessibility to existing controls, and ensure first-time flows degrade cleanly on narrow viewports. Keep the patch cohesive; avoid speculative new systems.
+**Approaches to compare:** (1) improve existing sheet editing and reference-assisted **explicit** user configuration versus (2) introduce a comprehensive class/level progression engine. Prefer (1) until the required edition-specific class, spell and species rules are verified and the additional state is justified.
 
-**Acceptance criteria for that patch:**
-1. No change to the source-of-truth ownership or auto-creation policy; real characters and existing/empty vaults remain safe.
-2. Dice cancel/throw, target switching, own turn, and DM-confirmed other-creature turns preserve identical resource/effect semantics in Auto, Guided and Manual where applicable.
-3. At least one new Node and one real Chromium regression cover the new behavior and negative cases; no UI-only fake state.
-4. `bash tools/qualify.sh` passes, browser scenario contract count remains synchronized, release files regenerate, and CI qualifies before Pages deploys.
-5. Update `VERSION`, `CHANGELOG.md`, `ARCHITECTURE.md` / rules contract if their semantics changed, plus **this handoff** in the release commit. Do not claim a version until the commit exists.
+**Candidate next batch:** show a focused post-creation checklist for DM-reviewed features, equipment, spells and first combat session using **derived** character state, with clear editing routes and no stored tutorial progress. Address the most consequential missing existing UI actions before adding new modules. If choosing to automate a class feature, require an explicit, qualified 2014 profile and regression tests.
 
-**Explicitly deferred:** full initiative automation, all-edition rules engine, arbitrary spell/class parsing, server-side multiplayer, cloud sync, and a large tutorial framework. Reassess these only if the project scope changes.
+**Release acceptance:** no change to legacy vaults or demo seeding; no class/trait mechanics inferred from names; validation of generated character schema; cancellation and failed saves do not leave ghost characters; real Node and Chromium regressions; `bash tools/qualify.sh` and GitHub CI green; update `VERSION`, `CHANGELOG.md`, `ARCHITECTURE.md` and this handoff in the same change.
+
+**Deferred:** complete automated character leveling and feat/trait selection, 2024 or Pathfinder creation, arbitrary homebrew parsing, multiplayer or a separate tutorial engine.
 
 ## 6. Execution and publication checklist
 
@@ -134,3 +128,5 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 **Coding-agent instruction audit (2026-11-07):** Added [`AI_START_HERE.md`](AI_START_HERE.md), a one-line-customizable coding prompt. Consolidated `AGENTS.md` into version-neutral rules and linked detailed system contracts instead of accumulating versioned instructions. Updated `tests/test_handoff_contract.py` to check the starter, file links and document size. This was **documentation/process only**, not a new application version; the v0.42.0 implementation checkpoint and next gameplay milestone are unchanged.
 
 **Checkpoint note (2026-11-07):** Documentation/process update only. No code behavior or release version changed. Last completed application work remains v0.42.0 (Mara demo guided practice and independent creature-turn overview). Next person should inspect current production behavior before implementing the candidate navigation/onboarding patch.
+
+**v0.43 release note:** The manual-creation form is transient UI state. Its committed output is a character-v1 document via the existing vault. No separate creator database, tutorial progress or automated class feature inference was introduced. A failed storage write rolls back the draft in memory. The next agent should inspect the delivered browser behavior before expanding it.

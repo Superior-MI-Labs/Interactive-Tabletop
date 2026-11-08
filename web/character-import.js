@@ -104,6 +104,69 @@ function fromFields(f){
    resources,conditions:[],roll_history:[],effects:{empty_body_rounds:0},notes:f.AdditionalNotes1||'',features,actions:parseActions(features,attacks),
    homebrew_notes:isSky?'Imported rules may contain DM-approved exceptions; check custom abilities and initiative.':'',import_provenance:'D&D Beyond PDF form fields (browser)'};
 }
-const api={fromFields,parseActions};root.CharacterImport=api;
+// Manual creation belongs to the same normalized character contract as PDF import.
+// This creates only explicit data and basic 2014 math, not inferred class features.
+const skillAbilities={
+ 'Acrobatics':'DEX','Animal Handling':'WIS','Arcana':'INT','Athletics':'STR',
+ 'Deception':'CHA','History':'INT','Insight':'WIS','Intimidation':'CHA',
+ 'Investigation':'INT','Medicine':'WIS','Nature':'INT','Perception':'WIS',
+ 'Performance':'CHA','Persuasion':'CHA','Religion':'INT','Sleight of Hand':'DEX',
+ 'Stealth':'DEX','Survival':'WIS'
+};
+function manualInteger(value,label,min,max){
+ if(String(value??'').trim()===''||!Number.isInteger(Number(value))||Number(value)<min||Number(value)>max)
+  throw Error(label+' must be a whole number from '+min+' to '+max+'.');
+ return Number(value);
+}
+function manualLabel(value,label,max=80){
+ const text=String(value??'').trim();
+ if(!text||text.length>max)throw Error(label+' is required (up to '+max+' characters).');
+ return text;
+}
+function createManual(details){
+ if(!details||typeof details!=='object')throw Error('Enter character details first.');
+ const name=manualLabel(details.name,'Character name');
+ const className=manualLabel(details.className,'Class');
+ const level=manualInteger(details.level,'Level',1,20);
+ const species=manualLabel(details.species,'Species');
+ const background=String(details.background||'').trim().slice(0,80);
+ const proficiency=2+Math.floor((level-1)/4);
+ const scores=Object.fromEntries(abb.map(k=>[k,manualInteger(details.scores?.[k],k+' score',1,30)]));
+ const modifiers=Object.fromEntries(abb.map(k=>[k,Math.floor((scores[k]-10)/2)]));
+ const selectedSaves=details.saveProficiencies||[],selectedSkills=details.skillProficiencies||[];
+ if(!Array.isArray(selectedSaves)||!Array.isArray(selectedSkills)||
+    selectedSaves.some(k=>!abb.includes(k))||selectedSkills.some(k=>!Object.hasOwn(skillAbilities,k)))
+  throw Error('Unsupported saving throw or skill proficiency.');
+ const saveSet=new Set(selectedSaves),skillSet=new Set(selectedSkills);
+ const ac=manualInteger(details.ac,'Armor class',1,40);
+ const hp=manualInteger(details.hp,'Maximum HP',1,9999);
+ const speed=manualInteger(details.speed,'Walking speed',0,999);
+ const attack=details.attack||{},attackName=String(attack.name||'').trim();
+ const attacks=[];
+ if(attackName){
+  if(attackName.length>80)throw Error('Attack name is too long.');
+  const bonus=manualInteger(attack.bonus,'Attack bonus',-30,50);
+  const damage=String(attack.damage||'').trim().replace(/\s+/g,'');
+  if(!/^\d{1,2}d(?:4|6|8|10|12|20|100)(?:[+-]\d{1,3})?$/i.test(damage))
+   throw Error('Attack damage must be a dice roll such as 1d8+3.');
+  if(!['melee','ranged'].includes(attack.range))throw Error('Select melee or ranged for your attack.');
+  attacks.push({name:attackName,bonus,damage,type:'attack',attack_type:'weapon',attack_range:attack.range});
+ }
+ return {
+  schema_version:1,system_id:'dnd5e',system_edition:'dnd-2014',rules_profile:'manual',
+  import_provenance:'Manual character creation (local)',
+  name,player:String(details.player||'').trim().slice(0,80),class_level:className+' '+level,
+  species,background,ac,initiative:modifiers.DEX,
+  proficiency,speed:speed+' ft',hp:{max:hp,current:hp,temp:0},
+  abilities:Object.fromEntries(abb.map(k=>[k,{score:scores[k],modifier:modifiers[k]}])),
+  saves:Object.fromEntries(names.map((k,i)=>[k,modifiers[abb[i]]+(saveSet.has(abb[i])?proficiency:0)])),
+  skills:Object.fromEntries(Object.entries(skillAbilities).map(([k,a])=>[k,modifiers[a]+(skillSet.has(k)?proficiency:0)])),
+  attacks,actions:[],features:[],inventory:[],spells:[],resources:{},
+  currency:{CP:0,SP:0,EP:0,GP:0,PP:0},conditions:[],roll_history:[],
+  effects:{empty_body_rounds:0},notes:'Created manually. Review with your DM: class features, species traits, equipment, spells, rest resources, and house rules are not filled automatically.',
+  homebrew_notes:''
+ };
+}
+const api={fromFields,parseActions,createManual,skillAbilities};root.CharacterImport=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.42.0
+# Interactive Tabletop architecture — v0.43.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -242,3 +242,7 @@ The UI still owns transient physical dice. `abandonCharacterDice` discards prepa
 The onboarding callout is a projection of the active demo's existing `DndAction.combat`, selected encounter target and physical-dice state. Each contextual action uses the normal `data-action` dispatch (`toggle-encounter`, `attack`, `auto-throw`, `advance-turn`) or the existing UI target selection. It never persists tutorial steps, fabricates attack outcomes or creates a parallel gameplay controller. Dice launch is still the only Attack action debit; canceled preparations are reversible. A specific `data-pointer-priority="control"` annotation gives instructional/turn-control buttons priority over die pickup when their hit regions overlap, leaving normal sheet/dice gestures unchanged.
 
 `DndAction.creatureTurns(character)` exposes a read-only, derived roster of each target's existing `condition_turn` and the condition grants anchored to it. This is presentation data, not a second turn ledger. Only `advanceTargetTurn` mutates it, only with explicit DM confirmation. The guard against a numeric turn-clock overflow must reject before expirations or event retirement. Unit and browser regression owners: `test_creature_turn_overview.js`, `browser_practice_turns_smoke.py`.
+
+### v0.43 — Manual creation reuses the existing import/vault contract
+
+`CharacterImport.createManual` is a pure alternative source of **explicit** character v1 data, alongside D&D Beyond `fromFields`. It computes only standard 2014 ability/skill/save modifier arithmetic from entered values; class/species names do not grant mechanics. The three-stage UI is a temporary DOM form displayed in the existing vault layer, **not** saved gameplay or tutorial progress. Only a fully validated submission calls `Vault.upsert` with a fresh ID, then saves via the existing storage adapter. Canceling must not mutate the vault. Existing character editing is the follow-on for equipment, spellcasting and homebrew; automated class/level progression and other editions remain deferred. Unit and Chromium regressions cover invalid fields, vault isolation, manual status and narrow layouts.

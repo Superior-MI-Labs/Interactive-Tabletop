@@ -1,3 +1,10 @@
+## v0.43.0 — Guided manual character creation
+
+- Add a three-stage character creator in the existing vault/welcome path: identity, ability scores and explicitly chosen proficiencies, then HP/AC/speed and an optional configured weapon attack.
+- Reuse `CharacterImport.createManual`, the character v1 schema, vault `upsert` and existing editor/encounter UI. No separate character database, class executor, tutorial progress or auto-inferred class features.
+- Compute only basic D&D 2014 ability modifiers, level-based proficiency and explicitly selected save/skill bonuses. Unqualified class, species, spell, equipment and homebrew mechanics remain DM-managed.
+- Protect existing characters and demo data on create/cancel; cover invalid input, rules boundaries, vault persistence and responsive UI with Node and real Chromium tests.
+
 ## v0.42.0 — Contextual demo practice and creature-turn overview
 
 - Replace the static demo hint with contextual practice actions that route through existing combat and dice transactions; no separate tutorial state or auto-spending.

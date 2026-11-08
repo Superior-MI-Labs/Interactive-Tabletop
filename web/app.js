@@ -80,20 +80,112 @@ function showVault(){
  const layer=$('#vault-layer');layer.hidden=false;
  layer.innerHTML=`<div class="vault-shade"><section class="vault-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-title">
   <header class="vault-header"><div><small>LOCAL CHARACTER LIBRARY</small><h2 id="vault-title">Character vault</h2><p>Your characters stay on this device. Export a backup before clearing browser data.</p></div><button class="button subtle" id="vault-close" aria-label="Close character vault">✕</button></header>
-  <div class="vault-toolbar"><label for="pdf-file" class="button primary">Import character PDF</label><button class="button" id="vault-demo">${vaultData.characters.some(x=>x.character?.demo_id===window.TabletopDemo?.ID)?'Open demo fighter':'Add demo fighter'}</button><button class="button" id="vault-json">Import JSON</button><button class="button" id="vault-backup">Backup all characters</button></div>
+  <div class="vault-toolbar"><button class="button primary" type="button" id="vault-create">Create character</button><label for="pdf-file" class="button">Import character PDF</label><button class="button" id="vault-demo">${vaultData.characters.some(x=>x.character?.demo_id===window.TabletopDemo?.ID)?'Open demo fighter':'Add demo fighter'}</button><button class="button" id="vault-json">Import JSON</button><button class="button" id="vault-backup">Backup all characters</button></div>
   <div class="vault-characters">${vaultData.characters.length?vaultData.characters.map(entry=>{
    const c=entry.character,selected=entry.id===activeId;
    return `<article class="vault-card ${selected?'selected':''}"><div class="vault-info"><strong>${esc(c.name)}</strong><span>${esc(c.class_level||'D&D character')} · ${esc(c.species||'')}</span><small>${c.demo_id?'Demo character · local practice':selected?'Currently playing':'Saved locally'}</small></div>
    <div class="vault-card-actions"><button class="button ${selected?'subtle':'primary'}" data-vault="open" data-id="${esc(entry.id)}" ${selected?'disabled':''}>${selected?'Open':'Play'}</button><button class="button subtle" data-vault="export" data-id="${esc(entry.id)}">Export</button>${c.demo_id?`<button class="button subtle" data-vault="reset" data-id="${esc(entry.id)}">Reset demo</button>`:''}<button class="button warn" data-vault="delete" data-id="${esc(entry.id)}">Delete</button></div></article>`;
-  }).join(''):'<p>No characters yet. Import a D&D Beyond PDF to begin.</p>'}</div>
+  }).join(''):'<p>No characters yet. Create a character, try the demo, or import an existing D&D Beyond PDF.</p>'}</div>
   <p class="vault-footnote">Early alpha: D&D character sheets only. PDF exports may omit custom rules. Importing a new PDF for an existing character preserves current combat state and manual entries.</p>
   </section></div>`;
  $('#vault-close').onclick=closeVault;
+ $('#vault-create').onclick=showCharacterCreator;
  $('#vault-demo').onclick=()=>playDemo();
  $('#vault-json').onclick=()=>$('#json-file').click();
  $('#vault-backup').onclick=()=>downloadJsonData(Vault.normalize(vaultData),'interactive-tabletop-vault-backup.json');
  layer.querySelector('.vault-shade').addEventListener('click',e=>{if(e.target.classList.contains('vault-shade'))closeVault();});
 }
+// A transient form draft, not a second character or rules store. Manual
+// creation uses CharacterImport.createManual and the ordinary vault upsert.
+function showCharacterCreator(){
+ const layer=$('#vault-layer');layer.hidden=false;
+ const stats=[['STR','Strength',15],['DEX','Dexterity',14],['CON','Constitution',13],
+  ['INT','Intelligence',12],['WIS','Wisdom',10],['CHA','Charisma',8]];
+ const skills=Object.keys(window.CharacterImport.skillAbilities);
+ layer.innerHTML=`<div class="vault-shade"><section class="vault-dialog creator-dialog" role="dialog" aria-modal="true" aria-labelledby="creator-title">
+  <header class="vault-header"><div><small>NEW CHARACTER · MANUAL D&amp;D 2014</small><h2 id="creator-title">Create your adventurer</h2><p>Three steps to an editable character sheet. Your class features, spells and equipment are yours to configure, not guessed by the app.</p></div><button class="button subtle" id="creator-close" type="button" aria-label="Close character creator">✕</button></header>
+  <nav class="creator-progress" aria-label="Character creation progress"><span data-progress="0">1 · Identity</span><span data-progress="1">2 · Abilities</span><span data-progress="2">3 · Combat</span></nav>
+  <form id="creator-form" novalidate>
+   <div class="creator-step" data-creator-step="0"><h3>Who are you playing?</h3><p>This is a manually configured D&amp;D 2014 character, not an automatic class builder.</p>
+    <div class="creator-fields"><label>Name <input class="input" name="name" required maxlength="80" placeholder="Your adventurer's name" autocomplete="off"></label>
+    <label>Class <input class="input" name="className" required maxlength="80" placeholder="e.g. Ranger" autocomplete="off"></label>
+    <label>Level <input class="input" name="level" type="number" min="1" max="20" step="1" required value="1"></label>
+    <label>Species <input class="input" name="species" required maxlength="80" placeholder="e.g. Human" autocomplete="off"></label>
+    <label>Background <input class="input" name="background" maxlength="80" placeholder="Optional"></label>
+    <label>Player <input class="input" name="player" maxlength="80" placeholder="Optional"></label></div></div>
+   <div class="creator-step" data-creator-step="1" hidden><h3>Ability scores and proficiencies</h3><p>These are editable example scores. The app calculates 2014 ability modifiers and proficiency bonus from the numbers you enter; choose your own proficiencies with your DM.</p>
+    <div class="creator-scores">${stats.map(([k,name,value])=>`<label>${name} (${k})<input class="input" type="number" name="score-${k}" min="1" max="30" step="1" required value="${value}"></label>`).join('')}</div>
+    <fieldset class="creator-proficiencies"><legend>Saving throw proficiencies</legend><div class="creator-checks">${stats.map(([k,name])=>`<label><input type="checkbox" name="saveProf" value="${k}"> ${name}</label>`).join('')}</div></fieldset>
+    <details class="creator-proficiencies"><summary>Skill proficiencies (optional)</summary><div class="creator-checks">${skills.map(name=>`<label><input type="checkbox" name="skillProf" value="${esc(name)}"> ${esc(name)}</label>`).join('')}</div></details>
+   </div>
+   <div class="creator-step" data-creator-step="2" hidden><h3>Combat basics</h3><p>Confirm these numbers with your DM. Enter one optional attack to start rolling immediately; unsupported features and spellcasting can be configured on your sheet afterward.</p>
+    <div class="creator-fields"><label>Maximum HP <input class="input" type="number" name="hp" min="1" max="9999" step="1" required value="10"></label>
+    <label>Armor class <input class="input" type="number" name="ac" min="1" max="40" step="1" required value="10"></label>
+    <label>Walking speed (ft) <input class="input" type="number" name="speed" min="0" max="999" step="1" required value="30"></label></div>
+    <fieldset class="creator-proficiencies"><legend>Optional first weapon attack</legend>
+     <div class="creator-fields"><label>Attack name <input class="input" name="attack-name" maxlength="80" placeholder="e.g. Longsword"></label>
+      <label>Attack bonus <input class="input" type="number" name="attack-bonus" min="-30" max="50" step="1" value="0"></label>
+      <label>Damage dice <input class="input" name="attack-damage" value="1d8" placeholder="1d8+3"></label>
+      <label>Range <select class="input" name="attack-range"><option value="melee">Melee</option><option value="ranged">Ranged</option></select></label></div></fieldset>
+    <p class="creator-caution">After creation: review class/species features, equipment, skill choices, spell slots and any homebrew with your DM. Nothing is inferred from the class name.</p>
+   </div>
+   <p id="creator-error" class="creator-error" role="alert" aria-live="polite" hidden></p>
+   <footer class="creator-footer"><button class="button subtle" type="button" id="creator-cancel">Back to characters</button><span class="creator-footer-actions"><button class="button" type="button" id="creator-back" hidden>Previous</button><button class="button primary" type="button" id="creator-next">Next step</button><button class="button primary" type="submit" id="creator-save" hidden>Create character</button></span></footer>
+  </form></section></div>`;
+ const form=$('#creator-form'),steps=$$('[data-creator-step]',form),error=$('#creator-error');
+ let current=0;
+ const fail=message=>{error.hidden=false;error.textContent=message;};
+ const clearError=()=>{error.hidden=true;error.textContent='';};
+ const showStep=index=>{
+  current=index;steps.forEach((el,i)=>{el.hidden=i!==index;});
+  $$('[data-progress]',layer).forEach((el,i)=>el.classList.toggle('current',i===index));
+  $('#creator-back').hidden=index===0;$('#creator-next').hidden=index===2;$('#creator-save').hidden=index!==2;
+  clearError();steps[index].querySelector('input')?.focus();
+ };
+ const validStep=()=>{
+  for(const control of $$('input[required]',steps[current])){
+   if(!control.value.trim()){fail('Fill in '+(control.closest('label')?.textContent.trim()||'the required field')+'.');control.focus();return false;}
+   if(!control.checkValidity()){fail('Check the value for '+(control.closest('label')?.textContent.trim()||'this field')+'.');control.focus();return false;}
+  }
+  return true;
+ };
+ const cancel=()=>showVault();
+ $('#creator-close').onclick=cancel;$('#creator-cancel').onclick=cancel;
+ $('#creator-back').onclick=()=>showStep(Math.max(0,current-1));
+ $('#creator-next').onclick=()=>{clearError();if(validStep())showStep(Math.min(2,current+1));};
+ layer.querySelector('.vault-shade').addEventListener('click',e=>{if(e.target.classList.contains('vault-shade'))cancel();});
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();if(current!==2){if(validStep())showStep(Math.min(2,current+1));return;}
+  clearError();if(!validStep())return;
+  const fields=new FormData(form);
+  try{
+   const fresh=window.CharacterImport.createManual({
+    name:fields.get('name'),className:fields.get('className'),level:fields.get('level'),
+    species:fields.get('species'),background:fields.get('background'),player:fields.get('player'),
+    scores:Object.fromEntries(stats.map(([k])=>[k,fields.get('score-'+k)])),
+    saveProficiencies:fields.getAll('saveProf'),skillProficiencies:fields.getAll('skillProf'),
+    hp:fields.get('hp'),ac:fields.get('ac'),speed:fields.get('speed'),
+    attack:{name:fields.get('attack-name'),bonus:fields.get('attack-bonus'),
+     damage:fields.get('attack-damage'),range:fields.get('attack-range')}
+   });
+   const submit=$('#creator-save');submit.disabled=true;
+   let before=null;
+   try{
+    await persistVault();
+    before=Vault.normalize(vaultData);
+    Vault.upsert(vaultData,Vault.newId(),fresh);vaultDirty=true;
+    await persistVault();
+    selectLoadedCharacter();closeVault();
+    toast('Created '+fresh.name+' · Review features, spells, and equipment with your DM.');
+   }catch(storageError){
+    if(before){vaultData=before;vaultDirty=false;$('#save-state').textContent='Save failed!';}
+    submit.disabled=false;fail('Could not save character: '+storageError.message);
+   }
+  }catch(ex){fail(ex.message);}
+ });
+ showStep(0);
+}
+
 async function playDemo(){
  try{
   await persistVault();
@@ -109,6 +201,7 @@ async function activateCharacter(id){
  vaultData.active_id=id;vaultDirty=true;
  selectLoadedCharacter();closeVault();await persistVault();toast('Character selected');
 }
+$('#create-character').onclick=showCharacterCreator;
 $('#vault-open').onclick=async()=>{try{await persistVault();showVault();}catch(e){toast('Could not save before switching characters: '+e.message);}};
 $('#vault-layer').addEventListener('click',async e=>{
  const button=e.target.closest('[data-vault]');if(!button)return;
@@ -1302,11 +1395,12 @@ function showWelcome(){
    <div class="alpha-pill">EARLY ALPHA · WORK IN PROGRESS</div>
    <h1>Your adventure starts here.</h1>
    <p>Upload your <strong>D&amp;D Beyond .pdf character sheet here</strong> and bring your character to the table.</p>
-   <div class="welcome-steps"><button class="welcome-button" type="button" id="welcome-demo">Play with demo fighter</button><label for="pdf-file" class="welcome-button">Choose character PDF</label>
+   <div class="welcome-steps"><button class="welcome-button" type="button" id="welcome-create">Create a character</button><button class="welcome-button" type="button" id="welcome-demo">Play with demo fighter</button><label for="pdf-file" class="welcome-button">Choose character PDF</label>
    <button class="button subtle" type="button" id="welcome-json">Restore JSON backup</button><button class="button subtle" type="button" id="welcome-vault">Character vault</button></div>
    <p class="welcome-note">Your character remains in your browser on this device. PDF support is experimental: custom rules, spells and actions may need review. Export JSON backups regularly.</p>
    <details><summary>What is available in this alpha?</summary><p>Interactive character stats, skills, saves, inventory, spells, resources and a persistent dice table. Some mechanics and PDF variations are not fully automated.</p></details>
  </section>`;
+ $('#welcome-create').addEventListener('click',showCharacterCreator);
  $('#welcome-demo').addEventListener('click',playDemo);
  $('#welcome-json').addEventListener('click',()=>$('#json-file').click());
  $('#welcome-vault').addEventListener('click',showVault);

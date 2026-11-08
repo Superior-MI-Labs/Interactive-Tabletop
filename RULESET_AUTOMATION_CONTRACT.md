@@ -140,3 +140,7 @@ A DM-confirmed creature turn closes only that creature's event window, linked sa
 The demo's practice instructions are derived from the existing vault character, selected target, pending dice and `DndAction` action ledger. No persistent tutorial flags or alternate action executor exist. The guide uses the same validated attack, encounter, and dice controls as the rest of the UI. Dice controls explicitly marked as pointer-priority controls remain accessible when a die overlaps their screen position. Their actions still pass through the shared planner and commit rules.
 
 The creature-turn summary is a derived view of `effects.combat.condition_grants` and `effects.targets[].condition_turn`, with no inferred initiative order. Only a DM-confirmed `advanceTargetTurn` may advance another creature's condition clock, retire eligible event/workflow evidence and expire condition grants anchored to that creature. Unknown, removed and numerically exhausted turns fail before mutation.
+
+## Manual creation contract (v0.43)
+
+`CharacterImport.createManual` produces a manual D&D 2014 character from explicitly entered fields: level-based proficiency, ability modifiers and chosen saving throw/skill proficiency bonuses only. No class feature, spell slot, resource, action economy override, species trait or equipment is inferred from names. One optional explicit weapon attack may be configured. All other mechanics require user/DM validation and must flow through the existing action engine.
