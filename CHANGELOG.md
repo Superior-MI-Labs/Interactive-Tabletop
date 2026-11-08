@@ -1,3 +1,11 @@
+## v0.49.0 — Explicit target safety and verified Auto damage
+
+- Added a shared `DndAction.requireOffensiveTarget` gate used by normal/bonus attacks, manual damage, attack-like ability rolls and configured damage actions/spells. The default self/saving-throw target can no longer silently receive offensive damage.
+- Made the selected target visible in a persistent combat bar with a direct roster control; in-flight attacks and damage keep their original target IDs.
+- Added opt-in `auto_damage` approval to an encounter target. A verified Auto hit with known damage type and approved defenses can use existing `planDamage`/`commitDamage` and Undo without another click. Changing damage traits revokes approval; missing/unsupported adjudication goes to review.
+- Conservatively require DM hit adjudication when unqualified actor/defender conditions are present. Guided/Auto inline damage approval no longer opens a second confirm; Manual retains the confirm. Pending damage now permits an explicit type correction.
+- Expanded engine and browser regressions for no-target safety, damage modes, mitigation, target switch, Undo and resource spending. No second combat engine, scene state or inferred spell rules.
+
 ## v0.48.0 — Preview the actual spellbook changes before PDF reimport
 
 - Extracted one pure imported-spell identity matcher inside `web/vault-store.js` and reused it for both reconciliation and the new preview. No second diff pipeline, spellbook store or inferred mechanics.

@@ -1045,6 +1045,38 @@ function targetById(character,id){
  if(id==='self')return character;
  return targets(character).find(t=>t.id===id)||null;
 }
+// Offensive actions cannot inherit the default self-target used by saves,
+// conditions and healing. All UI surfaces, including scene tokens, use this gate.
+function requireOffensiveTarget(character,id){
+ if(!id||id==='self')throw Error('Choose an encounter creature before attacking. Your character cannot be the default attack target.');
+ const target=targetById(character,id);
+ if(!target)throw Error('The selected encounter creature is no longer available. Choose another target.');
+ return target;
+}
+// The DM/player explicitly verifies a creature's defenses before allowing
+// unattended HP application in Auto. The checkbox lives on its actual target
+// record, not in a UI-only settings store.
+function setTargetAutoDamage(character,id,enabled){
+ const target=requireOffensiveTarget(character,id);
+ if(typeof enabled!=='boolean')throw Error('Auto-damage permission must be enabled or disabled explicitly.');
+ target.auto_damage=enabled;
+ return enabled;
+}
+function canAutoEvaluateAttack(character,id){
+ const state=combat(character);
+ if(!state.active||state.economy.mode!=='auto')return false;
+ try{
+  const target=requireOffensiveTarget(character,id);
+  // Character or target statuses may change attack advantage or hit validity.
+  // Until those rules are qualified, require a DM verdict in Auto.
+  return !(character.conditions||[]).length&&!(target.conditions||[]).length;
+ }catch{return false;}
+}
+function canAutoApplyAttackDamage(character,id,type){
+ const state=combat(character);
+ if(!state.active||state.economy.mode!=='auto'||!DAMAGE_TYPES.includes(type)||type==='untyped')return false;
+ try{return requireOffensiveTarget(character,id).auto_damage===true;}catch{return false;}
+}
 function damageTraits(values){
  if(values==null||values==='')return [];
  const items=Array.isArray(values)?values:String(values).split(',');
@@ -1071,6 +1103,8 @@ function setTargetTraits(character,id,kind,values){
   character.effects.self_traits[kind]=parsed;
  }else{
   if(!entity.traits)entity.traits={};
+  // Defensive profile changed: explicit Auto-damage approval must be renewed.
+  if(JSON.stringify(entity.traits[kind]||[])!==JSON.stringify(parsed))entity.auto_damage=false;
   entity.traits[kind]=parsed;
  }
  return parsed;
@@ -1331,6 +1365,6 @@ function commitDamage(character,planned){
  }
  return {...fresh,concentrationCheck:check};
 }
-const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,creatureTurns,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,configureResourcePool,configureSpellSlots,setResourceCurrent,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,creatureTurns,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,configureResourcePool,configureSpellSlots,setResourceCurrent,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,requireOffensiveTarget,setTargetAutoDamage,canAutoEvaluateAttack,canAutoApplyAttackDamage,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

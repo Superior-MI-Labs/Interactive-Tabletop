@@ -407,12 +407,27 @@ function workspaceTabs(){
 function currentTargetId(){
  return Action.targetById(character,selectedTargetId)?selectedTargetId:'self';
 }
+// All offensive controls rely on the engine's single target validator.
+function requireCombatTarget(){
+ try{return Action.requireOffensiveTarget(character,currentTargetId());}
+ catch(error){
+  const manager=$('#page .encounter-targets');
+  if(manager){manager.open=true;panelState.set('Encounter targets',true);}
+  toast(error.message);
+  $('#combat-target')?.focus();
+  return null;
+ }
+}
 function targetPicker(){
- const selected=currentTargetId();
- return `<label class="target-label">Target <select class="input" id="combat-target" aria-label="Selected encounter target">
- <option value="self" ${selected==='self'?'selected':''}>${esc(character.name)} (self)</option>
- ${Action.targets(character).map(t=>`<option value="${esc(t.id)}" ${t.id===selected?'selected':''}>${esc(t.name)} · AC ${esc(Action.effectiveAC(character,t.id))} · HP ${esc(t.hp.current)}/${esc(t.hp.max)}</option>`).join('')}
- </select></label>`;
+ const selected=currentTargetId(),target=selected==='self'?null:Action.targetById(character,selected);
+ return `<div class='combat-target-bar ${target?'has-target':'needs-target'}' aria-label='Current combat target'>
+ <label class='target-label'>Combat target <select class='input' id='combat-target' aria-label='Selected encounter target'>
+ <option value='self' ${selected==='self'?'selected':''}>No creature selected · self for saves</option>
+ ${Action.targets(character).map(t=>`<option value='${esc(t.id)}' ${t.id===selected?'selected':''}>${esc(t.name)} · AC ${esc(Action.effectiveAC(character,t.id))} · HP ${esc(t.hp.current)}/${esc(t.hp.max)}</option>`).join('')}
+ </select></label>
+ <span class='combat-target-status' role='status'>${target?`Selected: ${esc(target.name)} · AC ${esc(Action.effectiveAC(character,target.id))} · ${esc(target.hp.current)}/${esc(target.hp.max)} HP`:'Choose a creature before attacking; self is never an automatic offensive target.'}</span>
+ ${button('Manage targets','open-targets','','button mini subtle')}
+ </div>`;
 }
 function encounterTargets(){
  const selected=currentTargetId(),entity=Action.targetById(character,selected);
@@ -433,6 +448,7 @@ function encounterTargets(){
  ${button('Preview damage','target-manual-damage','','button mini subtle')}
  ${Action.combat(character).last_damage_undo?button('Undo last damage','undo-last-damage','','button mini subtle'):''}
  ${selected!=='self'?button('Remove target','target-remove',selected,'button mini warn'):''}</div>
+ ${selected!=='self'?`<div class='target-auto-damage'><label><input type='checkbox' data-target-auto-damage='${esc(selected)}' ${entity.auto_damage===true?'checked':''}> Allow Auto to apply verified attack damage</label><small>Requires a verified hit, typed damage and reviewed defenses. Changing damage traits revokes approval; unverified rolls still require review.</small></div>`:''}
  ${selected!=='self'?`<div class="target-toolbar">${[['AC','ac',entity.ac],['Current HP','hp.current',entity.hp.current],['Max HP','hp.max',entity.hp.max],['Temp HP','hp.temp',entity.hp.temp]].map(([name,key,value])=>`<label>${name}<input type="number" class="input" data-target-stat="${key}" value="${esc(value)}" aria-label="${name}"></label>`).join('')}</div>`:''}
  <form class="target-add-form" id="target-add-form"><strong>Add another target</strong><input class="input" name="name" maxlength="70" required placeholder="Creature name" aria-label="New target name">
  <input class="input" name="ac" type="number" min="0" max="99" value="12" required aria-label="New target AC">
@@ -847,6 +863,7 @@ function handleAction(action,arg){
   }
   case 'edit-mode':editMode=!editMode;if(!editMode)editRollModifiers=false;render();break;
   case 'undo-last-damage':try{if(Action.undoLastDamage(character)){save();render();toast('Last damage application undone.');}else toast('Nothing to undo.');}catch(e){toast(e.message);}break;
+  case 'open-targets':{const manager=$('#page .encounter-targets');if(manager){manager.open=true;panelState.set('Encounter targets',true);$('[name=name]',manager)?.focus();}break;}
   case 'target-remove':dialog('Remove encounter target?',`Remove ${Action.targetById(character,arg)?.name||'this target'} from this character's encounter notes?`,()=>{
    Action.removeTarget(character,arg);selectedTargetId='self';pendingDamage=pendingDamage.filter(x=>x.targetId!==arg);save();render();updateTableResults();
   });break;
@@ -885,15 +902,19 @@ function handleAction(action,arg){
    if(!entry){toast('Damage roll no longer available.');break;}
    const policy=$(`[data-pending-save="${arg}"]`)?.value||'none';
    const saveId=policy==='none'?null:$(`[data-pending-save="${arg}"]`)?.dataset.saveId;
+   const damageType=$(`[data-pending-damage-type="${arg}"]`)?.value||entry.type;
    if(policy!=='none'&&!saveId){toast('Choose a verified saving throw result first.');break;}
-   try{const p=Action.planDamage(character,entry.targetId,{amount:entry.amount,type:entry.type,
+   try{const p=Action.planDamage(character,entry.targetId,{amount:entry.amount,type:damageType,
      saveId,savePolicy:policy});
     const target=Action.targetById(character,entry.targetId);
-    dialog('Apply rolled damage?',`${entry.source}: apply ${p.amount} ${p.type} damage to ${target.name} (${p.absorbed} temp HP, ${p.hpLoss} HP)?${p.saveId?' This explicitly associates the selected saving throw with this damage.':''}`,()=>{
+    const apply=()=>{
      try{const result=Action.commitDamage(character,p);pendingDamage=pendingDamage.filter(x=>x.id!==arg);save({preserveDamageUndo:true});render();updateTableResults();
       toast(`Applied ${result.amount} ${result.type} damage to ${target.name}${result.concentrationCheck?' · concentration DC '+result.concentrationCheck.dc:''}.`);
      }catch(e){toast('Damage not applied: '+e.message);}
-    });
+    };
+    // A Guided/Auto inline review click is already an explicit approval.
+    if(Action.combat(character).economy.mode==='manual')dialog('Apply rolled damage?',`${entry.source}: apply ${p.amount} ${p.type} damage to ${target.name} (${p.absorbed} temp HP, ${p.hpLoss} HP)?`,apply);
+    else apply();
    }catch(e){toast('Damage not applied: '+e.message);}break;
   }
   case 'dismiss-target-damage':pendingDamage=pendingDamage.filter(x=>x.id!==arg);updateTableResults();break;
@@ -1002,6 +1023,7 @@ function handleAction(action,arg){
     }catch(e){toast('Cannot use '+p.name+': '+e.message);}break;
    }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
+   const offensiveTarget=p.effect==='damage'?requireCombatTarget():null;if(p.effect==='damage'&&!offensiveTarget)break;
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
    const details=[p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
    dialog('Use '+p.name+'?',details.join(' · ')+'. Continue only if appropriate under your table rules.',()=>{
@@ -1010,9 +1032,10 @@ function handleAction(action,arg){
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      // Never charge a resource if the required dice cannot be prepared.
      if(p.roll&&!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough space for this throw. Clear unused dice first.');
+     if(p.effect==='damage')Action.requireOffensiveTarget(character,offensiveTarget.id);
      Action.commitUsage(character,p);Action.startEffect(character,p);save();render();
      const confirmed=p;
-     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:confirmed.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:currentTargetId(),damageType:confirmed.damageType,source:confirmed.name}:null);
+     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:confirmed.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:offensiveTarget.id,damageType:confirmed.damageType,source:confirmed.name}:null);
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
@@ -1066,7 +1089,7 @@ function handleAction(action,arg){
      const cfg=Action.dice(attack.roll);
      if(!canPrepareDice(cfg.count,cfg.sides))throw Error('Not enough room for return dice.');
      const targetId=currentTargetId(),target=Action.targetById(character,targetId);
-     if(!target)throw Error('Choose a valid return-attack target.');
+     Action.requireOffensiveTarget(character,targetId);
      if(queueRoll(attack.roll,attack.label+' vs '+target.name,
       {kind:'target-attack',characterId:activeId,targetId,sourceId:attack.sourceId},'attack')){
       pendingRoll.workflowId=arg;
@@ -1084,6 +1107,7 @@ function handleAction(action,arg){
    const ref=References?.match('spell',sp.name,character.system_edition);
    let planned;try{planned=Action.planSpell(character,sp,choice?Number(choice.value):undefined,ref?.automation);}catch(e){toast('Cannot cast '+sp.name+': '+e.message);break;}
    if(planned.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
+   const offensiveTarget=planned.effect==='damage'?requireCombatTarget():null;if(planned.effect==='damage'&&!offensiveTarget)break;
    try{Action.verifyEconomy(character,planned);}catch(e){toast(e.message);break;}
    const activeConcentration=Action.activeEffects(character).find(e=>e.concentration);
    const info=[planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.bonusDice?`${planned.bonusMode==='sustained'?'While active':planned.charges+' use(s)'} × ${planned.bonusDice} for ${planned.bonusScopes.join(' / ')} (self only)`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
@@ -1092,8 +1116,9 @@ function handleAction(action,arg){
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      const fresh=Action.planSpell(character,sp,planned.slotLevel,ref?.automation);
      if(fresh.roll&&!canPrepareDice(fresh.roll.count,fresh.roll.sides))throw Error('Not enough room for dice.');
+     if(fresh.effect==='damage')Action.requireOffensiveTarget(character,offensiveTarget.id);
      Action.commitUsage(character,fresh);Action.startEffect(character,fresh);save();render();
-     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:fresh.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:currentTargetId(),damageType:fresh.damageType,source:fresh.name}:null);
+     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:fresh.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:offensiveTarget.id,damageType:fresh.damageType,source:fresh.name}:null);
      else toast('Cast '+fresh.name+'; resolve spell effects with your DM.');
     }catch(e){toast('Could not cast spell: '+e.message);}
    });break;
@@ -1126,7 +1151,8 @@ function handleAction(action,arg){
   case 'action-roll':case 'action-damage':{
    const a=character.actions?.[num(arg)];if(!a)break;
    const expression=action==='action-roll'?a.roll:a.damage;if(!expression)break;
-   const targetId=currentTargetId(),target=Action.targetById(character,targetId);
+   const target=requireCombatTarget();if(!target)break;
+   const targetId=target.id;
    const effect=action==='action-roll'?{kind:'target-attack',characterId:activeId,targetId}:
      {kind:'target-damage',characterId:activeId,targetId,damageType:selectedDamageType,source:a.name};
    queueRoll(expression,`${a.name} ${action==='action-roll'?'attack':'damage'} vs ${target.name}`,effect,action==='action-roll'?'attack':'untyped');break;
@@ -1154,13 +1180,14 @@ function handleAction(action,arg){
   case 'toggle-archived':showArchived=!showArchived;render();break;
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check',null,'ability-check');break;}
-  case 'attack':case 'bonus-attack':{const a=character.attacks[num(arg)];if(a){const targetId=currentTargetId(),permission=action==='bonus-attack'?'bonus':'action',type=Action.attackType(a);
+  case 'attack':case 'bonus-attack':{const a=character.attacks[num(arg)];if(a){const opponent=requireCombatTarget();if(!opponent)break;const targetId=opponent.id,permission=action==='bonus-attack'?'bonus':'action',type=Action.attackType(a);
    try{Action.verifyAttack(character,permission,type);
     if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+(permission==='bonus'?' bonus strike':' attack')+' vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg),attackId:String(a.id||a.name),attackType:type,attackRange:Action.attackRange(a)},'attack')){pendingRoll.combatAttack=true;pendingRoll.attackPermission=permission;pendingRoll.attackType=type;}
    if(character.demo_id===window.TabletopDemo?.ID&&pendingRoll)render();
    }catch(e){toast(e.message);}}break;}
   case 'damage':{
-   const index=num(arg),targetId=currentTargetId();
+   const opponent=requireCombatTarget();if(!opponent)break;
+   const index=num(arg),targetId=opponent.id;
    const confirmed=lastAttackOutcome?.hit&&lastAttackOutcome.targetId===targetId&&lastAttackOutcome.sourceId==='attack-'+index;
    if(prepareAttackDamage(index,targetId,Boolean(confirmed&&lastAttackOutcome.critical)))lastAttackOutcome=null;
    break;
@@ -1227,8 +1254,8 @@ function canPrepareDice(count,sides){
 }
 // One attack→damage preparation path for Auto, Guided and the manual Damage button.
 // Never mutate HP, overwrite another prepared throw, or infer unlisted damage dice.
-function prepareAttackDamage(index,targetId,critical=false){
- const attack=character.attacks?.[index],target=Action.targetById(character,targetId);
+function prepareAttackDamage(index,targetId,critical=false,verifiedHit=false){
+ const attack=character.attacks?.[index],target=Action.requireOffensiveTarget(character,targetId);
  if(!attack||!target)return false;
  if(pendingRoll){toast('Another roll is already prepared. Finish or clear it before damage.');return false;}
  const match=/\d+d\d+(?:[+-]\d+)?/i.exec(attack.damage||'');
@@ -1238,7 +1265,7 @@ function prepareAttackDamage(index,targetId,critical=false){
   const damageType=matchingTypes.length===1?matchingTypes[0]:selectedDamageType;
   const expression=critical?Action.criticalDamageExpression(match[0]):Action.dice(match[0]).expression;
   return queueRoll(expression,attack.name+(critical?' critical':'')+' damage vs '+target.name,
-   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name});
+   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name,verifiedAttackHit:verifiedHit});
  }catch(error){toast(error.message);return false;}
 }
 function attackFollowup(result,group,knownHit){
@@ -1268,7 +1295,7 @@ function attackFollowup(result,group,knownHit){
    if(event){save();render();toast('Confirmed melee hit · eligible on-hit abilities are available.');}
   }catch(error){toast('Attack trigger: '+error.message);}
   lastAttackOutcome={targetId,sourceId:source,critical:natural===20,hit:true};
-  if(prepareAttackDamage(index,targetId,natural===20))lastAttackOutcome=null;
+  if(prepareAttackDamage(index,targetId,natural===20,mode==='auto'&&knownHit===true))lastAttackOutcome=null;
   else toast('Hit confirmed. Use the Damage button when the tabletop is free.');
  };
  if(mode==='guided'||knownHit===null){
@@ -1386,7 +1413,12 @@ document.addEventListener('change',e=>{
  }
  if(el.id==='combat-target'){selectedTargetId=Action.targetById(character,el.value)?el.value:'self';render();return;}
  if(el.id==='damage-type'){selectedDamageType=el.value;return;}
- if(el.dataset.targetStat){try{Action.updateTargetStat(character,currentTargetId(),el.dataset.targetStat,el.value);save();render();}catch(e){toast(e.message);render();}return;}
+ if(el.dataset.targetAutoDamage!==undefined){
+   try{Action.setTargetAutoDamage(character,el.dataset.targetAutoDamage,el.checked);save();render();}
+   catch(error){toast(error.message);render();}
+   return;
+  }
+  if(el.dataset.targetStat){try{Action.updateTargetStat(character,currentTargetId(),el.dataset.targetStat,el.value);save();render();}catch(e){toast(e.message);render();}return;}
  if(el.dataset.targetTrait){try{Action.setTargetTraits(character,currentTargetId(),el.dataset.targetTrait,el.value);save();render();}catch(e){toast(e.message);render();}return;}
 
  if(el.id==='catalog-level'){catalogLevel=el.value;filterCatalogEntries();return;}
@@ -1750,7 +1782,7 @@ function beginThrow(vx=120,vy=45,shake=80){
 function finishRollIfSettled(){
  if(!activeRolls.length)return;
  const completed=[];
- let effectsChanged=false;
+ let effectsChanged=false,autoDamageCommitted=false;
  const attackFollowups=[];
  for(const group of activeRolls){
    const selected=group.diceIds.map(id=>dice.find(d=>d.id===id)).filter(Boolean);
@@ -1799,7 +1831,8 @@ function finishRollIfSettled(){
          try{
           const verdict=Action.evaluateAttack(result.total,Action.effectiveAC(character,group.effect.targetId),natural);
           knownHit=verdict.hit;
-          result.outcome=verdict.critical?'CRITICAL HIT':verdict.hit?'HIT':'MISS';
+          if(Action.combat(character).economy.mode==='auto'&&!Action.canAutoEvaluateAttack(character,group.effect.targetId))knownHit=null;
+          result.outcome=knownHit===null?'DM REVIEW':verdict.critical?'CRITICAL HIT':verdict.hit?'HIT':'MISS';
           toast(`${target.name}: ${result.outcome} vs AC ${verdict.targetAC}. Confirm before applying damage.`);
          }catch(error){toast('AC unknown: confirm hit/miss with the DM.');}
          lastAttackOutcome={targetId:group.effect.targetId,sourceId:group.effect.sourceId||null,critical:natural===20,hit:knownHit};
@@ -1818,9 +1851,22 @@ function finishRollIfSettled(){
        }catch(e){toast('Save result not recorded: '+e.message);}
      }
      if(group.effect.kind==='target-damage'&&result.total>=0){
-       const targetId=group.effect.targetId;
-       if(Action.targetById(character,targetId))pendingDamage.push({id:String(++nextResolutionId),characterId:activeId,targetId,
-         source:group.effect.source||group.label,type:group.effect.damageType||'untyped',amount:result.total});
+       const targetId=group.effect.targetId,damageType=group.effect.damageType||'untyped';
+       if(Action.targetById(character,targetId)){
+        const review={id:String(++nextResolutionId),characterId:activeId,targetId,
+         source:group.effect.source||group.label,type:damageType,amount:result.total};
+        // An automatic commit needs a verified hit plus explicit defense approval.
+        // Otherwise keep the existing review flow without inferring mechanics.
+        if(group.effect.verifiedAttackHit===true&&Action.canAutoApplyAttackDamage(character,targetId,damageType)){
+         try{
+          const planned=Action.planDamage(character,targetId,{amount:result.total,type:damageType});
+          const applied=Action.commitDamage(character,planned);
+          result.appliedDamage={name:Action.targetById(character,targetId).name,amount:applied.amount,hpLoss:applied.hpLoss};
+          autoDamageCommitted=true;effectsChanged=true;
+          toast('Auto applied '+applied.amount+' '+damageType+' damage to '+result.appliedDamage.name+'. Undo available.');
+         }catch(error){pendingDamage.push(review);toast('Auto damage requires review: '+error.message);}
+        }else pendingDamage.push(review);
+       }
      }
      if(group.effect.kind==='staged-reduction'){
        try{const outcome=Action.resolveWorkflow(character,group.effect.sequenceId,result.total);
@@ -1838,7 +1884,7 @@ function finishRollIfSettled(){
  }
  if(!completed.length)return;
  activeRolls=activeRolls.filter(g=>!completed.includes(g));activeRoll=activeRolls.at(-1)||null;
- updateTableResults();save();
+ updateTableResults();save({preserveDamageUndo:autoDamageCommitted});
  if(effectsChanged||character?.demo_id===window.TabletopDemo?.ID)render(); // Repaint verified buffs and demo guidance after settlement.
  // Finishing a throw must not trample a player-prepared roll or an open dialog.
  if(!pendingRoll&&attackFollowups.length===1){const next=attackFollowups[0];attackFollowup(next.result,next.group,next.knownHit);}
@@ -1847,7 +1893,7 @@ function finishRollIfSettled(){
 function updateTableResults(){
  const result=$('#last-result'),list=$('#table-history'),count=$('#history-count'),collapsed=$('#collapsed-result');
  if(!result)return;
- result.innerHTML=lastResult?`<strong>${esc(lastResult.total)}</strong> <span>${esc(lastResult.label)} · ${esc(lastResult.parts.join(' + '))} ${lastResult.modifier?sgn(lastResult.modifier):''} ${lastResult.mode&&lastResult.mode!=='normal'?`· ${esc(lastResult.mode)} (${esc(lastResult.natural)})`:''} ${(lastResult.bonuses||[]).map(b=>`· ${esc(b.name)} ${esc(b.parts.join('+'))}`).join(' ')} ${lastResult.outcome?`· ${esc(lastResult.outcome)}`:''}</span>`:
+ result.innerHTML=lastResult?`<strong>${esc(lastResult.total)}</strong> <span>${esc(lastResult.label)} · ${esc(lastResult.parts.join(' + '))} ${lastResult.modifier?sgn(lastResult.modifier):''} ${lastResult.mode&&lastResult.mode!=='normal'?`· ${esc(lastResult.mode)} (${esc(lastResult.natural)})`:''} ${(lastResult.bonuses||[]).map(b=>`· ${esc(b.name)} ${esc(b.parts.join('+'))}`).join(' ')} ${lastResult.outcome?`· ${esc(lastResult.outcome)}`:''}${lastResult.appliedDamage?` · Applied ${esc(lastResult.appliedDamage.amount)} damage to ${esc(lastResult.appliedDamage.name)}`:''}</span>`:
  'Pick a die, drag to shake, then release. Dice remain on the table.';
  if(collapsed)collapsed.textContent=lastResult?`${lastResult.total} · ${lastResult.label}`:'Ready';
  count.textContent=String(history.length);
@@ -1860,7 +1906,8 @@ function updateTableResults(){
    return target?`<div class="pending-resolution"><strong>${esc(d.amount)} ${esc(d.type)} → ${esc(target.name)}</strong>
      <label>Save rule (explicitly associate; never automatic) <select class="input" data-pending-save="${esc(d.id)}" data-save-id="${esc(matching?recent.id:'')}"><option value="none">No save reduction</option>
      ${matching?`<option value="half">${esc(recent.ability)} save DC ${recent.dc} (${esc(recent.outcome)}) · half on success</option><option value="negates">${esc(recent.ability)} save DC ${recent.dc} (${esc(recent.outcome)}) · negates on success</option>`:''}</select></label>
-     ${button('Review & apply','apply-target-damage',d.id,'button mini primary')} ${button('Dismiss','dismiss-target-damage',d.id,'button mini subtle')}</div>`:'';
+     <label>Damage type <select class='input' data-pending-damage-type='${esc(d.id)}'>${Action.DAMAGE_TYPES.map(type=>`<option value='${type}' ${d.type===type?'selected':''}>${type}</option>`).join('')}</select></label>
+     ${button('Apply damage','apply-target-damage',d.id,'button mini primary')} ${button('Dismiss','dismiss-target-damage',d.id,'button mini subtle')}</div>`:'';
   }).join('');
   effect.innerHTML=heal+damages+(recent?`<p class="save-result-note">Last save: ${esc(recent.ability)} ${esc(recent.outcome)} vs DC ${recent.dc} (${esc(Action.targetById(character,recent.targetId)?.name||'removed target')}); damage association requires confirmation.</p>`:'');
  }

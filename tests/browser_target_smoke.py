@@ -31,6 +31,13 @@ with sync_playwright() as playwright:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Synthetic Duelist'")
+ # No target: attack and damage cannot fall through to the character's own HP.
+ old_hp=page.evaluate('character.hp.current')
+ page.locator('.attack-list [data-action=attack]').first.click()
+ assert page.evaluate('pendingRoll') is None
+ assert page.evaluate('character.hp.current')==old_hp
+ assert page.locator('.encounter-targets').get_attribute('open') is not None
+ assert 'Choose a creature' in page.locator('.combat-target-status').inner_text()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  new=page.locator('#target-add-form')
  new.locator('[name=name]').fill('Training Golem')
@@ -87,6 +94,69 @@ with sync_playwright() as playwright:
  assert 'Training Golem' in page.locator('#dialog-layer').inner_text()
  page.locator('#dlg-no').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48
+ # Auto-mode attack hit prepares typed damage, but never applies HP without
+ # explicit defense review. The inline Apply button is a single approval.
+ page.set_viewport_size({'width':1440,'height':900})
+ page.locator('#combat-mode').select_option('auto')
+ page.get_by_role('button',name='Start encounter').click()
+ page.locator('.attack-list [data-action=attack]').first.click()
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingRoll?.expression')=='1d8+4','Verified hit should prepare damage dice'
+ assert page.evaluate('queuedEffect?.verifiedAttackHit') is True
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==1,'Unapproved defenses must force review'
+ assert page.evaluate('character.effects.targets[0].hp.current')==48
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ assert page.locator('#dlg-yes').count()==0,'Auto inline review must not ask for a second click'
+ assert page.evaluate('character.effects.targets[0].hp.current')==44,'9 fire damage resisted = 4 applied'
+ page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
+ page.get_by_role('button',name='Undo last damage').click()
+ assert page.evaluate('character.effects.targets[0].hp.current')==48
+ # A reviewed creature's verified, typed hit can auto-commit damage at settle.
+ page.locator('[data-target-auto-damage]').check()
+ assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
+ page.get_by_role('button',name='Next turn').click()
+ page.locator('.attack-list [data-action=attack]').first.click()
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingRoll?.expression')=='1d8+4'
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==0
+ assert page.evaluate('character.effects.targets[0].hp.current')==44
+ assert page.evaluate('lastResult.appliedDamage.amount')==4
+ assert page.evaluate('character.effects.combat.last_damage_undo') is not None
+ # The original target ID is frozen in the dice group even after selecting another.
+ page.get_by_role('button',name='Next turn').click()
+ page.evaluate('''()=>{const second=Action.addTarget(character,{name:'Second Golem',ac:16,hp:30});selectedTargetId='target-1';render();}''')
+ page.locator('.attack-list [data-action=attack]').first.click()
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ page.locator('#combat-target').select_option('target-2')
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('character.effects.targets[0].hp.current')==40
+ assert page.evaluate('character.effects.targets[1].hp.current')==30,'Re-targeting cannot steal pending damage'
+ # Manual remains an explicit confirmation; cancel does not touch HP.
+ page.locator('#combat-mode').select_option('manual')
+ page.locator('.attack-list [data-action=damage]').first.click()
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==1
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ assert page.locator('#dlg-yes').count()==1
+ page.locator('#dlg-no').click()
+ assert page.evaluate('character.effects.targets[1].hp.current')==30
+ page.locator('#roll-effect [data-action="dismiss-target-damage"]').evaluate('(el)=>el.click()')
  page.set_viewport_size({'width':390,'height':844})
  page.wait_for_timeout(100)
  assert page.evaluate('document.documentElement.scrollWidth')<=400,'Horizontal overflow in narrow layout'

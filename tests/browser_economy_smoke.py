@@ -32,6 +32,7 @@ with sync_playwright() as pw:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Economy QA'")
  page.get_by_role('button',name='Start encounter').click()
+ page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Practice Dummy',ac:15,hp:40});selectedTargetId=foe.id;render();}")
  cfg=page.locator('.economy-config');cfg.locator('summary').click()
  cfg.locator('[data-economy-config="action"]').fill('3')
  cfg.locator('[data-economy-config="action"]').press('Tab')
