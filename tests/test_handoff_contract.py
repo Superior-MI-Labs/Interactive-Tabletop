@@ -33,7 +33,7 @@ class ProjectHandoffContractTests(unittest.TestCase):
         self.assertIn("bash tools/qualify.sh", agent)
         self.assertIn("web/dnd-action.js", agent)
         self.assertIn("web/vault-store.js", agent)
-        self.assertNotRegex(agent, r"(?m)^## .*\\(v0\\.\\d+\\)")
+        self.assertNotRegex(agent, r"(?m)^## .*v0[.][0-9]+")
 
     def test_checkpoint_is_in_agent_and_reader_entry_points(self):
         for name in ("AGENTS.md", "README.md"):
