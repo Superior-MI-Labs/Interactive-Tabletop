@@ -157,6 +157,17 @@ with sync_playwright() as playwright:
  page.locator('#dlg-no').click()
  assert page.evaluate('character.effects.targets[1].hp.current')==30
  page.locator('#roll-effect [data-action="dismiss-target-damage"]').evaluate('(el)=>el.click()')
+ # Guided mode also uses the single inline Apply as its confirmation.
+ page.locator('#combat-mode').select_option('guided')
+ page.locator('.attack-list [data-action=damage]').first.click()
+ page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
+  for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}
+  finishRollIfSettled();}''')
+ assert page.evaluate('pendingDamage.length')==1
+ page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
+ assert page.locator('#dlg-yes').count()==0
+ assert page.evaluate('character.effects.targets[1].hp.current')==21
+
  page.set_viewport_size({'width':390,'height':844})
  page.wait_for_timeout(100)
  assert page.evaluate('document.documentElement.scrollWidth')<=400,'Horizontal overflow in narrow layout'
