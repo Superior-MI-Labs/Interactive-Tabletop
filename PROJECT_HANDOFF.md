@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.46.0`  
-**Release commit:** Confirm the exact v0.46.0 main SHA and GitHub qualification/deployment; this checkpoint is authored before those checks run.  
+**Last verified application release:** `v0.47.0`  
+**Release commit:** Verify the v0.47.0 `main` commit SHA and GitHub qualification/deployment after publication. Previous verified release: v0.46.0 `5cae84d` (Actions `42503037963`).  
 **Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.46.0 configures per-spell casting abilities and safely preserves unambiguous manual overrides across PDF source-label changes; verify Actions before calling it deployed.
+**Current worktree:** v0.47.0 preserves separately authored spells through PDF reimport, displays their provenance and allows confirmed manual-only deletion. Validate the latest Actions run before claiming this release is live.
 
 ## 1. Why this file exists / how to resume
 
@@ -36,7 +36,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.46.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.47.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -49,9 +49,10 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.43:** Three-stage manual 2014 character creation (identity, scores/proficiencies, combat). Uses `CharacterImport.createManual` plus the existing vault; no inferred class features or second rules engine. New Node and Chromium tests cover validation, cancellation, vault isolation and narrow layouts.
 - **v0.44:** Derived manual character setup with editable attacks, feature notes, equipment and optional spells.
 - **v0.45:** Manual spell-slot and resource configuration routes through canonical owners with validation.
-- **v0.46:** Casting ability selection and a bounded fixed modifier are available on spell records. Reimport preserves authored spell settings for unambiguous matches; unknown mixed class sources fail closed.
+- **v0.46:** Casting ability selection and a bounded fixed modifier are available on spell records. Unambiguous PDF source changes preserve configuration; mixed sources fail closed.
+- **v0.47:** Authored `manual-spell-*` / legacy `custom-*` records survive reimport by stable ID even if a PDF record has the same name/source/level. PDF spell matching excludes authored rows; manual-only deletion is confirmed and guarded by identity.
 
-v0.45.0 passed GitHub qualification and Pages deployment at commit 14882f0. The v0.46.0 run must be checked separately; never treat the older green result as proof of a new release.
+v0.46.0 passed GitHub qualification and Pages deployment at commit `5cae84d` (Actions run `42503037963`). The v0.47.0 run must be checked separately; an older green run is never proof of a new release.
 
 ## 3. Architecture choices and rationale
 
@@ -86,18 +87,17 @@ These are engineering judgments based on current contracts, not eternal prohibit
 - Dice physics is approximate, not a certified fairness simulation. The sample Fighter is demonstration data, not a comprehensive rules fixture.
 - A GitHub push is **not** equivalent to a live deployment. Check Actions qualification and Pages deployment separately; do not guess run IDs or report success prematurely.
 
-## 5. Suggested next milestone — verify before implementing
+## 5. Suggested next milestone — import preview and provenance diagnostics
 
-**Goal:** Validate imported-versus-manual spellbook lifecycles across single-class, multiclass and homebrew sheets, keeping all preparation and slot state on the ordinary character document.
+**Goal:** Make PDF reimport consequences predictable without introducing a duplicate spellbook or automatic class progression.
 
-**Audit first:** Try duplicate same-name spells from distinct sources, changed source/level fields, learned or removed spells, rest and reimport cycles. Include Auto, Guided and Manual. Test both existing and newly created vaults.
+**Reproduce first:** Use representative synthetic/approved PDF fields for spells added, removed, reordered, changing source labels/levels, and duplicate same-name entries. Verify edited preparation and approved overrides, plus user-authored records and legacy IDs, across vault reloads.
 
-**Alternatives:** (1) Correct observed failures inside Vault.reconcile, the existing sheet and DndAction; or (2) generate spellbook progression from class names. Prefer (1) unless edition-qualified reference data and real acceptance scenarios justify (2).
+**Two approaches:** (1) extend the existing `Vault.importSummary` / confirmation text to report imported-spell additions, removals, and ambiguous matches before commitment; (2) create a separate import staging store or auto-deduplicate spells by their names. Prefer (1), as long as it remains a readonly view over the same `reconcile` decisions. Do not build (2) without a proven requirement.
 
-**Candidate next patch:** Examine duplicate spell identity and preparation toggles through save/reimport with representative anonymized PDF-shaped data; fix reproducible loss or unsafe matches only. Pact Magic is separate, DM-approved and not inferred.
+**Acceptance criteria:** The preview never mutates state, describes any imported-spell removals explicitly, explains that authored spells are preserved independently, and never promises ambiguous overrides will be carried forward. Import confirmation remains atomic; cancellation leaves the vault and active effects unchanged. Qualify both browser and Node paths.
 
-**Defer:** Automatic class progression and slots, 2024/Pathfinder creators, universal rules, global initiative, multiplayer, and arbitrary homebrew execution.
-
+**Defer:** Class-level spell progression, Pact Magic inference, unsupported editions, global initiative, multiplayer and arbitrary homebrew effects.
 
 ## 6. Execution and publication checklist
 
@@ -128,4 +128,4 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 5. Replace **Next milestone** with one actionable, bounded plan, alternatives considered and acceptance criteria. Leave enough information for a new agent with no chat history.
 6. Keep `AGENTS.md` and this file discoverable from `README.md`. The small `tests/test_handoff_contract.py` gate verifies the version and those links, preventing silent drift.
 
-**v0.46 checkpoint:** The spell editor stores an explicit ability on the ordinary spell record, and DndAction resolves its modifier only for qualified 2014 self-healing. A fixed numeric override takes precedence. Legacy unambiguous sources remain supported; mixed/unknown sources require selection. Reimport keeps overrides only for unambiguous identities. Regression owners: tests/test_rules_profile.js, tests/test_spell_actions.js, tests/browser_character_setup_smoke.py. No new class generator or parallel resource model.
+**v0.47 checkpoint:** `Vault.isManualSpell` owns manual spell provenance by ID, shared with the spellbook. `Vault.reconcile` excludes authored entries from PDF matching, retains them by stable ID, and never guesses between ambiguous PDF spells. A confirmed manual-only removal uses existing `dialog` owner checks and revalidates the unique spell ID; it does not undo active effects. Regression owners: `tests/test_spell_reimport.js`, `tests/browser_character_setup_smoke.py`, and the pre-existing vault/slot/rules suites. Next: readonly import preview based on the actual reconciliation results, not a second staging store.
