@@ -22,7 +22,7 @@ class QualificationContract(unittest.TestCase):
         self.assertIn('tests/test_*.js', runner)
         self.assertIn("discover -s tests -p 'test_*.py'", runner)
         browser_tests = sorted((ROOT/'tests').glob('browser_*_smoke.py'))
-        self.assertEqual(len(browser_tests), 30)
+        self.assertEqual(len(browser_tests), 31)
         for test in browser_tests:
             content = test.read_text()
             self.assertIn('from browser_support import launch_chromium', content, test.name)

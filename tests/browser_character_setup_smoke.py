@@ -1,0 +1,103 @@
+"""Manual character follow-up is an editable data projection, not a second rules workflow."""
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+from browser_support import launch_chromium
+
+ROOT=Path(__file__).resolve().parents[1]
+with sync_playwright() as pw:
+ browser=launch_chromium(pw)
+ page=browser.new_page(viewport={'width':1100,'height':800})
+ page.set_default_timeout(9000)
+ errors=[]
+ page.on('pageerror',lambda e:errors.append(str(e)))
+ page.set_content((ROOT/'web/index.html').read_text(),wait_until='domcontentloaded')
+ page.add_style_tag(content=(ROOT/'web/styles.css').read_text())
+ page.evaluate('''()=>{
+   window.__STATIC_TABLETOP__=true;
+   let stored=null;
+   window.__setupStorage=()=>JSON.parse(JSON.stringify(stored));
+   Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:()=>null}});
+   Object.defineProperty(window,'indexedDB',{configurable:true,value:{open(){
+    const request={};queueMicrotask(()=>{
+     request.result={objectStoreNames:{contains:()=>true},close(){},transaction(){
+      const tx={};tx.objectStore=()=>({
+       get(){const r={};queueMicrotask(()=>{r.result=stored;r.onsuccess?.();});return r;},
+       put(value){stored=JSON.parse(JSON.stringify(value));queueMicrotask(()=>tx.oncomplete?.());}
+      });return tx;
+     }};request.onsuccess?.();
+    });return request;
+   }}});
+   window.fetch=async url=>url==='./theme-assets.json'
+    ?new Response('{"version":1,"assets":{}}',{status:200}):new Response('{}',{status:404});
+ }''')
+ for f in ['dnd-slots.js','character-import.js','vault-store.js','demo-character.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
+  page.add_script_tag(content=(ROOT/'web'/f).read_text())
+ page.wait_for_function("document.querySelector('.page-title')?.textContent==='Mara Vale (Demo)'")
+ assert page.locator('.character-setup').count()==0,'Demo never receives an inferred setup checklist'
+ page.locator('#create-character').click()
+ page.locator('#creator-form [name="name"]').fill('Cassia Dawn')
+ page.locator('[name="className"]').fill('Wizard')
+ page.locator('[name="species"]').fill('Human')
+ page.locator('#creator-next').click()
+ page.locator('#creator-next').click()
+ page.locator('#creator-save').click()
+ page.wait_for_function("document.querySelector('.page-title')?.textContent==='Cassia Dawn'")
+ setup=page.locator('.character-setup')
+ assert setup.is_visible()
+ assert '0/3 core areas recorded' in setup.inner_text()
+ assert 'Spellbook (optional)' in setup.inner_text()
+ assert page.evaluate('Object.keys(character.resources).length')==0
+ assert page.evaluate('character.spells.length')==0
+ # The attack path edits the ordinary character.attacks array and classifies it explicitly.
+ setup.locator('.character-setup-row').filter(has_text='Attacks').get_by_role('button',name='Set up').click()
+ assert page.locator('[role="tab"][aria-selected="true"]').inner_text()=='Actions'
+ assert page.locator('.edit-mode-button').get_attribute('aria-pressed')=='true'
+ page.get_by_role('button',name='+ Attack').click()
+ page.locator('[data-input="attacks.0.name"]').fill('Training Spear')
+ page.locator('[data-input="attacks.0.name"]').press('Tab')
+ page.locator('[data-input="attacks.0.bonus"]').fill('5')
+ page.locator('[data-input="attacks.0.bonus"]').press('Tab')
+ page.locator('[data-attack-type="0"]').select_option('weapon')
+ page.locator('[data-attack-range="0"]').select_option('melee')
+ page.locator('[data-view="inventory"]').click()
+ assert page.evaluate('character.attacks[0].name')=='Training Spear'
+ assert page.evaluate('character.attacks[0].attack_type')=='weapon'
+ assert page.evaluate('character.attacks[0].attack_range')=='melee'
+ # Optional spell draft does not grant a spell slot or enable automation.
+ page.locator('[data-view="overview"]').click()
+ setup.locator('.character-setup-row').filter(has_text='Spellbook (optional)').get_by_role('button',name='Open optional spells').click()
+ page.get_by_role('button',name='+ Spell').click()
+ assert page.evaluate('character.spells[0].level') is None
+ assert page.evaluate('character.spells[0].automation')=='manual'
+ assert page.evaluate('Object.keys(character.resources).length')==0
+ page.locator('[data-input="spells.0.name"]').fill('Light')
+ page.locator('[data-input="spells.0.name"]').press('Tab')
+ page.locator('[data-view="overview"]').click()
+ setup.locator('.character-setup-row').filter(has_text='Equipment').get_by_role('button',name='Set up').click()
+ page.get_by_role('button',name='+ Item').click()
+ page.locator('[data-input="inventory.0.name"]').fill('Rope')
+ page.locator('[data-input="inventory.0.name"]').press('Tab')
+ page.locator('[data-view="overview"]').click()
+ setup.locator('.character-setup-row').filter(has_text='Features').get_by_role('button',name='Set up').click()
+ page.get_by_role('button',name='+ Feature note').click()
+ page.locator('[data-input="features.0.title"]').fill('Observant')
+ page.locator('[data-input="features.0.title"]').press('Tab')
+ page.locator('[data-view="overview"]').click()
+ assert '3/3 core areas recorded' in setup.inner_text()
+ assert page.evaluate('character.actions.length')==0,'Feature note does not authorize a combat action'
+ assert page.evaluate('character.spells[0].name')=='Light'
+ assert page.evaluate('character.spells[0].level') is None
+ page.wait_for_function('window.__setupStorage()?.characters.length===2')
+ page.locator('#vault-open').click()
+ page.locator('.vault-card').filter(has_text='Mara Vale').get_by_role('button',name='Play').click()
+ page.wait_for_function("document.querySelector('.page-title')?.textContent==='Mara Vale (Demo)'")
+ assert page.locator('.character-setup').count()==0
+ page.locator('#vault-open').click()
+ page.locator('.vault-card').filter(has_text='Cassia Dawn').get_by_role('button',name='Play').click()
+ page.wait_for_function("document.querySelector('.page-title')?.textContent==='Cassia Dawn'")
+ assert '3/3 core areas recorded' in page.locator('.character-setup').inner_text()
+ page.set_viewport_size({'width':390,'height':730})
+ assert page.locator('.character-setup').is_visible()
+ assert not errors,errors
+ browser.close()
+ print('PASS browser setup checklist: data-driven, manual entries, no inferred mechanics, vault isolation and narrow view')

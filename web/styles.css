@@ -723,3 +723,21 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 .creator-caution{border-left:3px solid #d7a45d;padding:9px;background:#d7a45d12}
 @media(max-width:620px){.creator-fields,.creator-scores{grid-template-columns:repeat(2,minmax(0,1fr))}.creator-checks{grid-template-columns:repeat(2,minmax(0,1fr))}.creator-footer{align-items:stretch}.creator-footer-actions{justify-content:flex-end}.creator-dialog{max-height:97dvh}}
 @media(max-width:380px){.creator-fields,.creator-scores{grid-template-columns:minmax(0,1fr)}}
+
+/* Manual character follow-up: derived from existing sheet fields, not saved tutorial progress. */
+#page .character-setup{margin:10px 0 13px;padding:12px 14px;border:1px solid #957b55;background:#22303bdb;border-radius:9px;color:#e8edf0}
+#page .character-setup-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+#page .character-setup-heading strong{font:18px Georgia,serif;color:#f3d29a}
+#page .character-setup-heading span{font-size:11px;color:#cfd5d7}
+#page .character-setup>p{font-size:12px;line-height:1.5;color:#c5d0d5;margin:7px 0 9px}
+#page .character-setup-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#page .character-setup-row{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #536472;background:#26343ecc;border-radius:6px;min-width:0}
+#page .character-setup-row>div{flex:1;min-width:0}
+#page .character-setup-row strong{display:block;color:#ffdfae;font-size:12px}
+#page .character-setup-row small{display:block;color:#c4ced3;font-size:11px;line-height:1.35}
+#page .character-setup-status{font-size:19px;color:#e0bc7e;flex-shrink:0}
+#page .character-setup-caveat{display:block;margin-top:10px;font-size:11px;color:#bfc9cc}
+#page .setup-attack-fields{display:flex;flex-wrap:wrap;gap:5px;padding:5px 0}
+#page .setup-attack-fields .field{flex:1 1 90px}
+#page .setup-feature-editor{padding:9px;display:grid;gap:8px}
+@media(max-width:640px){#page .character-setup-list{grid-template-columns:1fr}#page .character-setup-row{flex-wrap:wrap}}

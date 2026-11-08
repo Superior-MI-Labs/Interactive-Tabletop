@@ -1,0 +1,24 @@
+/* Setup remains an ordinary manually created vault character, not a parallel wizard state. */
+const assert=require('node:assert/strict');
+const Slots=require('../web/dnd-slots.js');global.DndSlotPools=Slots;
+const Import=require('../web/character-import.js');
+const Vault=require('../web/vault-store.js');
+const Demo=require('../web/demo-character.js');
+const data={name:'Halden',className:'Wizard',level:2,species:'Human',scores:{STR:10,DEX:12,CON:13,INT:16,WIS:11,CHA:8},saveProficiencies:[],skillProficiencies:[],hp:13,ac:12,speed:30,attack:{name:'',bonus:0,damage:'',range:'melee'}};
+const c=Import.createManual(data);
+assert.equal(c.import_provenance,'Manual character creation (local)');
+assert.equal(c.spells.length,0);assert.equal(c.features.length,0);assert.equal(c.inventory.length,0);
+assert.ok(!('onboarding' in c)&&!('setup_complete' in c));
+c.spells.push({id:'manual-spell-test',name:'Light',source:'manual',level:null,automation:'manual',prepared:false,effect_kind:'none'});
+c.features.push({title:'Discovery',text:'DM description',source:'manual'});
+c.inventory.push({id:'gear-test',name:'Rope',quantity:1,archived:false});
+const vault=Vault.empty();Vault.addDemo(vault);const demoId=vault.active_id;
+Vault.upsert(vault,'created',c);
+const restored=Vault.normalize(JSON.parse(JSON.stringify(vault)));
+const record=restored.characters.find(entry=>entry.id==='created').character;
+assert.equal(record.spells[0].automation,'manual');assert.equal(record.spells[0].level,null);
+assert.equal(Object.keys(record.resources).length,0);
+assert.equal(record.features[0].text,'DM description');
+assert.equal(restored.characters.find(entry=>entry.id===demoId).character.demo_id,Demo.ID);
+assert.ok(!('onboarding' in record)&&!('setup_complete' in record));
+console.log('PASS manual setup records use the canonical vault without inferring rules or duplicating progress');

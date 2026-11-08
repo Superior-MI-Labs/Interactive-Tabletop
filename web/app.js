@@ -310,7 +310,7 @@ function attackRows(mode='compact'){
   const bonusControl=bonusRemaining?`<button class="button mini" type="button" data-action="bonus-attack" data-arg="${i}" ${bonusReason?'disabled aria-disabled="true"':''} title="${esc(bonusReason||'Spend one granted '+type+' strike when dice launch')}">Bonus strike (${bonusRemaining})</button>`:'';
   const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}`;
   if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label><label class="field">Attack range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Not classified</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
-  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range"><span class="attack-name">${esc(a.name)}${editMode?`<label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
+  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range"><span class="attack-name">${esc(a.name)}${editMode?`<div class="setup-attack-fields">${field('Attack name',`attacks.${i}.name`,a.name)}${field('Attack bonus',`attacks.${i}.bonus`,a.bonus,'number')}${field('Damage dice',`attacks.${i}.damage`,a.damage||'')}</div><label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
 }
 function rollRows(kind,mode='compact'){
@@ -475,7 +475,7 @@ function actionWorkspace(){
  ${button('Decline / finish','staged-decline',sequence.id,'button mini subtle')}</div>`:'';
  return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}${combatActions()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
- ${editMode?`${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
+ ${editMode?`${button('+ Attack','add-attack','','button mini')}${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
  ${stateEventControls()}${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
  ${specialFilter?`<div class="ability-action-list" aria-label="Imported and custom actions">${entries.map(a=>{
    const roll=a.roll||'', damage=a.damage||'';
@@ -515,6 +515,33 @@ function workspacePane(){
  let content=({overview:actionWorkspace,inventory,spells,features,background:backgroundPage,notes:notesPage,reference:referenceWorkspace}[view]||actionWorkspace)();
  return `<section class="game-workspace" aria-label="Tabbed gameplay workspace"><div class="workspace-caption">GAMEPLAY <span>• ${esc(character.name)}</span></div>${workspaceTabs()}<div class="workspace-content" data-scroll-key="workspace" role="tabpanel">${content}</div></section>`;
 }
+// A read-only projection of manually created character data. No onboarding
+// flags, progress store, or inferred class/spell mechanics.
+function characterSetup(){
+ if(character.import_provenance!=='Manual character creation (local)')return '';
+ const attack=(character.attacks||[]).some(a=>a.name?.trim()&&a.name!=='New attack'&&a.damage?.trim());
+ const feature=(character.features||[]).some(f=>f.title?.trim()&&f.title!=='New feature')||
+  (character.actions||[]).some(a=>a.name?.trim()&&a.name!=='New ability'&&!a.archived);
+ const equipment=(character.inventory||[]).some(i=>i.name?.trim()&&i.name!=='New item'&&!i.archived&&Number(i.quantity)>0);
+ const done=[attack,feature,equipment].filter(Boolean).length;
+ const rows=[
+  ['Attacks',attack,'Record a weapon or unarmed attack, bonus and dice.','attack'],
+  ['Features',feature,'Write your class/species features or add an explicitly configured ability.','features'],
+  ['Equipment',equipment,'Enter starting equipment and quantities.','inventory'],
+  ['Spellbook (optional)',(character.spells||[]).some(sp=>sp.name?.trim()&&sp.name!=='New spell'),
+   'Only if your table gives this character spells; set level and slots yourself.','spells']
+ ];
+ return `<aside class="character-setup" role="region" aria-label="Character setup checklist">
+ <div class="character-setup-heading"><strong>Finish your character setup</strong><span>${done}/3 core areas recorded</span></div>
+ <p>Review these entries with your DM. This is a guide to what you have entered, not a rules validation or a requirement to play.</p>
+ <div class="character-setup-list">${rows.map(([label,complete,detail,destination],index)=>
+  `<div class="character-setup-row"><span class="character-setup-status" aria-label="${complete?'Recorded':'Not yet recorded'}">${complete?'✓':'○'}</span>
+  <div><strong>${esc(label)}</strong><small>${esc(detail)}</small></div>
+  ${button(index===3?'Open optional spells':complete?'Review':'Set up','setup-open',destination,'button mini subtle')}
+  </div>`).join('')}</div>
+ <small class="character-setup-caveat">Your character is usable now. No class features, resource pools, spell slots or equipment effects are generated from a class name.</small>
+ </aside>`;
+}
 function demoPractice(){
  if(character.demo_id!==window.TabletopDemo?.ID)return '';
  const combat=Action.combat(character),dummy=Action.targets(character).find(t=>t.name==='Training Dummy');
@@ -548,7 +575,7 @@ function overview(){
   `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
   <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- return identityRibbon()+demoPractice()+buffBar()+
+ return identityRibbon()+characterSetup()+demoPractice()+buffBar()+
  `<section class="vitals-panel" aria-label="Hit points and conditions">
  <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
  ${heartMeter(hp)}
@@ -650,7 +677,7 @@ function spells(){
  });
  return `<div class="target-toolbar target-quick">${targetPicker()}</div><div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
- <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells"></div>
+ <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells">${button('+ Spell','add-spell','','button mini')}</div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
  <div class="workspace-entries" aria-label="Spellbook entries">${filtered.map(sp=>{
  const locked=sp.always_prepared||sp.level===0;
@@ -669,7 +696,7 @@ function spells(){
  ${preset?`<div class="srd-preset">${presetActive?`<strong>Qualified 2014 SRD effect enabled</strong> ${button('Use manual rules','spell-preset-off',String(sp.index),'button mini subtle')}`:`<span>Qualified 2014 SRD profile available (self only).</span> ${button('Enable 2014 effect','spell-preset-on',String(sp.index),'button mini')}`}</div>`:''}
  <div class="controls-row spell-cast-controls">${slotOptions.length?`<label>Slot <select class="input" data-slot-choice="${sp.index}" aria-label="Cast ${esc(sp.name)} at spell slot level">${slotOptions.map(s=>`<option value="${s.level}" ${s.level===selectedSlot?'selected':''} ${s.current<1?'disabled':''}>${s.level===0?'Cantrip':`Level ${s.level} · ${s.current} left`}</option>`).join('')}</select></label>`:''}
  ${button('Cast spell','cast-spell',String(sp.index),'button mini primary')}${!ready?'<small>Prepare this spell first</small>':''}${sp.level==null?'<small>Set level in Edit sheet</small>':''}</div>
- ${editMode?`<div class="spell-execution-editor"><div class="entry-pair"><label class="field"><span class="field-label">Spell level</span><select class="input" data-spell-level="${sp.index}">${['Unknown',...Array.from({length:10},(_,n)=>n)].map((level,i)=>`<option value="${i-1}" ${level===sp.level||(level==='Unknown'&&sp.level==null)?'selected':''}>${level}</option>`).join('')}</select></label>
+ ${editMode?`<div class="spell-execution-editor"><div class="entry-pair">${field('Name',`spells.${sp.index}.name`,sp.name)}${field('Source / class',`spells.${sp.index}.source`,sp.source||'')}${field('Casting time',`spells.${sp.index}.casting_time`,sp.casting_time||'')}${field('Notes / DM ruling',`spells.${sp.index}.notes`,sp.notes||'')}</div><div class="entry-pair"><label class="field"><span class="field-label">Spell level</span><select class="input" data-spell-level="${sp.index}">${['Unknown',...Array.from({length:10},(_,n)=>n)].map((level,i)=>`<option value="${i-1}" ${level===sp.level||(level==='Unknown'&&sp.level==null)?'selected':''}>${level}</option>`).join('')}</select></label>
  ${field('Optional dice expression',`spells.${sp.index}.roll`,sp.roll||'')}<label class="field">Damage type (when configured)<select class="input" data-input="spells.${sp.index}.damage_type">${Action.DAMAGE_TYPES.map(t=>`<option value="${t}" ${(sp.damage_type||'untyped')===t?'selected':''}>${t}</option>`).join('')}</select></label></div>
  ${preset&&editMode?`<label class="field">Spellcasting modifier for Cure Wounds (optional override)<input type="number" class="input" data-spell-modifier="${sp.index}" value="${sp.spellcasting_modifier??''}" placeholder="Auto from spell source" /></label>`:''}
  <div class="entry-pair"><label class="field"><span class="field-label">Effect after dice (DM approved)</span><select class="input" data-spell-effect="${sp.index}"><option value="none" ${(sp.effect_kind||'none')==='none'?'selected':''}>No automated effect</option><option value="heal" ${sp.effect_kind==='heal'?'selected':''}>Offer HP healing</option><option value="damage" ${sp.effect_kind==='damage'?'selected':''}>Offer damage to selected target</option><option value="condition" ${sp.effect_kind==='condition'?'selected':''}>Apply configured condition to self</option></select></label>
@@ -683,8 +710,9 @@ function spells(){
 
 function features(){
  return `<div class="workspace-feature-list">
+ <div class="workspace-toolbar">${button('+ Feature note','add-feature-note','','button mini')}<small>Notes describe features; they do not execute actions or spend resources.</small></div>
  ${panel('Features & traits',(character.features||[]).map((x,i)=>
- `<details class="feature" ${i===0?'open':''}><summary>${esc(x.title)}</summary><pre>${esc(x.text)}</pre></details>`).join(''))}
+ `<details class="feature" ${i===0?'open':''}><summary>${esc(x.title)}</summary><pre>${esc(x.text)}</pre>${editMode&&x.source==='manual'?`<div class="setup-feature-editor">${field('Feature name',`features.${i}.title`,x.title)}<label class="field">Description / DM ruling<textarea class="input longtext" data-input="features.${i}.text">${esc(x.text)}</textarea></label></div>`:''}</details>`).join(''))}
  <div>${panel('Homebrew adjudication',`<textarea class="input longtext" data-input="homebrew_notes">${esc(character.homebrew_notes||'')}</textarea>
  <p class="subtle-note">Imported custom rules may be incomplete. Confirm unusual effects and resource costs with your DM before playing.</p>`)}
  </div></div>`;
@@ -775,6 +803,14 @@ function doRest(kind){
 }
 function handleAction(action,arg){
  switch(action){
+  case 'setup-open':{
+   if(character.import_provenance!=='Manual character creation (local)')break;
+   const screens={attack:'overview',features:'features',inventory:'inventory',spells:'spells'};
+   if(!Object.prototype.hasOwnProperty.call(screens,arg))break;
+   editMode=true;setView(screens[arg]);
+   if(arg==='attack')actionFilter='attack';
+   render();break;
+  }
   case 'edit-mode':editMode=!editMode;if(!editMode)editRollModifiers=false;render();break;
   case 'undo-last-damage':try{if(Action.undoLastDamage(character)){save();render();toast('Last damage application undone.');}else toast('Nothing to undo.');}catch(e){toast(e.message);}break;
   case 'target-remove':dialog('Remove encounter target?',`Remove ${Action.targetById(character,arg)?.name||'this target'} from this character's encounter notes?`,()=>{
@@ -877,6 +913,7 @@ function handleAction(action,arg){
   case 'set-hp':{character.hp.current=Math.max(0,Math.min(character.hp.max,num(arg)));save();render();break;}
   case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,value));save();render();}break;}
   case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,r.current+delta));save();render();}break;}
+  case 'add-attack':character.attacks=character.attacks||[];character.attacks.push({name:'New attack',bonus:0,damage:'1d6',type:'attack',attack_type:'unspecified',attack_range:'unspecified'});save();render();break;
   case 'add-action':character.actions=character.actions||[];character.actions.unshift({id:'manual-'+Date.now(),name:'New ability',activation:'action',description:'',roll:'',damage:'',resource:'',cost:0,effect_kind:'none',duration_rounds:0,concentration:false,source:'manual',archived:false,effect_condition:''});save();render();break;
   case 'add-ability-template':{
    const key=$('#ability-template')?.value,base=ABILITY_TEMPLATES[key];if(!base){toast('Select an ability template first.');break;}
@@ -1056,7 +1093,9 @@ function handleAction(action,arg){
    try{const amount=Action.applyHealing(character,pendingHealing.amount);pendingHealing=null;save();render();updateTableResults();toast('Applied '+amount+' HP healing.');}
    catch(e){toast('Could not heal: '+e.message);}break;
   }
-  case 'add-item':character.inventory.unshift({id:'custom-'+Date.now(),name:'New item',quantity:1,weight:'',archived:false,notes:''});save();render();break;
+  case 'add-feature-note':character.features=character.features||[];character.features.push({title:'New feature',text:'Describe the feature and confirm its effects with your DM.',source:'manual'});editMode=true;save();render();const createdFeature=$$('#page .feature').at(-1);if(createdFeature)createdFeature.open=true;break;
+  case 'add-spell':character.spells=character.spells||[];character.spells.push({id:'manual-spell-'+Date.now(),name:'New spell',source:'manual',casting_time:'',range:'',duration:'',components:'',save:'',notes:'Configure manually with your DM.',prepared:false,always_prepared:false,available:true,level:null,automation:'manual',roll:'',effect_kind:'none'});editMode=true;spellFilter='all';save();render();const createdSpell=$$('#page details[data-spell-id]').at(-1);if(createdSpell)createdSpell.open=true;break;
+  case 'add-item':character.inventory.unshift({id:'custom-'+Date.now(),name:'New item',quantity:1,weight:'',archived:false,notes:''});save();render();const createdItem=$('#page .workspace-entries details.work-entry');if(createdItem)createdItem.open=true;break;
   case 'toggle-archived':showArchived=!showArchived;render();break;
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check',null,'ability-check');break;}

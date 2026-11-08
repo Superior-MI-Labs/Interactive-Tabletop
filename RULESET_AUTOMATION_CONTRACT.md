@@ -144,3 +144,7 @@ The creature-turn summary is a derived view of `effects.combat.condition_grants`
 ## Manual creation contract (v0.43)
 
 `CharacterImport.createManual` produces a manual D&D 2014 character from explicitly entered fields: level-based proficiency, ability modifiers and chosen saving throw/skill proficiency bonuses only. No class feature, spell slot, resource, action economy override, species trait or equipment is inferred from names. One optional explicit weapon attack may be configured. All other mechanics require user/DM validation and must flow through the existing action engine.
+
+## Post-creation manual entries (v0.44)
+
+The derived checklist is not rules qualification. Feature notes are non-executable; new spell drafts start with unknown level, manual automation and no spell slot pool. Explicit costs and effects remain in the validated `DndAction` pipeline, never the setup UI.

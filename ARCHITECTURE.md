@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.43.0
+# Interactive Tabletop architecture — v0.44.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -246,3 +246,7 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 ### v0.43 — Manual creation reuses the existing import/vault contract
 
 `CharacterImport.createManual` is a pure alternative source of **explicit** character v1 data, alongside D&D Beyond `fromFields`. It computes only standard 2014 ability/skill/save modifier arithmetic from entered values; class/species names do not grant mechanics. The three-stage UI is a temporary DOM form displayed in the existing vault layer, **not** saved gameplay or tutorial progress. Only a fully validated submission calls `Vault.upsert` with a fresh ID, then saves via the existing storage adapter. Canceling must not mutate the vault. Existing character editing is the follow-on for equipment, spellcasting and homebrew; automated class/level progression and other editions remain deferred. Unit and Chromium regressions cover invalid fields, vault isolation, manual status and narrow layouts.
+
+### v0.44 — Setup is a character-sheet projection
+
+`web/app.js` derives a post-creation checklist only for the existing manual creation provenance marker, using the character's attacks, features/actions, inventory and optional spells. Nothing persists completion flags; it cannot change rule eligibility. The normal tab/edit machinery receives setup links. New attacks, feature notes and spell drafts remain ordinary character-v1 records. Notes never grant an action, spells never grant slots from a name, and only `DndAction` validates spending and effects. Regression owners: `tests/test_character_setup_contract.js`, `tests/browser_character_setup_smoke.py`.

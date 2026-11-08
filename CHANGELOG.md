@@ -1,3 +1,10 @@
+## v0.44.0 — Derived character setup and editable manual entries
+
+- Derive post-creation attack, feature and inventory checklist status from ordinary character data; spellbook is optional, and no tutorial flags or alternate model are stored.
+- Navigate directly to existing sheet editors and provide missing manual entry controls for an attack, a descriptive feature note, and a spell draft; equipment already has an item editor. Open new entries immediately for editing.
+- Leave new spell drafts without a verified level, resource slots, automatic effects or class inference. A feature note is not an executable combat action.
+- Qualify creation-to-setup, saving, vault switching, demo isolation, and narrow layouts with Node and Chromium tests, preserving one CI gate.
+
 ## v0.43.0 — Guided manual character creation
 
 - Add a three-stage character creator in the existing vault/welcome path: identity, ability scores and explicitly chosen proficiencies, then HP/AC/speed and an optional configured weapon attack.

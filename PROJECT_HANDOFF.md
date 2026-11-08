@@ -2,8 +2,8 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.43.0`  
-**Release commit:** This checkpoint is part of the v0.43.0 release commit on `main`; check `git log -1 --oneline` for the exact SHA.  
+**Last verified application release:** `v0.44.0`  
+**Release commit:** This checkpoint ships with the v0.44.0 commit on `main`; inspect `git log -1 --oneline` for the exact SHA.  
 **Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
@@ -35,7 +35,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.43.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.44.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -45,7 +45,8 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.40:** Independent condition-source grants and DM-confirmed creature turn boundaries, without falsely assuming full initiative. Existing manual/imported conditions survive unrelated grant expiry.
 - **v0.41:** Original **Mara Vale (Demo)**, a level-5 Fighter with Training Dummy, created only for genuinely new browser vaults; manual add/reset for others. Real imports never merge into demos by name.
 - **v0.42:** Contextual, **state-derived** practice flow for Mara and read-only creature-turn overview. Practice controls route to normal action/dice handlers. Pointer priority fixed for controls obscured by resting dice.
-- **v0.43:** Three-stage manual 2014 character creation (identity, scores/proficiencies, combat). Uses `CharacterImport.createManual` plus the existing vault; no inferred class features or second rules engine. New Node and Chromium tests cover validation, cancellation, vault isolation and narrow layouts. **This is the latest functional patch.**
+- **v0.43:** Three-stage manual 2014 character creation (identity, scores/proficiencies, combat). Uses `CharacterImport.createManual` plus the existing vault; no inferred class features or second rules engine. New Node and Chromium tests cover validation, cancellation, vault isolation and narrow layouts.
+- **v0.44:** Existing manual characters now show a derived setup checklist for attacks, features and equipment, with optional spellbook access. Explicit manual entries use the existing edit/vault contract and add no inferred slots or rules. **Latest functional patch.**
 
 The v0.42 release was verified by GitHub qualification and Pages deployment. v0.43 passed the local gate (19 Python tests, the JavaScript suite and 30 Chromium browser scenarios); independently check GitHub CI and deployment for the new release. Recheck live CI on any later commit rather than treating old green runs as evidence for new code.
 
@@ -84,17 +85,15 @@ These are engineering judgments based on current contracts, not eternal prohibit
 
 ## 5. Suggested next milestone — verify before implementing
 
-**Goal:** Make newly created manual sheets genuinely playable without guessing class, species or spell rules.
+**Goal:** Improve manual character-sheet configuration and safety rather than building a second class-progression engine.
 
-**Inspect before coding:** Use a brand-new manually created character, a filled PDF import, and the Mara demo to compare editing and first-session discoverability. Test Auto/Guided/Manual, resource-free attacks, modifiers, encounter setup, cross-character selection, and mobile layouts. Verify existing feature/spell editing capabilities before proposing new forms.
+**Audit first:** Check martial, spellcaster and homebrew manual sheets, demo and PDF imports. Inspect ability/attack and spell metadata editing, resource/slot configuration and safe save/reload in all three combat-assistance modes.
 
-**Approaches to compare:** (1) improve existing sheet editing and reference-assisted **explicit** user configuration versus (2) introduce a comprehensive class/level progression engine. Prefer (1) until the required edition-specific class, spell and species rules are verified and the additional state is justified.
+**Options:** (1) improve existing sheet editors and input validation or (2) introduce class-specific automated construction. Prefer (1) until verified edition-specific data and source-of-truth contracts justify the extra machinery.
 
-**Candidate next batch:** show a focused post-creation checklist for DM-reviewed features, equipment, spells and first combat session using **derived** character state, with clear editing routes and no stored tutorial progress. Address the most consequential missing existing UI actions before adding new modules. If choosing to automate a class feature, require an explicit, qualified 2014 profile and regression tests.
+**Candidate next patch:** Validate manually entered attack and spell details consistently, expose explicit DM-approved spell-slot and feature-resource controls, and keep new configurations editable and non-automated by default. Cover malformed inputs, no-spell characters, small screens, and vault/undo integrity with Node and Chromium tests.
 
-**Release acceptance:** no change to legacy vaults or demo seeding; no class/trait mechanics inferred from names; validation of generated character schema; cancellation and failed saves do not leave ghost characters; real Node and Chromium regressions; `bash tools/qualify.sh` and GitHub CI green; update `VERSION`, `CHANGELOG.md`, `ARCHITECTURE.md` and this handoff in the same change.
-
-**Deferred:** complete automated character leveling and feat/trait selection, 2024 or Pathfinder creation, arbitrary homebrew parsing, multiplayer or a separate tutorial engine.
+**Defer:** full automatic leveling/class features, 2024 and Pathfinder creators, global initiative, multiplayer and inferred homebrew mechanics.
 
 ## 6. Execution and publication checklist
 
@@ -130,3 +129,5 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 **Checkpoint note (2026-11-07):** Documentation/process update only. No code behavior or release version changed. Last completed application work remains v0.42.0 (Mara demo guided practice and independent creature-turn overview). Next person should inspect current production behavior before implementing the candidate navigation/onboarding patch.
 
 **v0.43 release note:** The manual-creation form is transient UI state. Its committed output is a character-v1 document via the existing vault. No separate creator database, tutorial progress or automated class feature inference was introduced. A failed storage write rolls back the draft in memory. The next agent should inspect the delivered browser behavior before expanding it.
+
+**v0.44 handoff note:** The setup checklist observes ordinary character data and never holds completion progress. All new manual spell/feature entries are inert until explicitly configured and approved. Use the existing `DndAction` and vault contracts for subsequent expansions.
