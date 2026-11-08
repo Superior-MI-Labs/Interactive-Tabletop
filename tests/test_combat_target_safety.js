@@ -11,6 +11,7 @@ assert.equal(A.requireOffensiveTarget(h,goblin.id),goblin);
 assert.throws(()=>A.requireOffensiveTarget(h,'target-invalid'),/no longer available/);
 assert.throws(()=>A.setTargetAutoDamage(h,'self',true),/Choose an encounter creature/);
 assert.throws(()=>A.setTargetAutoDamage(h,goblin.id,'yes'),/explicitly/);
+assert.equal(A.canAutoEvaluateAttack(h,goblin.id),true,'Explicitly targeted attacks still evaluate outside encounter tracking');
 assert.equal(A.canAutoApplyAttackDamage(h,goblin.id,'slashing','weapon'),false,'No automatic HP changes without encounter and approval');
 A.setEncounter(h,true);A.setCombatMode(h,'auto');
 assert.equal(A.canAutoEvaluateAttack(h,goblin.id),true);

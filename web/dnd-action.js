@@ -1064,7 +1064,9 @@ function setTargetAutoDamage(character,id,enabled){
 }
 function canAutoEvaluateAttack(character,id){
  const state=combat(character);
- if(!state.active||state.economy.mode!=='auto')return false;
+ // A physical attack roll may be evaluated outside encounter turn tracking.
+ // Automatic HP damage is a separate, stricter permission requiring encounter.
+ if(state.economy.mode!=='auto')return false;
  try{
   const target=requireOffensiveTarget(character,id);
   // Character or target statuses may change attack advantage or hit validity.
