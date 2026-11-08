@@ -448,7 +448,7 @@ function encounterTargets(){
  ${button('Preview damage','target-manual-damage','','button mini subtle')}
  ${Action.combat(character).last_damage_undo?button('Undo last damage','undo-last-damage','','button mini subtle'):''}
  ${selected!=='self'?button('Remove target','target-remove',selected,'button mini warn'):''}</div>
- ${selected!=='self'?`<div class='target-auto-damage'><label><input type='checkbox' data-target-auto-damage='${esc(selected)}' ${entity.auto_damage===true?'checked':''}> Allow Auto to apply verified attack damage</label><small>Requires a verified hit, typed damage and reviewed defenses. Changing damage traits revokes approval; unverified rolls still require review.</small></div>`:''}
+ ${selected!=='self'?`<div class='target-auto-damage'><label><input type='checkbox' data-target-auto-damage='${esc(selected)}' ${entity.auto_damage===true?'checked':''}> Allow Auto to apply verified attack damage</label><small>Requires a verified classified weapon/unarmed hit, typed damage and reviewed defenses. Changing damage traits revokes approval; unverified rolls still require review.</small></div>`:''}
  ${selected!=='self'?`<div class="target-toolbar">${[['AC','ac',entity.ac],['Current HP','hp.current',entity.hp.current],['Max HP','hp.max',entity.hp.max],['Temp HP','hp.temp',entity.hp.temp]].map(([name,key,value])=>`<label>${name}<input type="number" class="input" data-target-stat="${key}" value="${esc(value)}" aria-label="${name}"></label>`).join('')}</div>`:''}
  <form class="target-add-form" id="target-add-form"><strong>Add another target</strong><input class="input" name="name" maxlength="70" required placeholder="Creature name" aria-label="New target name">
  <input class="input" name="ac" type="number" min="0" max="99" value="12" required aria-label="New target AC">
@@ -1265,7 +1265,7 @@ function prepareAttackDamage(index,targetId,critical=false,verifiedHit=false){
   const damageType=matchingTypes.length===1?matchingTypes[0]:selectedDamageType;
   const expression=critical?Action.criticalDamageExpression(match[0]):Action.dice(match[0]).expression;
   return queueRoll(expression,attack.name+(critical?' critical':'')+' damage vs '+target.name,
-   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name,verifiedAttackHit:verifiedHit});
+   {kind:'target-damage',characterId:activeId,targetId,damageType,source:attack.name,attackType:Action.attackType(attack),verifiedAttackHit:verifiedHit});
  }catch(error){toast(error.message);return false;}
 }
 function attackFollowup(result,group,knownHit){
@@ -1857,7 +1857,7 @@ function finishRollIfSettled(){
          source:group.effect.source||group.label,type:damageType,amount:result.total};
         // An automatic commit needs a verified hit plus explicit defense approval.
         // Otherwise keep the existing review flow without inferring mechanics.
-        if(group.effect.verifiedAttackHit===true&&Action.canAutoApplyAttackDamage(character,targetId,damageType)){
+        if(group.effect.verifiedAttackHit===true&&Action.canAutoApplyAttackDamage(character,targetId,damageType,group.effect.attackType)){
          try{
           const planned=Action.planDamage(character,targetId,{amount:result.total,type:damageType});
           const applied=Action.commitDamage(character,planned);

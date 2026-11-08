@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 hero={'schema_version':1,'system_id':'dnd5e','system_edition':'dnd-2014','name':'Synthetic Duelist','class_level':'Fighter 5',
  'species':'Human','background':'','hp':{'current':25,'max':35,'temp':0},'ac':17,'initiative':1,'proficiency':3,'speed':'30 ft.',
  'abilities':{'STR':{'score':18,'modifier':4}},'saves':{'Constitution':3,'Strength':7},'skills':{'Athletics':7},
- 'attacks':[{'name':'Flame Sword','bonus':7,'damage':'1d8+4 Fire'}],
+ 'attacks':[{'name':'Flame Sword','bonus':7,'damage':'1d8+4 Fire','attack_type':'weapon','attack_range':'melee'}],
  'inventory':[],'conditions':[],'features':[],'actions':[],'roll_history':[],'effects':{},'spells':[],'resources':{}}
 with sync_playwright() as playwright:
  b=launch_chromium(playwright)

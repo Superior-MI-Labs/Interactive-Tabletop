@@ -31,7 +31,7 @@ with sync_playwright() as pw:
  for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Owner A'")
- page.evaluate("Action.setEncounter(character,true)")
+ page.evaluate("()=>{Action.setEncounter(character,true);const target=Action.addTarget(character,{name:'Ownership Dummy',ac:15,hp:30});selectedTargetId=target.id;render();}")
  page.evaluate("handleAction('attack','0')")
  assert page.evaluate('pendingRoll.combatAttack') is True
  assert page.evaluate('pendingRoll.characterId')=='a'
@@ -42,6 +42,7 @@ with sync_playwright() as pw:
  assert page.evaluate('dice.filter(d=>d.ready).length')==0
  assert page.evaluate("Action.combat(character).economy.spent.action")==0
  page.evaluate("activateCharacter('a')")
+ page.evaluate("()=>{selectedTargetId=Action.targets(character)[0].id;render();}")
  page.evaluate("handleAction('attack','0')")
  page.evaluate("beginThrow()")
  assert page.evaluate('activeRolls.length')==1
