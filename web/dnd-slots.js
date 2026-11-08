@@ -64,7 +64,17 @@ function list(resources){
  const levels=[...new Set(Object.keys(resources||{}).map(levelFromName).filter(level=>level!==null))].sort((a,b)=>a-b);
  return levels.map(level=>poolFor(resources,level));
 }
-const api={canonical,levelFromName,normalize,poolFor,list};
+// Standard Spellcasting identity lives here, not in generic resource forms.
+function configure(resources,level,max,current){
+ if(!Number.isSafeInteger(level)||level<1||level>9)throw Error('Spell slot level must be 1–9.');
+ if(!Number.isSafeInteger(max)||max<0||max>99||!Number.isSafeInteger(current)||current<0||current>max)
+  throw Error('Spell slots require whole totals 0–99 and remaining slots between 0 and the total.');
+ const next=normalize(resources);
+ if(max===0)delete next[canonical(level)];
+ else next[canonical(level)]={max,current,reset:'long rest'};
+ return next;
+}
+const api={canonical,levelFromName,normalize,poolFor,list,configure};
 root.DndSlots=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

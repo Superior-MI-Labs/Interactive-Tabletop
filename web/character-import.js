@@ -123,6 +123,23 @@ function manualLabel(value,label,max=80){
  if(!text||text.length>max)throw Error(label+' is required (up to '+max+' characters).');
  return text;
 }
+// Manual-entry validation is shared by creation and subsequent sheet edits.
+function validateManualEntryField(section,key,value){
+ if(section==='attacks'){
+  if(key==='name')return manualLabel(value,'Attack name');
+  if(key==='bonus')return manualInteger(value,'Attack bonus',-30,50);
+ }
+ if(section==='spells'&&key==='name')return manualLabel(value,'Spell name',100);
+ if((section==='attacks'&&key==='damage')||(section==='spells'&&key==='roll')){
+  const text=String(value??'').replace(/\s+/g,'');
+  if(!text)return ''; // Blank is unconfigured, not an executable roll.
+  const m=/^(\d{1,2})d(4|6|8|10|12|20|100)(?:([+-]\d{1,5}))?$/i.exec(text);
+  if(!m||Number(m[1])<1||Number(m[1])>20)
+   throw Error((section==='attacks'?'Attack damage':'Spell dice')+' must use 1–20 supported dice, e.g. 1d8+3.');
+  return text;
+ }
+ return value;
+}
 function createManual(details){
  if(!details||typeof details!=='object')throw Error('Enter character details first.');
  const name=manualLabel(details.name,'Character name');
@@ -144,11 +161,10 @@ function createManual(details){
  const attack=details.attack||{},attackName=String(attack.name||'').trim();
  const attacks=[];
  if(attackName){
-  if(attackName.length>80)throw Error('Attack name is too long.');
-  const bonus=manualInteger(attack.bonus,'Attack bonus',-30,50);
-  const damage=String(attack.damage||'').trim().replace(/\s+/g,'');
-  if(!/^\d{1,2}d(?:4|6|8|10|12|20|100)(?:[+-]\d{1,3})?$/i.test(damage))
-   throw Error('Attack damage must be a dice roll such as 1d8+3.');
+  validateManualEntryField('attacks','name',attackName);
+  const bonus=validateManualEntryField('attacks','bonus',attack.bonus);
+  const damage=validateManualEntryField('attacks','damage',attack.damage);
+  if(!damage)throw Error('Attack damage must be a dice roll such as 1d8+3.');
   if(!['melee','ranged'].includes(attack.range))throw Error('Select melee or ranged for your attack.');
   attacks.push({name:attackName,bonus,damage,type:'attack',attack_type:'weapon',attack_range:attack.range});
  }
@@ -167,6 +183,6 @@ function createManual(details){
   homebrew_notes:''
  };
 }
-const api={fromFields,parseActions,createManual,skillAbilities};root.CharacterImport=api;
+const api={fromFields,parseActions,createManual,validateManualEntryField,skillAbilities};root.CharacterImport=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

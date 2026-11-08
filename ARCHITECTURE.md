@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.44.0
+# Interactive Tabletop architecture — v0.45.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -250,3 +250,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 ### v0.44 — Setup is a character-sheet projection
 
 `web/app.js` derives a post-creation checklist only for the existing manual creation provenance marker, using the character's attacks, features/actions, inventory and optional spells. Nothing persists completion flags; it cannot change rule eligibility. The normal tab/edit machinery receives setup links. New attacks, feature notes and spell drafts remain ordinary character-v1 records. Notes never grant an action, spells never grant slots from a name, and only `DndAction` validates spending and effects. Regression owners: `tests/test_character_setup_contract.js`, `tests/browser_character_setup_smoke.py`.
+
+## v0.45 — One validated manual resource editing path
+
+- Standard Spellcasting slot identity/legacy aliases remain in `web/dnd-slots.js`; `configure` returns a normalized new resource map, rejecting invalid totals atomically. Zero total explicitly removes a standard slot level; Pact Magic is not treated as ordinary slots.
+- `web/dnd-action.js` owns generic pool settings, standard-slot commits and quick current-use changes. UI does not write resource amounts directly. Existing names and character vault storage are preserved; edit fields cannot authorize class mechanics.
+- `web/character-import.js` validates manual attack/spell dice and attack bonuses for both initial creation and later edits. Invalid edits are rejected before mutation; imported records remain editable without inferring new features. The UI uses the same existing `setPath` persistence flow.
+- `tests/test_manual_resource_configuration.js` and the extended `tests/browser_character_setup_smoke.py` protect slot identity, resource limits, negative inputs, vault persistence and editor wiring. No second spell-slot store or class-progression engine was added.

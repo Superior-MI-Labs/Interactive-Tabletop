@@ -347,6 +347,18 @@ function creatureTurnBoard(){
  </div>`).join('')}</div>
  <p class="target-note">Ending a creature turn requires DM confirmation. It advances only that creature's condition clock; it does not change your turn, initiative, or spent actions.</p></details>`;
 }
+function resourcePoolEditor(){
+ const items=Object.entries(character.resources||{}).filter(([name])=>window.DndSlots.levelFromName(name)===null);
+ if(!items.length)return '';
+ const options=items.map(([name])=>`<option value="${esc(name)}">${esc(name)}</option>`).join('');
+ const first=items[0][1];
+ return `<div class="resource-config"><strong>Edit a resource pool</strong><p class="subtle-note">Update charges without renaming a resource used by an ability.</p>
+ <div class="entry-pair"><label class="field">Pool<select class="input" id="economy-edit-resource">${options}</select></label>
+ <label class="field">Maximum<input class="input sm" type="number" min="1" max="9999" step="1" id="economy-edit-max" value="${esc(first.max)}"></label>
+ <label class="field">Remaining<input class="input sm" type="number" min="0" max="9999" step="1" id="economy-edit-current" value="${esc(first.current)}"></label>
+ <label class="field">Refresh<select class="input" id="economy-edit-reset">${['manual','turn','short rest','long rest'].map(x=>`<option value="${x}" ${first.reset===x?'selected':''}>${x}</option>`).join('')}</select></label>
+ ${button('Save resource','economy-edit-resource','','button mini subtle')}</div></div>`;
+}
 function combatActions(){
  const state=Action.combat(character);
  const limits=Action.poolLimits(character),economy=state.economy;
@@ -364,7 +376,7 @@ function combatActions(){
  <div class="entry-pair"><label class="field">New resource pool<input class="input" id="economy-new-resource" maxlength="70" placeholder="e.g. Defensive Points"></label>
  <label class="field">Maximum<input class="input sm" id="economy-new-resource-max" type="number" min="1" max="9999" value="4"></label>
  <label class="field">Reset<select class="input" id="economy-new-resource-reset"><option value="manual">Manual</option><option value="turn">End of turn (zero)</option><option value="short rest">Short rest</option><option value="long rest">Long rest</option></select></label>
- ${button('Create pool','economy-add-resource','','button mini subtle')}</div>
+ ${button('Create pool','economy-add-resource','','button mini subtle')}</div>${resourcePoolEditor()}
  <small>Extra Attack adds attacks within one Attack action. Haste-style grants allow one additional attack, not another full Attack action. Pathfinder-style pools can be configured here; Pathfinder rules are not automated.</small></details>
  ${button('Next turn ↗','advance-turn','','button mini subtle')} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}${creatureTurnBoard()}</section>`;
 }
@@ -529,7 +541,7 @@ function characterSetup(){
   ['Features',feature,'Write your class/species features or add an explicitly configured ability.','features'],
   ['Equipment',equipment,'Enter starting equipment and quantities.','inventory'],
   ['Spellbook (optional)',(character.spells||[]).some(sp=>sp.name?.trim()&&sp.name!=='New spell'),
-   'Only if your table gives this character spells; set level and slots yourself.','spells']
+   'Optional: add spells, set levels and configure standard slots in Edit sheet.','spells']
  ];
  return `<aside class="character-setup" role="region" aria-label="Character setup checklist">
  <div class="character-setup-heading"><strong>Finish your character setup</strong><span>${done}/3 core areas recorded</span></div>
@@ -666,6 +678,16 @@ function inventory(){
  ${sourceBadge(References?.match('equipment',it.name,character.system_edition))}${field('Notes',`inventory.${it.index}.notes`,it.notes||'')}
  ${button(it.archived?'Restore':'Archive','archive',String(it.index),'button mini subtle')}</div></details>`).join('')}</div>`;
 }
+function spellSlotSettings(){
+ const existing=Action.spellSlots(character);
+ return `<details class="spell-slot-settings" aria-label="Standard spell slot settings"><summary>Configure standard spell slots (DM approved)</summary>
+ <p class="subtle-note">Set each level's total and remaining uses. Zero total removes that standard slot pool. Pact Magic, class progression and spells are not inferred.</p>
+ <div class="spell-slot-settings-list">${Array.from({length:9},(_,i)=>{
+  const level=i+1,pool=existing.find(s=>s.level===level);
+  return `<div class="entry-pair spell-slot-row" data-slot-level="${level}"><strong>Level ${level}</strong><label class="field">Total<input class="input sm" type="number" min="0" max="99" step="1" data-slot-total value="${esc(pool?.max??0)}"></label>
+   <label class="field">Remaining<input class="input sm" type="number" min="0" max="99" step="1" data-slot-remaining value="${esc(pool?.current??0)}"></label>${button('Save slots','configure-spell-slots',String(level),'button mini subtle')}</div>`;
+ }).join('')}</div></details>`;
+}
 function spells(){
  const all=character.spells||[];
  const prepared=all.filter(sp=>sp.prepared&&!sp.always_prepared&&num(sp.level,-1)!==0).length;
@@ -679,6 +701,7 @@ function spells(){
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
  <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells">${button('+ Spell','add-spell','','button mini')}</div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
+ ${editMode?spellSlotSettings():''}
  <div class="workspace-entries" aria-label="Spellbook entries">${filtered.map(sp=>{
  const locked=sp.always_prepared||sp.level===0;
  const ready=sp.level===0||sp.always_prepared||sp.prepared;
@@ -747,6 +770,7 @@ function setPath(path,value){
  const key=parts.at(-1);
  if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
  if(/^actions\.\d+\.workflow\.save\.dc$/.test(path))value=value.trim()===''?null:Number(value);
+ if(/^(?:attacks|spells)\.\d+\.(?:name|bonus|damage|roll)$/.test(path))value=window.CharacterImport.validateManualEntryField(parts[0],key,value);
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
  obj[key]=value;
  if(/^actions\.\d+\.(?:economy_units|grant_amount|event_min_damage|event_min_hp_loss)$/.test(path))obj[key]=Math.max(0,Math.min(999999,Math.floor(num(value))));
@@ -911,8 +935,8 @@ function handleAction(action,arg){
   case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
   case 'condition':try{Action.setTargetCondition(character,'self',arg,!character.conditions.includes(arg));save();render();}catch(e){toast(e.message);}break;
   case 'set-hp':{character.hp.current=Math.max(0,Math.min(character.hp.max,num(arg)));save();render();break;}
-  case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,value));save();render();}break;}
-  case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r){r.current=Math.min(r.max,Math.max(0,r.current+delta));save();render();}break;}
+  case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=Number(arg.slice(at+1));try{Action.setResourceCurrent(character,name,value);save();render();}catch(e){toast(e.message);}break;}
+  case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r)try{Action.setResourceCurrent(character,name,Math.min(Number(r.max),Math.max(0,Number(r.current)+delta)));save();render();}catch(e){toast(e.message);}break;}
   case 'add-attack':character.attacks=character.attacks||[];character.attacks.push({name:'New attack',bonus:0,damage:'1d6',type:'attack',attack_type:'unspecified',attack_range:'unspecified'});save();render();break;
   case 'add-action':character.actions=character.actions||[];character.actions.unshift({id:'manual-'+Date.now(),name:'New ability',activation:'action',description:'',roll:'',damage:'',resource:'',cost:0,effect_kind:'none',duration_rounds:0,concentration:false,source:'manual',archived:false,effect_condition:''});save();render();break;
   case 'add-ability-template':{
@@ -1069,6 +1093,16 @@ function handleAction(action,arg){
   case 'economy-add-resource':try{
    Action.addResourcePool(character,$('#economy-new-resource')?.value,Number($('#economy-new-resource-max')?.value),$('#economy-new-resource-reset')?.value);
    save();render();toast('Custom resource pool created.');
+  }catch(e){toast(e.message);}break;
+  case 'configure-spell-slots':try{
+   const level=Number(arg),row=$('#page [data-slot-level]').find(el=>Number(el.dataset.slotLevel)===level);
+   if(!row)throw Error('Spell slot editor is unavailable.');
+   Action.configureSpellSlots(character,level,$('[data-slot-total]',row).valueAsNumber,$('[data-slot-remaining]',row).valueAsNumber);
+   save();render();const settings=$('#page .spell-slot-settings');if(settings)settings.open=true;toast('Level '+level+' standard slots updated.');
+  }catch(e){toast(e.message);}break;
+  case 'economy-edit-resource':try{
+   Action.configureResourcePool(character,$('#economy-edit-resource')?.value,$('#economy-edit-max')?.valueAsNumber,$('#economy-edit-current')?.valueAsNumber,$('#economy-edit-reset')?.value);
+   save();render();toast('Resource pool updated.');
   }catch(e){toast(e.message);}break;
   case 'grant-economy':try{Action.grantEconomyAction(character,arg);save();render();}catch(e){toast(e.message);}break;
   case 'undo-turn':if(Action.undoTurn(character)){save();render();toast('Last turn advance undone.');}break;
@@ -1313,7 +1347,12 @@ document.addEventListener('change',e=>{
   dialog('Use D&D 2014 SRD automation?', 'Enable all verified 2014 SRD effect profiles for this character. Unsupported spells, imported values, homebrew and existing active effects remain unchanged.',()=>{character.rules_profile='srd-2014';if(!character.system_edition||character.system_edition==='unspecified')character.system_edition='dnd-2014';save();render();toast('Qualified 2014 SRD spell effects enabled.');});
   return;
  }
- if(el.id==='combat-mode'){try{const previous=Action.combat(character).economy.mode;Action.setCombatMode(character,el.value);if(previous!==el.value)abandonCharacterDice(activeId);save();render();}catch(error){toast(error.message);render();}return;}
+ if(el.id==='economy-edit-resource'){
+   const r=character.resources?.[el.value];
+   if(r){$('#economy-edit-max').value=r.max;$('#economy-edit-current').value=r.current;$('#economy-edit-reset').value=['manual','turn','short rest','long rest'].includes(r.reset)?r.reset:'manual';}
+   return;
+  }
+  if(el.id==='combat-mode'){try{const previous=Action.combat(character).economy.mode;Action.setCombatMode(character,el.value);if(previous!==el.value)abandonCharacterDice(activeId);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.economyAuto!==undefined){try{Action.setAutoEconomy(character,el.checked);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.economyConfig){try{Action.configureEconomy(character,el.dataset.economyConfig,Number(el.value));save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.actionRequiresAttack!==undefined){const a=character.actions?.[num(el.dataset.actionRequiresAttack)];if(a){a.requires_attack=el.checked;a.source='manual';save();render();}return;}
@@ -1330,7 +1369,7 @@ document.addEventListener('change',e=>{
  if(el.dataset.targetTrait){try{Action.setTargetTraits(character,currentTargetId(),el.dataset.targetTrait,el.value);save();render();}catch(e){toast(e.message);render();}return;}
 
  if(el.id==='catalog-level'){catalogLevel=el.value;filterCatalogEntries();return;}
- if(el.dataset.resourceEdit){const r=character.resources?.[el.dataset.resourceEdit];if(r){r.current=Math.min(r.max,Math.max(0,Math.floor(num(el.value))));save();render();}return;}
+ if(el.dataset.resourceEdit){try{Action.setResourceCurrent(character,el.dataset.resourceEdit,el.valueAsNumber);save();render();}catch(error){toast(error.message);render();}return;}
  if(el.dataset.modType){
   const type=el.dataset.modType,key=el.dataset.modName;
   if(type==='ability' && character.abilities?.[key])character.abilities[key].modifier=num(el.value);
@@ -1339,7 +1378,7 @@ document.addEventListener('change',e=>{
  }
  if(el.dataset.input){
   const value=el.value;
-  setPath(el.dataset.input,value);
+  try{setPath(el.dataset.input,value);}catch(error){toast(error.message);render();return;}
   if(/^actions\.\d+\.trigger_event$/.test(el.dataset.input)){
    const a=character.actions?.[num(el.dataset.input.split('.')[1])];
    if(a){delete a.event_save_ability;delete a.event_damage_type;delete a.event_min_damage;delete a.event_min_hp_loss;save();render();}

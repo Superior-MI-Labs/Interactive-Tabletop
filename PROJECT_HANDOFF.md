@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.44.0`  
-**Release commit:** This checkpoint ships with the v0.44.0 commit on `main`; inspect `git log -1 --oneline` for the exact SHA.  
+**Last verified application release:** `v0.45.0`  
+**Release commit:** The v0.45.0 release commit will be the `main` commit containing this checkpoint; verify the exact SHA with `git log` and check GitHub Actions separately.  
 **Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** The v0.43.0 manual character builder is locally qualified; check the corresponding GitHub Actions qualification and deployment before describing it as live.
+**Current worktree:** v0.45.0 adds explicit manual slot and resource editing with shared validation; check the actual CI/Pages run before claiming it is deployed.
 
 ## 1. Why this file exists / how to resume
 
@@ -85,13 +85,13 @@ These are engineering judgments based on current contracts, not eternal prohibit
 
 ## 5. Suggested next milestone — verify before implementing
 
-**Goal:** Improve manual character-sheet configuration and safety rather than building a second class-progression engine.
+**Goal:** Finish validating the manual character-setup experience across multiple class patterns without inventing class progression.
 
 **Audit first:** Check martial, spellcaster and homebrew manual sheets, demo and PDF imports. Inspect ability/attack and spell metadata editing, resource/slot configuration and safe save/reload in all three combat-assistance modes.
 
 **Options:** (1) improve existing sheet editors and input validation or (2) introduce class-specific automated construction. Prefer (1) until verified edition-specific data and source-of-truth contracts justify the extra machinery.
 
-**Candidate next patch:** Validate manually entered attack and spell details consistently, expose explicit DM-approved spell-slot and feature-resource controls, and keep new configurations editable and non-automated by default. Cover malformed inputs, no-spell characters, small screens, and vault/undo integrity with Node and Chromium tests.
+**Candidate next patch:** Audit spellcasting ability/modifier selection, spell preparation, and imported-versus-manual spellbook state with representative Fighter, Wizard and hybrid/homebrew sheets. Correct inconsistencies in the existing `DndAction.planSpell` and character editor only after reproducing failures. Keep class feature/slot progression DM-approved and manual.
 
 **Defer:** full automatic leveling/class features, 2024 and Pathfinder creators, global initiative, multiplayer and inferred homebrew mechanics.
 
@@ -131,3 +131,5 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 **v0.43 release note:** The manual-creation form is transient UI state. Its committed output is a character-v1 document via the existing vault. No separate creator database, tutorial progress or automated class feature inference was introduced. A failed storage write rolls back the draft in memory. The next agent should inspect the delivered browser behavior before expanding it.
 
 **v0.44 handoff note:** The setup checklist observes ordinary character data and never holds completion progress. All new manual spell/feature entries are inert until explicitly configured and approved. Use the existing `DndAction` and vault contracts for subsequent expansions.
+
+**v0.45 checkpoint:** Standard slot configuration is owned by `DndSlots` for identity and `DndAction` for mutation; generic resources share the same action owner. The new editor exposes only explicit values. Reject malformed attack/spell entries before saving, and retain 2014/manual boundaries. Regression owners: `tests/test_manual_resource_configuration.js`, `tests/browser_character_setup_smoke.py`, and the existing slot identity / vault tests. Do not invent Pact Magic semantics or automatic class progression.

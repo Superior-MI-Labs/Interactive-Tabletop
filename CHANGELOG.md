@@ -1,3 +1,11 @@
+## v0.45.0 — Explicit slot/resource configuration and manual entry validation
+
+- Added editable standard Spellcasting slot totals and remaining uses per level, through the existing canonical slot-identity module. Pact Magic stays separate; zero total deliberately removes a standard level.
+- Added validated editing for existing custom resource pools and routed current-use adjustments through the shared D&D action engine.
+- Shared manual attack/spell field validation between character creation and later edits: invalid names, attack bonuses and dice expressions fail before saving.
+- Kept all changes within the existing character vault, action pipeline and 2014/manual edition boundaries; no class inference or duplicate resource store.
+- Added Node regression coverage and extended the existing Chromium character-setup scenario to cover invalid inputs, UI configuration, and persistence.
+
 ## v0.44.0 — Derived character setup and editable manual entries
 
 - Derive post-creation attack, feature and inventory checklist status from ordinary character data; spellbook is optional, and no tutorial flags or alternate model are stored.

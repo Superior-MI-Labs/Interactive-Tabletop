@@ -353,14 +353,42 @@ function commitAttack(character,permission='action',type='unspecified'){
  delete state.undo_turn;
  return true;
 }
+function validResourceSettings(max,current,reset){
+ if(!Number.isSafeInteger(max)||max<1||max>9999||!Number.isSafeInteger(current)||current<0||current>max)
+  throw Error('Resource amounts must be whole numbers; maximum 1–9999 and remaining 0–maximum.');
+ if(!['manual','turn','short rest','long rest'].includes(reset))throw Error('Unknown resource reset schedule.');
+ return {max,current,reset};
+}
+function setResourceCurrent(character,name,current){
+ const key=String(name||''),pool=character.resources?.[key];
+ if(!pool)throw Error('Resource pool no longer exists.');
+ if(!Number.isSafeInteger(current)||current<0||!Number.isSafeInteger(Number(pool.max))||current>Number(pool.max))
+  throw Error('Remaining resource uses must be a whole number between 0 and the maximum.');
+ pool.current=current;
+ return pool;
+}
+function configureResourcePool(character,name,max,current,reset){
+ const key=String(name||'');
+ if(SlotPools.levelFromName(key)!==null)throw Error('Edit standard spell slots in the Spellbook editor.');
+ const pool=character.resources?.[key];
+ if(!pool)throw Error('Resource pool no longer exists.');
+ const settings=validResourceSettings(max,current,reset);
+ character.resources[key]={...pool,...settings};
+ return character.resources[key];
+}
+function configureSpellSlots(character,level,max,current){
+ const next=SlotPools.configure(character.resources,level,max,current);
+ character.resources=next;
+ return SlotPools.poolFor(next,level);
+}
 function addResourcePool(character,name,max,reset='manual'){
  if(typeof name!=='string'||!name.trim()||name.length>70||/[\x00-\x1f]/.test(name))throw Error('Name the new resource pool (1–70 characters).');
  const key=name.trim();
- if(!Number.isSafeInteger(max)||max<1||max>9999)throw Error('Resource maximum must be 1–9999.');
- if(!['manual','turn','short rest','long rest'].includes(reset))throw Error('Unknown resource reset schedule.');
+ const settings=validResourceSettings(max,max,reset);
+ if(SlotPools.levelFromName(key)!==null)throw Error('Use standard spell-slot settings for spell slots.');
  if(!character.resources||typeof character.resources!=='object')character.resources={};
  if(Object.keys(character.resources).some(existing=>existing.toLowerCase()===key.toLowerCase()))throw Error('Resource pool already exists.');
- character.resources[key]={current:max,max,reset};
+ character.resources[key]=settings;
  return character.resources[key];
 }
 function configureEconomy(character,key,value){
@@ -1290,6 +1318,6 @@ function commitDamage(character,planned){
  }
  return {...fresh,concentrationCheck:check};
 }
-const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,creatureTurns,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
+const api={CONDITION_EXPIRATIONS,conditionGrants,grantCondition,endConditionGrant,creatureTurns,advanceTargetTurn,recentSave,recordResolvedSave,EVENT_KINDS,INCOMING_ATTACK_KINDS,recordIncomingAttack,resolveIncomingAttack,combatEvent,expireCombatEvent,recordCombatEvent,recordResolvedAttack,attackRange,dismissCombatEvent,verifyCombatEvent,previewWorkflowFollowup,attackType,availableAttackGrants,pendingWorkflow,beginWorkflow,resolveWorkflow,finishWorkflow,finishWorkflowCondition,declineWorkflow,poolLimits,attacksPerAction,economyAvailable,verifyAttack,commitAttack,setCombatMode,setAutoEconomy,configureEconomy,addResourcePool,configureResourcePool,configureSpellSlots,setResourceCurrent,grantEconomyAction,dice,resolveD20,compatibleBonuses,setAutoUse,resolveRollBonus,criticalDamageExpression,plan,planSpell,spellSlots,commit,commitUsage,combat,activationCost,verifyEconomy,markAction,setEncounter,advanceTurn,undoTurn,activeEffects,startEffect,endEffect,endAllEffects,endEmptyBody,advanceEffects,applyHealing,effectiveAC,consumeCharge,concentrationDC,queueConcentrationCheck,resolveConcentrationCheck,castingModifier,modifierTotal,targets,targetById,addTarget,removeTarget,updateTargetStat,damageTraits,targetTraits,setTargetTraits,setTargetCondition,evaluateAttack,evaluateSave,planDamage,commitDamage,undoLastDamage,DAMAGE_TYPES,ABILITIES,CONDITIONS};root.DndAction=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

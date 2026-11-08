@@ -148,3 +148,7 @@ The creature-turn summary is a derived view of `effects.combat.condition_grants`
 ## Post-creation manual entries (v0.44)
 
 The derived checklist is not rules qualification. Feature notes are non-executable; new spell drafts start with unknown level, manual automation and no spell slot pool. Explicit costs and effects remain in the validated `DndAction` pipeline, never the setup UI.
+
+## Explicit manual resource editing (v0.45)
+
+Manual standard Spellcasting slots are configured by **level** through `DndSlots.configure`, invoked exclusively via `DndAction.configureSpellSlots`. Alias labels normalize conservatively; generic resource creation may not impersonate a standard spell-slot name. Total and remaining uses are independently entered and checked before changing a character. Pact Magic and automatic class slot progression remain unsupported rather than silently merged. Custom pools use the existing action engine's validated edit path, not direct UI mutation. Manual attack and optional spell dice must be supported formulas; rejected values must not persist.
