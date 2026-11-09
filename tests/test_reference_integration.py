@@ -23,7 +23,12 @@ class TestReferenceIntegration(unittest.TestCase):
   self.assertIn('id="reference-layer"',html)
   self.assertIn("['reference','Reference']",js)
   self.assertIn('function showAbout()',js)
-  self.assertIn("sourceBadge(References?.match('equipment'",js)
+  # One edition-checked equipment lookup is projected into both the source
+  # badge and the hover card; neither layer owns a separate reference lookup.
+  inventory=js.split('function inventory(){',1)[1].split('function spellcastingSettings(',1)[0]
+  self.assertEqual(inventory.count("References?.match('equipment'"),1)
+  self.assertIn("sourceBadge(reference)",inventory)
+  self.assertIn("entryHint(it.name,details",inventory)
   self.assertIn("sourceBadge(ref)",js)
   self.assertIn("References?.match('spell'",js)
 if __name__=='__main__':unittest.main()
