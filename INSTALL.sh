@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One-ZIP Phoenix Tabletop installer. Run via:
-# unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.50.0.zip" SkyBlueEyes-Tabletop-v0.50.0/INSTALL.sh | bash
+# unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.51.0.zip" SkyBlueEyes-Tabletop-v0.51.0/INSTALL.sh | bash
 set -Eeuo pipefail
 
-VERSION='v0.50.0'
+VERSION='v0.51.0'
 ROOT_NAME="SkyBlueEyes-Tabletop-$VERSION"
 DOWNLOADS="${SKY_DOWNLOADS_DIR:-$HOME/Downloads}"
 ZIP="$DOWNLOADS/$ROOT_NAME.zip"

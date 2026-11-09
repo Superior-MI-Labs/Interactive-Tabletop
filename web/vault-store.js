@@ -107,6 +107,42 @@ function spellReimportPreview(old,fresh){
   manualPreserved:(old.spells||[]).filter(isManualSpell).length
  };
 }
+// PDF equipment IDs encode row position and are not persistent item identities.
+const isManualItem=x=>/^(?:custom-|manual-item-)/.test(String(x?.id||''));
+function matchImportedInventory(oldRows,newRows){
+ const keys=rows=>rows.reduce((m,x,i)=>{const k=canonical(x.name);if(k){if(!m.has(k))m.set(k,[]);m.get(k).push(i);}return m;},new Map());
+ const before=keys(oldRows),after=keys(newRows);
+ return newRows.map(x=>{const k=canonical(x.name),a=before.get(k)||[],b=after.get(k)||[];
+  return {oldIndex:k&&a.length===1&&b.length===1?a[0]:-1};});
+}
+function inventoryReimportPreview(old,fresh){
+ if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot preview invalid characters.');
+ const a=old.inventory.filter(x=>!isManualItem(x)),b=fresh.inventory.filter(x=>!isManualItem(x));
+ const matches=matchImportedInventory(a,b),used=new Set(matches.filter(m=>m.oldIndex!==-1).map(m=>m.oldIndex));
+ const counts=rows=>rows.reduce((m,x)=>{const k=canonical(x.name);if(k)m.set(k,(m.get(k)||0)+1);return m;},new Map());
+ const ac=counts(a),bc=counts(b),ambiguous=new Set([...ac].filter(([k,v])=>bc.has(k)&&(v!==1||bc.get(k)!==1)).map(([k])=>k));
+ const clean=x=>String(x??'').replace(/\s+/g,' ').trim().slice(0,80);
+ const display=x=>clean(x.name||'Unnamed item')+' (qty '+String(x.quantity??'?').slice(0,20)+')';
+ const oldNames=new Map(a.map(x=>[canonical(x.name),clean(x.name||'Unnamed item')]));
+ const newNames=new Map(b.map(x=>[canonical(x.name),clean(x.name||'Unnamed item')]));
+ const oldUnmatched=a.filter((_,i)=>!used.has(i));
+ const newUnmatched=b.filter((_,i)=>matches[i].oldIndex===-1);
+ const note=x=>typeof x.notes==='string'&&x.notes.trim().length>0;
+ return {
+  matched:matches.filter(m=>m.oldIndex!==-1).length,
+  added:newUnmatched.filter(x=>!ambiguous.has(canonical(x.name))).map(display),
+  removed:oldUnmatched.filter(x=>!ambiguous.has(canonical(x.name))).map(display),
+  ambiguous:[...ambiguous].map(k=>(newNames.get(k)||oldNames.get(k))+' ('+ac.get(k)+' previous, '+bc.get(k)+' incoming)'),
+  notesRetained:matches.filter(m=>m.oldIndex!==-1&&note(a[m.oldIndex])).length,
+  notesAtRisk:oldUnmatched.filter(note).map(display),
+  quantityChanged:matches.flatMap((m,i)=>{
+   if(m.oldIndex===-1)return [];
+   const oldItem=a[m.oldIndex],newItem=b[i];
+   return String(oldItem.quantity??'')===String(newItem.quantity??'')?[]:[clean(newItem.name)+': '+String(oldItem.quantity??'?').slice(0,20)+' → '+String(newItem.quantity??'?').slice(0,20)];
+  }),
+  manualPreserved:old.inventory.filter(isManualItem).length
+ };
+}
 function reconcile(old,fresh){
  if(!validCharacter(old)||!validCharacter(fresh))throw Error('Cannot reconcile invalid characters.');
  const next=copy(fresh);next.resources=SlotPools.normalize(next.resources);
@@ -157,13 +193,17 @@ function reconcile(old,fresh){
  // Keep every separately authored entry by stable ID, not by display fields.
  // The PDF may now contain an identically named spell; that is not the same record.
  for(const sp of priorSpells)if(isManualSpell(sp)&&!merged.spells.some(s=>s.id===sp.id))merged.spells.push(sp);
- const inventoryByName=new Map();
- for(const item of before.inventory||[]){const name=canonical(item.name);if(!inventoryByName.has(name))inventoryByName.set(name,[]);inventoryByName.get(name).push(item);}
+ const oldItems=(before.inventory||[]).filter(item=>!isManualItem(item));
+ const incomingItems=(next.inventory||[]).filter(item=>!isManualItem(item));
+ const inventoryMatches=matchImportedInventory(oldItems,incomingItems);
+ let inventoryIndex=0;
  merged.inventory=(next.inventory||[]).map(item=>{
-  const oldItem=inventoryByName.get(canonical(item.name))?.shift();
-  return oldItem?{...item,notes:oldItem.notes||item.notes}:item;
+  if(isManualItem(item))return item;
+  const {oldIndex}=inventoryMatches[inventoryIndex++];
+  const prior=oldIndex===-1?null:oldItems[oldIndex];
+  return prior?{...item,notes:prior.notes||item.notes}:item;
  });
- for(const item of before.inventory||[])if((item.id||'').startsWith('custom-')&&!merged.inventory.some(x=>x.id===item.id))merged.inventory.push(item);
+ for(const item of before.inventory||[])if(isManualItem(item)&&!merged.inventory.some(x=>x.id===item.id))merged.inventory.push(item);
  const customs=(before.actions||[]).filter(a=>['manual','user-reference'].includes(a.source));
  const customNames=new Set(customs.map(a=>canonical(a.name)));
  merged.actions=[...(next.actions||[]).filter(a=>!customNames.has(canonical(a.name))),...customs];
@@ -188,6 +228,16 @@ function importSummary(old,fresh){
  if(p.ambiguous.length)diffs.push('Ambiguous imported spells use the new PDF values; previous preparation and configured effects are not transferred for those identities.');
  list('Source labels changed; prior settings retained',p.sourceChanged);
  diffs.push(`Player-authored spell entries preserved independently: ${p.manualPreserved}. Existing active effects are not ended by this import.`);
+ const items=inventoryReimportPreview(old,fresh);
+ diffs.push(`Imported inventory: ${items.matched} matched, ${items.added.length} added, ${items.removed.length} removed, ${items.ambiguous.length} ambiguous matching groups.`);
+ list('Added imported items',items.added);
+ list('Removed imported items',items.removed);
+ list('Ambiguous imported item matches',items.ambiguous);
+ list('Imported item quantity changes',items.quantityChanged);
+ diffs.push(`Imported item notes retained on unique matches: ${items.notesRetained}. Player-authored items preserved independently: ${items.manualPreserved}.`);
+ list('Previous item notes that cannot safely transfer',items.notesAtRisk);
+ if(items.notesAtRisk.length)diffs.push('Warning: these previous imported-item notes will NOT transfer automatically. Cancel and export a backup or copy the notes before confirming if needed.');
+ if(items.ambiguous.length)diffs.push('Ambiguous imported items keep the latest PDF rows; row order and equipment-N indexes are not trusted as identity.');
  return diffs.join('\n');
 }
 function indexedDb(){
@@ -243,6 +293,6 @@ function storage(staticSite){
   }
  };
 }
-const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,isManualSpell,reconcile,spellReimportPreview,importSummary,storage,validCharacter};
+const api={empty,normalize,migrateLegacy,upsert,addDemo,resetDemo,newId,findMatch,identityMatches,isManualSpell,isManualItem,reconcile,spellReimportPreview,inventoryReimportPreview,importSummary,storage,validCharacter};
 root.TabletopVault=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
