@@ -98,6 +98,10 @@ with sync_playwright() as pw:
  assert compact.locator('.compact-total').inner_text()=='17'
  assert compact.locator('.compact-label').inner_text()=='Longsword attack'
  assert page.locator('#dice-widget').get_attribute('open') is None
+ # Pointer capture during die dragging can leave the compact summary focused.
+ # Force a real focus transition, then test both keyboard and mouse previews.
+ compact.evaluate('(el)=>el.blur()')
+ page.mouse.move(15,15)
  compact.focus()
  tooltip=page.locator('#hud-tooltip')
  assert tooltip.is_visible()
@@ -105,6 +109,12 @@ with sync_playwright() as pw:
  assert 'Modifier: +6' in tooltip.inner_text()
  assert 'Final total: 17' in tooltip.inner_text()
  page.keyboard.press('Escape')
+ assert tooltip.is_hidden()
+ page.mouse.move(15,15)
+ compact.hover()
+ assert tooltip.is_visible()
+ assert 'Final total: 17' in tooltip.inner_text()
+ page.mouse.move(15,15)
  assert tooltip.is_hidden()
  compact.click()
  assert page.locator('#last-result strong').inner_text()=='17'
