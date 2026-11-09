@@ -16,7 +16,10 @@ hero={
               {'id':'i3','name':'+2 Ring of Protection','quantity':1,'notes':'Homebrew','weight':'','archived':False}],
  'spells':[{'id':'s1','name':'Cure Wounds','level':1,'prepared':True,'available':True,'source':'PDF','duration':'Instantaneous'},
            {'id':'s2','name':'Phoenix Healing','level':1,'prepared':True,'available':True,'source':'DM','duration':'Instantaneous'}],
- 'conditions':[],'features':[],'actions':[],'roll_history':[],'effects':{},'notes':'Private test note'
+ 'conditions':[],'features':[{'title':'Phoenix Guard','text':'Custom shield flare; DM adjudicates its limitations.','source':'manual'}],
+ 'actions':[{'id':'manual-flare','name':'Solar Flicker','source':'manual','activation':'1 action',
+            'description':'DM-approved burst when a visible creature attacks.','roll':'1d6+2','damage':'','resource':'','cost':0}],
+ 'roll_history':[],'effects':{},'notes':'Private test note'
 }
 with sync_playwright() as p:
  browser=launch_chromium(p)
@@ -81,6 +84,47 @@ with sync_playwright() as p:
  homebrew=page.locator('.spell-entry').filter(has_text='Phoenix Healing')
  homebrew.locator('summary').click()
  assert homebrew.locator('.reference-pill').count()==0
+ # The one immediate tooltip presenter exposes imported/DM fields and
+ # edition-qualified reference descriptions without adding new catalog state.
+ tip=page.locator('#hud-tooltip')
+ homebrew.locator('summary').focus()
+ assert tip.is_visible()
+ assert 'Character spell' in tip.inner_text()
+ assert '2014 SRD:' not in tip.inner_text()
+ page.keyboard.press('Escape')
+ cure.locator('summary').focus()
+ assert '2014 SRD:' in tip.inner_text()
+ assert 'Cure Wounds' in tip.inner_text()
+ page.keyboard.press('Escape')
+ page.get_by_role('tab',name='Inventory').click()
+ glaive=page.locator('.work-entry').filter(has_text='Glaive').first
+ glaive.locator('summary').focus()
+ assert tip.is_visible()
+ assert 'Player notes: DM adds fire' in tip.inner_text()
+ assert '2014 SRD:' in tip.inner_text()
+ page.keyboard.press('Escape')
+ homebrew_item=page.locator('.work-entry').filter(has_text='+2 Ring of Protection')
+ homebrew_item.locator('summary').focus()
+ assert 'no verified source description' in tip.inner_text()
+ assert 'Player notes: Homebrew' in tip.inner_text()
+ page.keyboard.press('Escape')
+ page.get_by_role('tab',name='Actions').click()
+ attack=page.locator('.attack-row').filter(has_text='Glaive')
+ attack.focus() if attack.get_attribute('tabindex') is not None else attack.hover()
+ assert 'Attack bonus +11' in tip.inner_text()
+ assert 'Damage: 2d10+55' in tip.inner_text()
+ page.keyboard.press('Escape')
+ ability=page.locator('.action-entry').filter(has_text='Solar Flicker')
+ ability.locator('summary').focus()
+ assert 'DM-approved burst' in tip.inner_text()
+ assert 'Roll 1d6+2' in tip.inner_text()
+ page.keyboard.press('Escape')
+ page.get_by_role('tab',name='Features').click()
+ page.locator('.feature').filter(has_text='Phoenix Guard').locator('summary').focus()
+ assert 'DM adjudicates its limitations' in tip.inner_text()
+ page.keyboard.press('Escape')
+ assert page.evaluate('character.attacks[0].bonus')==11
+ assert page.evaluate('character.inventory[0].notes')=='DM adds fire'
  # Explicit 2024 edition marker fences the 2014 catalog.
  page.evaluate('''()=>{character.system_edition='dnd-2024';render();}''')
  assert page.locator('.reference-pill').count()==0
@@ -91,5 +135,5 @@ with sync_playwright() as p:
  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth+6')
  page.locator('[data-close-reference]').click()
  assert not errors,errors
- print('PASS: 261 records, licensing, search/filter, spell/item reference, homebrew guard, 2024 fence, no character mutations or browser JS errors')
+ print('PASS: 261 references, spell/item/attack/action/feature hover, DM facts, homebrew fence, search/filter, no mutations')
  browser.close()

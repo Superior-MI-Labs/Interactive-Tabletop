@@ -1,3 +1,11 @@
+## v0.52.0 — Readable compact dice totals, richer hover and explicit pointer priority
+
+- Increased the collapsed Dice widget's width, displaying the settled total at 30px beside a truncated roll label instead of squeezing the result into 68px. Kept the raw die faces and existing final-total calculation intact.
+- Added one `rollBreakdown(result)` presentation formatter for both expanded result and compact hover/focus card, showing faces, modifier, d20 selection, applied bonus dice and verdict. It reads settled result data, not canvas projections.
+- Added escaped `entryHint` metadata to attack rows, spells, equipment, DM/custom abilities and feature summaries, reusing the v0.50 shared tooltip. Supplemented descriptions from the existing edition-checked SRD reference catalog without changing imported or homebrew facts.
+- Updated the existing stage pointerdown owner to respect real visible controls over resting dice; Alt+drag intentionally retrieves an overlapping die. Cursor-following prepared throws retain their behavior; the canvas remains noninteractive and no CSS z-index shim is added.
+- Extended existing browser dice and reference tests for click priority, Alt retrieval, concurrent rolls, a sample 11 + 6 = 17 hover breakdown, responsive compact layout and description provenance. No extra CI workflow or persisted state.
+
 ## v0.51.0 — Safe inventory reimport matching
 
 - Replaced name-based FIFO item reconciliation, which could attach notes to the wrong duplicate after PDF row reordering.

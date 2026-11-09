@@ -22,27 +22,34 @@ with sync_playwright() as pw:
  for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(R/'web'/name).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="Dice QA"')
- # Place a d12 exactly on top of a rollable ability button, and grab through it.
+ # A resting d12 overlaps a rollable ability button. A normal click must
+ # activate the visible control, not steal the pointer to pick up the die.
  point=page.evaluate('''()=>{
-  const button=document.querySelector('.ability-roll');const target=button.getBoundingClientRect();
-  const stage=document.querySelector('#dice-stage').getBoundingClientRect();
-  const x=target.left+target.width/2-stage.left,y=target.top+target.height/2-stage.top;
-  const d=DP.makeDie(12,x,y+28,44);d.id=++nextDieId;dice.push(d);
-  return {x:stage.left+x,y:stage.top+y};
- }''')
- # Correct exact center: screen point must be inside actual projected die.
- point=page.evaluate('''()=>{const d=dice[0],stage=document.querySelector('#dice-stage').getBoundingClientRect();
   const button=document.querySelector('.ability-roll').getBoundingClientRect();
-  d.x=button.left+button.width/2-stage.left; d.y=button.top+button.height/2-stage.top+d.z*.45;
-  return {x:stage.left+d.x,y:stage.top+d.y-d.z*.45};}''')
+  const stage=document.querySelector('#dice-stage').getBoundingClientRect();
+  const x=button.left+button.width/2-stage.left,y=button.top+button.height/2-stage.top;
+  const d=DP.makeDie(12,x,y+28,44);d.id=++nextDieId;dice.push(d);
+  d.x=x;d.y=y+d.z*.45;d.sleeping=true;d.rolling=false;
+  return {x:stage.left+d.x,y:stage.top+d.y-d.z*.45};
+ }''')
  assert page.evaluate('''()=>{const d=dice[0],r=document.querySelector('#dice-stage').getBoundingClientRect();return DP.hitTest(d,d.x,d.y-d.z*.45,r.width,r.height)}''')
- page.mouse.move(point['x'],point['y']);page.mouse.down()
- assert page.evaluate('pointer?.selected[0].sides')==12, 'd12 should be grabbed through the roll button'
+ page.mouse.click(point['x'],point['y'])
+ assert page.evaluate('pointer===null'),'Normal click should stay with the control'
+ assert page.evaluate('pendingRoll?.expression')=='1d20+3','Ability button should prepare its own roll'
+ assert page.evaluate('dice.find(d=>d.sides===12).held===false')
+ page.evaluate('cancelPreparedRoll()')
+ # A deliberate Alt+drag retrieves the overlapping d12 without firing the
+ # ability action. Regular tabletop dice remain draggable without Alt.
+ page.mouse.move(point['x'],point['y'])
+ page.keyboard.down('Alt')
+ page.mouse.down()
+ assert page.evaluate('pointer?.selected[0].sides')==12,'Alt+drag must pick up the die through the control'
  page.mouse.move(point['x']+70,point['y']+40,steps=4)
  page.mouse.up()
+ page.keyboard.up('Alt')
  assert page.evaluate('activeRolls.length')==1
  assert page.evaluate('activeRolls[0].expression')=='1d12'
- assert page.evaluate('pendingRoll===null'), 'underlying button must not fire when the die was grabbed'
+ assert page.evaluate('pendingRoll===null'),'Alt+drag must not re-trigger the underlying button'
  # Simultaneously prepare another die and throw it while the first group is in flight.
  page.evaluate('''()=>{const d=DP.makeDie(20,110,110,44);d.id=++nextDieId;dice.push(d);}''')
  p=page.evaluate('''()=>{const d=dice.at(-1),r=document.querySelector('#dice-stage').getBoundingClientRect();return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
@@ -72,6 +79,27 @@ with sync_playwright() as pw:
  assert page.evaluate('activeRolls.length')==0
  assert page.evaluate('history.length')==2
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
+ # Presentation uses the existing settled-result contract; no total is
+ # recomputed from displayed dice or by the hover card.
+ page.evaluate('''()=>{lastResult={label:'Longsword attack vs Goblin',expression:'1d20+6',parts:[11],modifier:6,total:17,bonuses:[],outcome:'HIT'};updateTableResults();}''')
+ assert page.locator('#collapsed-result .compact-total').inner_text()=='17'
+ assert 'Longsword attack' in page.locator('#collapsed-result .compact-label').inner_text()
+ assert page.evaluate("parseFloat(getComputedStyle(document.querySelector('.compact-total')).fontSize)")>=28
+ summary=page.locator('#dice-widget > summary')
+ summary.focus()
+ tooltip=page.locator('#hud-tooltip')
+ assert tooltip.is_visible()
+ for phrase in ('Longsword attack vs Goblin','Dice faces: 11','Modifier: +6','Final total: 17','HIT'):
+  assert phrase in tooltip.inner_text(),phrase
+ assert summary.get_attribute('aria-label').startswith('Dice · last total 17')
+ page.keyboard.press('Escape')
+ assert tooltip.is_hidden()
+ summary.evaluate('(el)=>el.click()')
+ assert page.locator('#last-result strong').inner_text()=='17'
+ assert 'Modifier: +6' in page.locator('#last-result').inner_text()
+ page.set_viewport_size({'width':390,'height':844})
+ assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth+6')
+
  assert not errors,errors
- print('PASS browser: d12 over controls, concurrent rolls, right-cancel, deliberate rethrow, catch/rethrow, independent completion, zero errors')
+ print('PASS browser: visible controls over resting dice, Alt+drag fallback, concurrent rolls, cancel/rethrow, compact 17 total with 11+6 hover, mobile')
  browser.close()

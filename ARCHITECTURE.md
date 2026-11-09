@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.51.0
+# Interactive Tabletop architecture — v0.52.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -301,3 +301,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - `matchImportedInventory` in `web/vault-store.js` matches previous and incoming imported rows only when normalized item names are unique on both sides. `reconcile` and `inventoryReimportPreview` reuse this exact decision. Reordered duplicates never transfer guessed annotations.
 - Imported counts, weights, archived flags and IDs come from the latest PDF; notes transfer only for a safe unique match. Manually created `custom-` and `manual-item-` records are retained by stable IDs and cannot be matched to PDF entries by name.
 - The preview explicitly identifies unmatched annotated rows and warns before confirmation. Users may cancel/export before losing unmatchable PDF notes. The app does not fabricate archived duplicate items, orphan-note state, or inferred equipment rules to conceal ambiguous identities.
+
+## v0.52 — Presentation-only roll breakdown and pointer routing
+
+- Physical dice settlement in `web/app.js` remains authoritative for faces, modifier, bonus effects and final totals. `rollBreakdown` formats that settled record for both the expanded result and the compact Dice header's single `#hud-tooltip`; it never computes a second roll total or changes character state.
+- `entryHint` adds safely escaped hover metadata to current character attacks, spells, items, features and custom actions. Read-only SRD descriptions come only through the existing edition-checked `ReferenceCatalog.match` call. Character/PDF and DM values remain authoritative.
+- The existing stage pointer handler yields to visible buttons, inputs, selects, summaries and other interactive controls when resting dice overlap. Alt+drag explicitly overrides the preference to pick up a die, and cursor-following prepared groups retain their throw ownership. Do not introduce a competing event router or z-index-based pointer shim.
+- The amended browser tests cover clicks on controls under dice, Alt pickup, concurrent rolls and right cancellation, and a 17-total example from 11 + 6. They also cover action, spell, item, ability and feature hover detail and edition fences.
