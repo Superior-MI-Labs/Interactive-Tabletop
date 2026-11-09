@@ -23,7 +23,11 @@ class TestReferenceIntegration(unittest.TestCase):
   self.assertIn('id="reference-layer"',html)
   self.assertIn("['reference','Reference']",js)
   self.assertIn('function showAbout()',js)
-  self.assertIn("sourceBadge(References?.match('equipment'",js)
+  # The inventory renderer resolves a single edition-checked record, reused
+  # for both the source badge and the read-only hover card.
+  self.assertIn("const reference=References?.match('equipment'",js)
+  self.assertIn('sourceBadge(reference)',js)
+  self.assertIn('entryHint(it.name,details,reference?',js)
   self.assertIn("sourceBadge(ref)",js)
   self.assertIn("References?.match('spell'",js)
 if __name__=='__main__':unittest.main()
