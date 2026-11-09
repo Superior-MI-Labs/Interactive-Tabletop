@@ -237,7 +237,7 @@ function input(path,value,type='text',cls='input'){return `<input aria-label="${
 function panel(name,content,defaultOpen=true){return `<details class="panel" data-panel="${esc(name)}" ${panelState.get(name)??defaultOpen?'open':''}><summary>${esc(name)}</summary><div class="panel-content">${content}</div></details>`;}
 function stat(label,value,meta=''){return `<div class="kpi" title="${esc(meta)}"><small>${esc(label)}</small><div class="value">${esc(value)}</div></div>`;}
 function rollButton(label,modifier,expression,editType='',editKey='',rollKind='untyped'){
- return `<div class="rollrow"><button class="rollable" type="button" data-roll="${esc(expression)}" data-roll-label="${esc(label)}" data-roll-kind="${esc(rollKind)}"><span>${esc(label)}</span><span class="tag">${esc(sgn(modifier))}</span></button>
+ return `<div class="rollrow"><button class="rollable" type="button" data-roll="${esc(expression)}" data-roll-label="${esc(label)}" data-roll-kind="${esc(rollKind)}" ${entryHint(label,`Roll ${expression} · saved modifier ${sgn(modifier)}`,'Character roll · imported or DM configured')}><span>${esc(label)}</span><span class="tag">${esc(sgn(modifier))}</span></button>
  ${editType?`<input aria-label="Edit ${esc(label)} modifier" class="input sm bonus-editor" type="number" data-mod-type="${esc(editType)}" data-mod-name="${esc(editKey)}" value="${esc(modifier)}">`:''}</div>`;
 }
 function field(label,path,value,type='text'){return `<label class="field"><span class="field-label">${esc(label)}</span>${input(path,value,type)}</label>`;}
@@ -319,9 +319,10 @@ function attackRows(mode='compact'){
   const type=Action.attackType(a),range=Action.attackRange(a),bonusRemaining=Action.availableAttackGrants(character,type);
   const bonusReason=attackUnavailable('bonus',type);
   const bonusControl=bonusRemaining?`<button class="button mini" type="button" data-action="bonus-attack" data-arg="${i}" ${bonusReason?'disabled aria-disabled="true"':''} title="${esc(bonusReason||'Spend one granted '+type+' strike when dice launch')}">Bonus strike (${bonusRemaining})</button>`:'';
-  const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}`;
-  if(mode==='detailed')return `<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label><label class="field">Attack range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Not classified</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
-  return `<div class="attack-row" title="${esc(a.name)} · ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range"><span class="attack-name">${esc(a.name)}${editMode?`<div class="setup-attack-fields">${field('Attack name',`attacks.${i}.name`,a.name)}${field('Attack bonus',`attacks.${i}.bonus`,a.bonus,'number')}${field('Damage dice',`attacks.${i}.damage`,a.damage||'')}</div><label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
+  const hint=entryHint(a.name,[`Attack bonus ${sgn(a.bonus)}`,`Damage: ${a.damage||'not recorded'}`,`Type: ${type}`,`Range: ${range}`].join(' · '),'Character attack · imported or DM configured');
+   const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}`;
+  if(mode==='detailed')return `<div class="resource-row" ${hint}><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label><label class="field">Attack range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Not classified</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
+  return `<div class="attack-row" ${hint}><span class="attack-name">${esc(a.name)}${editMode?`<div class="setup-attack-fields">${field('Attack name',`attacks.${i}.name`,a.name)}${field('Attack bonus',`attacks.${i}.bonus`,a.bonus,'number')}${field('Damage dice',`attacks.${i}.damage`,a.damage||'')}</div><label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
 }
 function rollRows(kind,mode='compact'){
@@ -529,7 +530,7 @@ function actionWorkspace(){
  ${stateEventControls()}${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
  ${specialFilter?`<div class="ability-action-list" aria-label="Imported and custom actions">${entries.map(a=>{
    const roll=a.roll||'', damage=a.damage||'';
-   return `<details class="work-entry action-entry" data-action-id="${esc(a.id||a.index)}"><summary><span class="entry-title">${esc(a.name)}</span><span class="entry-meta">${esc(a.activation||'special')}${a.source==='manual'?' · Custom':a.source==='user-reference'?' · Screenshot reference':''}</span></summary>
+   return `<details class="work-entry action-entry" data-action-id="${esc(a.id||a.index)}"><summary ${entryHint(a.name,[a.description||'No imported description; confirm with your DM.',a.roll?'Roll '+a.roll:'',a.damage?'Damage '+a.damage:'',a.resource&&a.cost?'Cost: '+a.cost+' '+a.resource:''].filter(Boolean).join(' · '),'Character ability · '+(a.source||'DM configured'))}><span class="entry-title">${esc(a.name)}</span><span class="entry-meta">${esc(a.activation||'special')}${a.source==='manual'?' · Custom':a.source==='user-reference'?' · Screenshot reference':''}</span></summary>
    <div class="entry-details"><p class="action-description">${esc(a.description||'No rules description imported. Configure manually if needed.')}</p>
    <div class="controls-row action-buttons">${(()=>{let reason='';try{const p=Action.plan(character,a,{targetId:currentTargetId()});reason=unavailableReason(p);}catch(e){reason=e.message;}const lock=reason&&Action.combat(character).active&&Action.combat(character).economy.auto;return `<button type="button" class="button mini primary" data-action="action-use" data-arg="${a.index}" ${lock?'disabled aria-disabled="true"':''} title="${esc(lock?reason:'Confirm ability use')}">Use ability</button>`;})()}${roll&&!a.workflow?button('Roll '+roll,'action-roll',String(a.index),'button mini'):''}
    ${damage?button('Damage '+damage,'action-damage',String(a.index),'button mini subtle'):''}
@@ -643,6 +644,12 @@ function overview(){
  </div>`;
 }
 
+// Read-only hover metadata for character entries. This is a view over the
+// imported/DM record and optional edition-verified catalog, never new rules.
+function entryHint(name,details,source){
+ const detail=String(details||'Expand for details; imported/DM values remain authoritative.').replace(/\s+/g,' ').trim().slice(0,850);
+ return `data-tip="${esc(name)}" data-tip-detail="${esc(detail)}" data-tip-source="${esc(source||'Character record · DM review')}"`;
+}
 function sourceBadge(record){
  if(!record)return '';
  return `<button type="button" class="reference-pill" data-action="reference-open" data-arg="${esc(record.kind+':'+record.id)}" title="Open SRD 5.1 reference; your imported character data stays unchanged">SRD 5.1 ↗</button>`;
@@ -664,7 +671,7 @@ function referenceWorkspace(){
  <p class="reference-disclaimer">SRD 5.1 (2014) · read-only spell and equipment summaries. This is not the full rules text, and imported or DM-approved values always win.</p>
  <div class="workspace-toolbar"><div class="workspace-filters">${[['all','All'],['spell','Spells'],['equipment','Equipment']].map(([k,label])=>`<button class="filter-chip ${k===catalogKind?'selected':''}" data-action="catalog-kind" data-arg="${k}" aria-pressed="${k===catalogKind}">${label}</button>`).join('')}</div><div class="reference-search-tools"><input class="input search" id="catalog-search" type="search" aria-label="Search reference catalog" placeholder="Spell, school, gear, properties…" value="${esc(catalogQuery)}">${levels}</div></div>
  <div class="reference-count"><span id="catalog-shown">${all.length}</span> of ${all.length} entries · 2014 SRD 5.1 · <button type="button" class="text-link" data-action="about">About & licenses</button></div>
- <div class="reference-list">${all.map(record=>{const searchable=[record.name,...(record.aliases||[]),record.kind,record.school,record.description,record.category,record.properties,record.casting_time].filter(Boolean).join(' ').toLowerCase();return `<button type="button" class="reference-item" data-action="reference-open" data-arg="${esc(record.kind+':'+record.id)}" data-catalog-search="${esc(searchable)}" data-catalog-level="${record.kind==='spell'?record.level:'equipment'}"><span>${esc(record.name)}</span><small>${record.kind==='spell'?`Level ${record.level} · ${esc(record.school||'spell')}${record.ritual?' · Ritual':''}${record.concentration?' · Concentration':''}`:`${esc(record.category)} · ${esc(record.cost||'')}`}</small></button>`;}).join('')}</div>
+ <div class="reference-list">${all.map(record=>{const searchable=[record.name,...(record.aliases||[]),record.kind,record.school,record.description,record.category,record.properties,record.casting_time].filter(Boolean).join(' ').toLowerCase();return `<button type="button" class="reference-item" data-action="reference-open" data-arg="${esc(record.kind+':'+record.id)}" ${entryHint(record.name,record.description||'Read-only 2014 SRD reference entry.','SRD 5.1 (2014) · read-only reference')} data-catalog-search="${esc(searchable)}" data-catalog-level="${record.kind==='spell'?record.level:'equipment'}"><span>${esc(record.name)}</span><small>${record.kind==='spell'?`Level ${record.level} · ${esc(record.school||'spell')}${record.ritual?' · Ritual':''}${record.concentration?' · Concentration':''}`:`${esc(record.category)} · ${esc(record.cost||'')}`}</small></button>`;}).join('')}</div>
  </section>`;
 }
 function showReference(record){
@@ -709,12 +716,16 @@ function inventory(){
  const items=(character.inventory||[]).map((it,i)=>({...it,index:i})).filter(it=>(showArchived||!it.archived)&&(it.name||'').toLowerCase().includes(search.toLowerCase()));
  return `<div class="workspace-toolbar"><input class="input search" id="filter" placeholder="Find equipment…" value="${esc(search)}" aria-label="Search inventory">
  ${button('+ Item','add-item','','button mini')}${button(showArchived?'Hide archived':'Show archived','toggle-archived','','button mini subtle')}</div>
- <div class="workspace-entries" aria-label="Equipment list">${items.map(it=>`<details class="work-entry ${it.archived?'archived':''}"><summary>
+ <div class="workspace-entries" aria-label="Equipment list">${items.map(it=>{
+  const reference=References?.match('equipment',it.name,character.system_edition);
+  const details=[`Quantity: ${it.quantity}`,it.weight?'Imported weight: '+it.weight:'',it.notes?'Player notes: '+it.notes:'',reference?.description?'2014 SRD: '+reference.description:''].filter(Boolean).join(' · ');
+  return `<details class="work-entry ${it.archived?'archived':''}"><summary ${entryHint(it.name,details,reference?'Character item + 2014 SRD summary · imported/DM details win':'Character item · no verified source description')}>
  <span class="entry-title">${esc(it.name)}</span><span class="entry-meta">${it.archived?'Archived':`${esc(it.quantity)} owned`}</span></summary>
  <div class="entry-details">${field('Name',`inventory.${it.index}.name`,it.name)}<div class="entry-pair">
  ${field('Quantity',`inventory.${it.index}.quantity`,it.quantity,'number')}${field('Weight',`inventory.${it.index}.weight`,it.weight||'')}</div>
- ${sourceBadge(References?.match('equipment',it.name,character.system_edition))}${field('Notes',`inventory.${it.index}.notes`,it.notes||'')}
- ${button(it.archived?'Restore':'Archive','archive',String(it.index),'button mini subtle')}</div></details>`).join('')}</div>`;
+ ${sourceBadge(reference)}${field('Notes',`inventory.${it.index}.notes`,it.notes||'')}
+ ${button(it.archived?'Restore':'Archive','archive',String(it.index),'button mini subtle')}</div></details>`;
+ }).join('')}</div>`;
 }
 function spellcastingSettings(sp){
  const choices=Action.ABILITIES.map(ability=>`<option value="${ability}" ${sp.spellcasting_ability===ability?'selected':''}>${ability}</option>`).join('');
@@ -759,7 +770,7 @@ function spells(){
  const ref=References?.match('spell',sp.name,character.system_edition);
  const preset=ref?.automation;
  const presetActive=Boolean(preset&&(sp.automation==='srd-2014'||(!sp.automation&&character.rules_profile==='srd-2014')));
- return `<div class="spell-entry" data-spell-name="${esc((sp.name||'').toLowerCase())}"><details class="work-entry" data-spell-id="${esc(sp.id||sp.index)}"><summary><span class="entry-title">${esc(sp.name)}</span><span class="entry-meta">${badge} · ${state}${Vault.isManualSpell(sp)?' · Manual entry':''}</span></summary>
+ return `<div class="spell-entry" data-spell-name="${esc((sp.name||'').toLowerCase())}"><details class="work-entry" data-spell-id="${esc(sp.id||sp.index)}"><summary ${entryHint(sp.name,[badge+' · '+state,sp.casting_time?'Casting: '+sp.casting_time:'',sp.range?'Range: '+sp.range:'',sp.duration?'Duration: '+sp.duration:'',sp.notes?'Character notes: '+sp.notes:'',ref?.description?'2014 SRD: '+ref.description:''].filter(Boolean).join(' · '),ref?'Character spell + 2014 SRD summary · imported values win':'Character spell · DM adjudication')}><span class="entry-title">${esc(sp.name)}</span><span class="entry-meta">${badge} · ${state}${Vault.isManualSpell(sp)?' · Manual entry':''}</span></summary>
  <div class="entry-details"><div><b>Source:</b> ${esc(sp.source||'Unknown')}</div><div><b>Casting:</b> ${esc(sp.casting_time||'Unknown')} · ${esc(sp.range||'')}</div><div><b>Duration:</b> ${esc(sp.duration||'Unknown')}</div>
  <div><b>Components:</b> ${esc(sp.components||'')}</div><div><b>Save / attack:</b> ${esc(sp.save||'—')}</div>${sp.notes?`<p>${esc(sp.notes)}</p>`:''}${sourceBadge(ref)}
  ${preset?`<div class="srd-preset">${presetActive?`<strong>Qualified 2014 SRD effect enabled</strong> ${button('Use manual rules','spell-preset-off',String(sp.index),'button mini subtle')}`:`<span>Qualified 2014 SRD profile available (self only).</span> ${button('Enable 2014 effect','spell-preset-on',String(sp.index),'button mini')}`}</div>`:''}
@@ -782,7 +793,7 @@ function features(){
  return `<div class="workspace-feature-list">
  <div class="workspace-toolbar">${button('+ Feature note','add-feature-note','','button mini')}<small>Notes describe features; they do not execute actions or spend resources.</small></div>
  ${panel('Features & traits',(character.features||[]).map((x,i)=>
- `<details class="feature" ${i===0?'open':''}><summary>${esc(x.title)}</summary><pre>${esc(x.text)}</pre>${editMode&&x.source==='manual'?`<div class="setup-feature-editor">${field('Feature name',`features.${i}.title`,x.title)}<label class="field">Description / DM ruling<textarea class="input longtext" data-input="features.${i}.text">${esc(x.text)}</textarea></label></div>`:''}</details>`).join(''))}
+ `<details class="feature" ${i===0?'open':''}><summary ${entryHint(x.title,x.text||'No feature description supplied.','Character feature · imported or DM authored')}>${esc(x.title)}</summary><pre>${esc(x.text)}</pre>${editMode&&x.source==='manual'?`<div class="setup-feature-editor">${field('Feature name',`features.${i}.title`,x.title)}<label class="field">Description / DM ruling<textarea class="input longtext" data-input="features.${i}.text">${esc(x.text)}</textarea></label></div>`:''}</details>`).join(''))}
  <div>${panel('Homebrew adjudication',`<textarea class="input longtext" data-input="homebrew_notes">${esc(character.homebrew_notes||'')}</textarea>
  <p class="subtle-note">Imported custom rules may be incomplete. Confirm unusual effects and resource costs with your DM before playing.</p>`)}
  </div></div>`;
@@ -1663,11 +1674,16 @@ function initDiceCanvas(){
  },true);
  stage.addEventListener('pointerdown',e=>{
    if(pointer?.down||e.button!==0)return;
-   // Deliberately prioritized controls (e.g. the practice guide) must remain
-   // clickable even when a resting physical die overlaps their hit area.
-   if(e.target.closest?.('[data-pointer-priority="control"]'))return;
-   const {x,y}=relative(e);pointerPosition={x,y};
    const followingGroup=following&&pendingRoll?dice.filter(d=>d.ready):[];
+   // The canvas is visual; the stage captures input above the sheet. Resting
+   // dice must not intercept actual UI controls. Alt+drag is the deliberate
+   // way to retrieve a die from atop a control. Prepared dice still own the
+   // release gesture only on unobstructed tabletop; actual controls always win.
+   if(!e.altKey&&e.target.closest?.('button,input,select,textarea,summary,label,a[href],[role="button"],[role="tab"],[contenteditable],[data-pointer-priority="control"]')){
+    lastDiceGesture=null; // A new control click must not inherit old drag suppression.
+    return;
+   }
+   const {x,y}=relative(e);pointerPosition={x,y};
    // Mixed dice orbit the cursor; its exact position can fall between the dice.
    // Catch that click before underlying buttons rather than requiring a die hit.
    const hit=followingGroup.length?followingGroup[0]:findDie(x,y);
@@ -1691,7 +1707,9 @@ function initDiceCanvas(){
  stage.addEventListener('pointermove',e=>{
    const {x,y}=relative(e);pointerPosition={x,y};
    if(!pointer?.down){
-     hoverDieId=findDie(x,y)?.id??null;stage.classList.toggle('die-hover',hoverDieId!==null);
+     const overControl=e.target.closest?.('button,input,select,textarea,summary,label,a[href],[role="button"],[role="tab"],[contenteditable],[data-pointer-priority="control"]');
+   hoverDieId=!overControl||following?findDie(x,y)?.id??null:null;
+   stage.classList.toggle('die-hover',hoverDieId!==null);
      if(following&&pendingRoll){
        const selected=dice.filter(d=>d.ready);
        selected.forEach((d,i)=>{
@@ -1913,12 +1931,32 @@ function finishRollIfSettled(){
  if(!pendingRoll&&attackFollowups.length===1){const next=attackFollowups[0];attackFollowup(next.result,next.group,next.knownHit);}
  else if(attackFollowups.length>1)toast('Multiple attacks settled; use Damage manually for the appropriate hit.');
 }
+function rollBreakdown(result){
+ if(!result)return '';
+ // This is purely a presentation of the settled, authoritative roll-group
+ // record. No second dice parser, math evaluator or modifier source.
+ const faces=(result.parts||[]).join(', ');
+ const selected=result.mode&&result.mode!=='normal'?result.mode+' · selected natural '+result.natural:'';
+ const bonuses=(result.bonuses||[]).map(b=>b.name+': '+(b.parts||[]).join(' + ')+' = '+b.total);
+ return [result.expression?'Expression: '+result.expression:'',faces?'Dice faces: '+faces:'',selected,
+  'Modifier: '+sgn(result.modifier||0),...bonuses,
+  'Final total: '+result.total,result.outcome?'Outcome: '+result.outcome:'',
+  result.appliedDamage?'Applied '+result.appliedDamage.amount+' damage to '+result.appliedDamage.name:''].filter(Boolean).join(' · ');
+}
 function updateTableResults(){
  const result=$('#last-result'),list=$('#table-history'),count=$('#history-count'),collapsed=$('#collapsed-result');
  if(!result)return;
  result.innerHTML=lastResult?`<strong>${esc(lastResult.total)}</strong> <span>${esc(lastResult.label)} · ${esc(lastResult.parts.join(' + '))} ${lastResult.modifier?sgn(lastResult.modifier):''} ${lastResult.mode&&lastResult.mode!=='normal'?`· ${esc(lastResult.mode)} (${esc(lastResult.natural)})`:''} ${(lastResult.bonuses||[]).map(b=>`· ${esc(b.name)} ${esc(b.parts.join('+'))}`).join(' ')} ${lastResult.outcome?`· ${esc(lastResult.outcome)}`:''}${lastResult.appliedDamage?` · Applied ${esc(lastResult.appliedDamage.amount)} damage to ${esc(lastResult.appliedDamage.name)}`:''}</span>`:
  'Pick a die, drag to shake, then release. Dice remain on the table.';
- if(collapsed)collapsed.textContent=lastResult?`${lastResult.total} · ${lastResult.label}`:'Ready';
+ if(collapsed)collapsed.innerHTML=lastResult?
+  `<strong class="compact-total">${esc(lastResult.total)}</strong><span class="compact-label">${esc(lastResult.label)}</span>`:'<span class="compact-ready">Ready</span>';
+ const summary=$('#dice-widget > summary');
+ if(summary){
+  summary.dataset.tip=lastResult?lastResult.label:'Dice · Ready';
+  summary.dataset.tipDetail=lastResult?rollBreakdown(lastResult):'Expand the dice controls to prepare, throw, and review rolls.';
+  summary.dataset.tipSource=lastResult?'Settled physical dice · final total includes modifiers and qualified roll bonuses':'Interactive tabletop';
+  summary.setAttribute('aria-label',lastResult?`Dice · last total ${lastResult.total}. ${lastResult.label}. Expand or collapse controls.`:'Dice controls · expand or collapse');
+ }
  count.textContent=String(history.length);
  list.innerHTML=history.slice(0,30).map(h=>`<li>${esc(h.label)} <b>${esc(h.total)}</b> <small>${esc(h.expression)}${(h.bonuses||[]).map(b=>' + '+esc(b.name)+' '+esc(b.expression)).join('')}</small></li>`).join('');
  const effect=$('#roll-effect');if(effect){

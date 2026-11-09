@@ -35,7 +35,15 @@ with sync_playwright() as p:
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Synthetic Cleric' && ReferenceCatalog.ready()")
  page.get_by_role('tab',name='Spells').click()
  def spell(name):return page.locator('.spell-entry').filter(has_text=name)
- cure=spell('Cure Wounds');cure.locator('summary').click()
+ cure=spell('Cure Wounds')
+ cure.locator('summary').focus()
+ hover=page.locator('#hud-tooltip')
+ assert hover.is_visible()
+ assert 'Casting: 1 action' in hover.inner_text()
+ assert '2014 SRD:' in hover.inner_text()
+ assert 'Character spell + 2014 SRD' in hover.inner_text()
+ page.keyboard.press('Escape')
+ cure.locator('summary').click()
  cure.get_by_role('button',name='Enable 2014 effect').click();page.locator('#dlg-yes').click()
  assert page.evaluate('character.spells[0].automation')=='srd-2014'
  cure.locator('[data-slot-choice]').select_option('2')
@@ -102,6 +110,9 @@ with sync_playwright() as p:
  # Verify concentration damage prompts and manual roll availability.
  page.get_by_role('tab',name='Spells').click()
  faith=spell('Shield of Faith')
+ # Detail expansion is a view state, not character state; navigation may reset it.
+ if faith.locator('details').get_attribute('open') is None:
+  faith.locator('summary').click()
  faith.get_by_role('button',name='Cast spell').click();page.locator('#dlg-yes').click()
  page.locator('#hp-amount').fill('24')
  page.get_by_role('button',name='− Damage').click()

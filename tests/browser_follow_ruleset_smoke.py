@@ -34,14 +34,16 @@ with sync_playwright() as pw:
  skill=page.get_by_role('button',name='Medicine',exact=False)
  skill.focus();page.keyboard.press('Enter')
  assert page.evaluate('following===true && pendingRoll?.diceIds.length===2'), 'd20 + d4 must follow'
- # The cursor falls between two dice and over an interactive ability control.
+ # Over a real control, prepared dice are picked up deliberately with
+ # Alt+drag; otherwise the visible ability button owns the click.
  button=page.locator('.ability-roll').first
  rect=button.bounding_box();point={'x':rect['x']+rect['width']/2,'y':rect['y']+rect['height']/2}
+ page.keyboard.down('Alt')
  page.mouse.move(point['x'],point['y'])
  page.mouse.down()
- assert page.evaluate("pointer?.mode==='prepared' && pointer?.selected.length===2"), 'must capture full group, even in the gap or over a button'
+ assert page.evaluate("pointer?.mode==='prepared' && pointer?.selected.length===2"), 'Alt+drag must capture full d20+d4 group, even in the gap over a button'
  page.mouse.move(point['x']+65,point['y']+42,steps=5)
- page.mouse.up()
+ page.mouse.up();page.keyboard.up('Alt')
  assert page.evaluate('pointer===null && pendingRoll===null && activeRolls.length===1'), 'drag/release must throw'
  assert page.evaluate('activeRolls[0].bonuses.length')==1
  # We deliberately settle dice, proving effect lifecycle triggers a UI refresh.

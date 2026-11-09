@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.51.0
+# Interactive Tabletop architecture — v0.52.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -301,3 +301,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - `matchImportedInventory` in `web/vault-store.js` matches previous and incoming imported rows only when normalized item names are unique on both sides. `reconcile` and `inventoryReimportPreview` reuse this exact decision. Reordered duplicates never transfer guessed annotations.
 - Imported counts, weights, archived flags and IDs come from the latest PDF; notes transfer only for a safe unique match. Manually created `custom-` and `manual-item-` records are retained by stable IDs and cannot be matched to PDF entries by name.
 - The preview explicitly identifies unmatched annotated rows and warns before confirmation. Users may cancel/export before losing unmatchable PDF notes. The app does not fabricate archived duplicate items, orphan-note state, or inferred equipment rules to conceal ambiguous identities.
+
+## v0.52 — Input ownership and roll result as one source of truth
+
+- The transparent tabletop canvas still owns no pointer events. The existing `web/app.js` stage pointerdown handler delegates to real interactive controls before die hit-testing, even for following/prepared dice. Alt+drag intentionally bypasses control priority to retrieve a die; a new control interaction clears stale drag click suppression. No per-button workaround or independent hit-testing layer.
+- `finishRollIfSettled` still creates the authoritative `lastResult` record, with physical faces, modifier, qualified bonus dice, outcome and final total. `updateTableResults` renders that total prominently in the compact/expanded Dice view. `rollBreakdown` only formats this same settled evidence into the existing HUD tooltip; it never recomputes dice results or mutates combat.
+- The already-established `entryHint` helper projects imported or DM-edited fields and optional exact-2014 `ReferenceCatalog` details onto the shared `data-tip` presenter. All HTML attributes are escaped, and cards use text nodes. This is read-only metadata, not inferred automation or another character state source.
+- Browser smoke owners: dice interaction, effects/spells, action/ability and vault/inventory. Preserve the combat target contract, damage Undo, manual source provenance and 2014 edition guard.

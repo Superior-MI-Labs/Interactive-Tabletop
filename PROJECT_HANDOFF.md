@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.51.0`  
-**Release commit:** Verify v0.51.0 main SHA, qualification and Pages before claiming it live. Previous verified release: v0.50.0 `c658699` (Actions `42522797327`).  
+**Last verified application release:** `v0.52.0`  
+**Release commit:** Verify v0.52.0 main SHA, qualification and Pages before claiming it live. Previous verified release: v0.51.0 `87adebe` (Actions `42551341745`).  
 **Handoff reviewed:** 2026-11-08  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.51.0 reconciles imported inventory by safe unique-name identity and reports old notes at risk in the PDF preview. Verify CI/Pages before marking it live.
+**Current worktree:** v0.52.0 improves collapsed dice totals and hover breakdowns, expands read-only character entry cards, and prioritizes control clicks over parked/following dice. Verify CI/Pages before calling it live.
 
 ## 1. Why this file exists / how to resume
 
@@ -36,7 +36,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.51.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.52.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -55,8 +55,9 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.49:** Offensive actions require a real selected creature; Auto applies typed weapon damage after a verified hit only if the target's defenses have been explicitly approved. The roll group retains original target identity, existing Undo stays intact and other modes continue through review.
 - **v0.50:** The original fast tooltip owns hover/focus cards for status icons, hearts, action controls, and effects. Active conditions display once in Effects; their manual picker is nested there. Condition descriptions live in a read-only, 2014-edition-checked SRD catalog and do not introduce gameplay automation.
 - **v0.51:** Imported equipment notes carry forward only across names unique on both PDF versions; duplicates never inherit guessed annotations. The identical vault matcher drives a read-only preview with notes at risk, while player-authored items remain independent.
+- **v0.52:** Collapsed Dice uses the already-settled modifier-adjusted total, with full provenance in the shared tooltip. Real controls get pointer priority over dice; Alt+drag deliberately retrieves dice from atop controls. Spell, attack, item, skill, feature and ability cards use character facts and optional edition-qualified SRD descriptions.
 
-v0.50.0 passed GitHub qualification and Pages deployment at commit `c658699` (Actions run `42522797327`). Check v0.51 independently before claiming it deployed.
+v0.51.0 passed GitHub qualification and Pages deployment at commit `87adebe` (Actions run `42551341745`). Check v0.52 independently before claiming it deployed.
 
 ## 3. Architecture choices and rationale
 
@@ -91,17 +92,17 @@ These are engineering judgments based on current contracts, not eternal prohibit
 - Dice physics is approximate, not a certified fairness simulation. The sample Fighter is demonstration data, not a comprehensive rules fixture.
 - A GitHub push is **not** equivalent to a live deployment. Check Actions qualification and Pages deployment separately; do not guess run IDs or report success prematurely.
 
-## 5. Suggested next milestone — die pointer ownership and accurate roll totals
+## 5. Suggested next milestone — source-qualified equipment metadata and images
 
-**Goal:** A resting die should never take a click intended for a visible gameplay button. Settled results must distinguish physical faces from modifier-adjusted totals and bonus dice.
+**Goal:** Make item/spell cards more informative without inventing mechanics, republishing restricted sourcebook text or creating another equipment data store.
 
-**Audit first:** Study the existing stage pointer hit-testing, click/pointer ownership, dice ready/held state, overlay controls, and existing roll-group total/bonus contract. Reproduce controls overlapping dice on desktop/mobile before modifying renderer behavior.
+**Audit first:** Compare imported item fields (damage dice, properties, quantities, descriptions) against the read-only 2014 SRD catalog. Inspect the Visual Atlas asset manifests/licensing and identify exact matches rather than guessing by name. Distinguish missing imported data from missing public reference data.
 
-**Two approaches:** (1) Give actual visible controls priority through the existing pointer owner, then render results from the settled roll-group data; (2) add ad hoc CSS hit-test exclusions, new z-index layers or a second total calculator in the canvas. Prefer (1) with regression tests, no shims.
+**Alternatives:** (1) Enrich the existing `ReferenceCatalog` and shared entry cards with verified provenance and optional licensed image paths; (2) add arbitrary server scraping or a parallel equipment rules engine. Prefer (1) after a grounded data audit, and defer additions that cannot be verified.
 
-**Acceptance criteria:** Attack, damage, target and save controls activate reliably with resting dice underneath; dice pickup still works on unobstructed tabletop; natural die faces and final roll totals remain clearly distinguished across multiple dice groups. Preserve combat target-safety, damage Undo and edition guards.
+**Acceptance criteria:** Supported 2014 items expose sourced descriptive/mechanical information read-only; unknown/homebrew entries say unavailable and retain their own authored fields. Images, if introduced, resolve through the atlas manifest and its license. Existing dice/input, reimport and combat tests remain green.
 
-**Later:** Extend read-only licensed SRD and Visual Atlas imagery for equipment cards without changing imported facts or homebrew records. Isometric encounter view should use existing encounter IDs and combat state.
+**Future direction:** An isometric scene should bind to existing encounter target IDs and authoritative combat actions; it must not fork the rules engine.
 
 
 ## 6. Execution and publication checklist
@@ -140,3 +141,5 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 **v0.50 checkpoint:** `web/app.js` has one shared `hudTip` renderer for immediate native-title/data-tip quick hints and optional detail/source cards. Active `character.conditions` use `conditionIcon()` in `buffBar()`; `conditionRail()` is now only the panelState-owned picker. All effects, independent grants and condition toggles stay on the existing model. `ReferenceCatalog.match('condition', ...)` looks up 15 read-only 2014 SRD summaries; revised-edition users never see them as qualified rules. Test owners: `tests/test_reference_catalog.js`, the extended `tests/browser_effects_smoke.py`, and existing condition-source browser tests. Next: inventory duplicate identity/reimport audit; avoid a second import engine.
 
 **v0.51 checkpoint:** `matchImportedInventory` in `web/vault-store.js` is the only item matching decision used by reconciliation and preview; normalized names must be unique in both old/new PDF rows. Positional IDs, quantity, weight and order cannot disambiguate same-name items. Import confirmation warns when previous annotated rows won't safely transfer; custom item IDs survive independently. Regression owners: `tests/test_inventory_reimport.js` and extended `tests/browser_vault_smoke.py`. Next: pointer ownership and dice totals, not a second import engine.
+
+**v0.52 checkpoint:** The stage pointerdown has one control-first guard even while dice follow the pointer. Alt+drag retrieves dice from interactive areas; regular controls must not be intercepted. `rollBreakdown` and `updateTableResults` display the same settled result, not re-evaluated math. `entryHint` adds read-only hover cards to the existing HUD presenter; 2014 reference content remains edition-checked. Browser owners: `browser_dice_interaction_smoke.py`, `browser_action_smoke.py`, `browser_effects_smoke.py`, `browser_vault_smoke.py`. Next: licensed/provenance-safe reference item data coverage, not more UI state.
