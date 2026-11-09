@@ -110,6 +110,9 @@ with sync_playwright() as p:
  # Verify concentration damage prompts and manual roll availability.
  page.get_by_role('tab',name='Spells').click()
  faith=spell('Shield of Faith')
+ # Detail expansion is a view state, not character state; navigation may reset it.
+ if faith.locator('details').get_attribute('open') is None:
+  faith.locator('summary').click()
  faith.get_by_role('button',name='Cast spell').click();page.locator('#dlg-yes').click()
  page.locator('#hp-amount').fill('24')
  page.get_by_role('button',name='− Damage').click()
