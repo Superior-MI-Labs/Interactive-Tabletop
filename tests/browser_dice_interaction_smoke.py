@@ -36,13 +36,29 @@ with sync_playwright() as pw:
   d.x=button.left+button.width/2-stage.left; d.y=button.top+button.height/2-stage.top+d.z*.45;
   return {x:stage.left+d.x,y:stage.top+d.y-d.z*.45};}''')
  assert page.evaluate('''()=>{const d=dice[0],r=document.querySelector('#dice-stage').getBoundingClientRect();return DP.hitTest(d,d.x,d.y-d.z*.45,r.width,r.height)}''')
+ # Default pointer ownership belongs to the visible ability button, even
+ # when a physical die visually overlaps its coordinates.
  page.mouse.move(point['x'],point['y']);page.mouse.down()
- assert page.evaluate('pointer?.selected[0].sides')==12, 'd12 should be grabbed through the roll button'
- page.mouse.move(point['x']+70,point['y']+40,steps=4)
+ assert page.evaluate('pointer===null'), 'Resting die cannot steal a HUD control pointerdown'
  page.mouse.up()
+ assert page.evaluate('pendingRoll?.expression')=='1d20+3','Actual ability button must respond'
+ # A prepared die following the cursor must also leave real controls usable.
+ widget=page.locator('#dice-widget > summary')
+ widget.click()
+ assert page.locator('#dice-widget').get_attribute('open') is not None
+ assert page.evaluate('pendingRoll?.expression')=='1d20+3'
+ assert page.evaluate('pointer===null')
+ widget.click()
+ page.evaluate('cancelPreparedRoll()')
+ assert page.evaluate('pendingRoll===null')
+ # Alt+drag is a deliberate way to retrieve a die parked over a control.
+ page.keyboard.down('Alt');page.mouse.move(point['x'],point['y']);page.mouse.down()
+ assert page.evaluate('pointer?.selected[0].sides')==12,'Alt must explicitly select the parked die'
+ page.mouse.move(point['x']+70,point['y']+40,steps=4)
+ page.mouse.up();page.keyboard.up('Alt')
  assert page.evaluate('activeRolls.length')==1
  assert page.evaluate('activeRolls[0].expression')=='1d12'
- assert page.evaluate('pendingRoll===null'), 'underlying button must not fire when the die was grabbed'
+ assert page.evaluate('pendingRoll===null')
  # Simultaneously prepare another die and throw it while the first group is in flight.
  page.evaluate('''()=>{const d=DP.makeDie(20,110,110,44);d.id=++nextDieId;dice.push(d);}''')
  p=page.evaluate('''()=>{const d=dice.at(-1),r=document.querySelector('#dice-stage').getBoundingClientRect();return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
@@ -71,7 +87,31 @@ with sync_playwright() as pw:
  page.evaluate('''()=>{for(const d of dice){d.sleeping=true;d.held=false;d.rolling=false;}finishRollIfSettled()}''')
  assert page.evaluate('activeRolls.length')==0
  assert page.evaluate('history.length')==2
+ # Settled modifier-adjusted total is prominent in the collapsed Dice header.
+ # This reuses the same roll-group calculator, not a second UI formula.
+ page.evaluate('''()=>{queueRoll('1d20+6','Longsword attack');beginThrow();
+   DP.faceValue=()=>11;
+   for(const d of dice.filter(x=>activeRolls.at(-1).diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
+   finishRollIfSettled();}''')
+ assert page.evaluate('lastResult.total')==17
+ compact=page.locator('#dice-widget > summary')
+ assert compact.locator('.compact-total').inner_text()=='17'
+ assert compact.locator('.compact-label').inner_text()=='Longsword attack'
+ assert page.locator('#dice-widget').get_attribute('open') is None
+ compact.focus()
+ tooltip=page.locator('#hud-tooltip')
+ assert tooltip.is_visible()
+ assert 'Dice faces: 11' in tooltip.inner_text()
+ assert 'Modifier: +6' in tooltip.inner_text()
+ assert 'Final total: 17' in tooltip.inner_text()
+ page.keyboard.press('Escape')
+ assert tooltip.is_hidden()
+ compact.click()
+ assert page.locator('#last-result strong').inner_text()=='17'
+ assert page.locator('#dice-widget').get_attribute('open') is not None
+ compact.click()
+ assert page.locator('#dice-widget').get_attribute('open') is None
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
  assert not errors,errors
- print('PASS browser: d12 over controls, concurrent rolls, right-cancel, deliberate rethrow, catch/rethrow, independent completion, zero errors')
+ print('PASS browser: controls win over resting dice, Alt+drag retrieval, concurrent rolls, right-cancel, settled modifier totals, collapsed hover, zero errors')
  browser.close()

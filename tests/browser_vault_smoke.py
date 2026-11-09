@@ -148,6 +148,13 @@ with sync_playwright() as p:
     assert not any(x['name']=='Old Journal' for x in final_items)
     assert next(x for x in final_items if x['id']=='custom-qa')['notes']=='DM-made variant'
     assert len([x for x in final_items if x['name']=='Potion of Healing'])==2
+    # Imported item notes stay the canonical hover detail, never guessed stats.
+    page.evaluate("()=>{view='inventory';render();}")
+    item=page.locator('.workspace-entries .work-entry').filter(has_text='Potion of Healing').first.locator('summary')
+    item.focus()
+    assert 'Player notes: Red bottle' in page.locator('#hud-tooltip').inner_text()
+    assert 'no verified source description' in page.locator('#hud-tooltip').inner_text()
+    page.keyboard.press('Escape')
     # An untrusted imported equipment name is escaped in the confirmation.
     injected_item={**new_inventory,'inventory':new_inventory['inventory']+[
       {'id':'equipment-9','name':'<img src=x onerror=alert(1)>','quantity':1,'weight':'','notes':'','archived':False}

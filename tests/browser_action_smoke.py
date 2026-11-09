@@ -32,6 +32,14 @@ with sync_playwright() as p:
  for f in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/f).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="Example Hero"')
+ ability=page.locator('.action-entry').filter(has_text='Approved Healing').locator('summary')
+ ability.focus()
+ tooltip=page.locator('#hud-tooltip')
+ assert tooltip.is_visible()
+ assert 'DM approved' in tooltip.inner_text()
+ assert 'Approved Healing' in tooltip.inner_text()
+ assert ability.get_attribute('data-tip-detail') is not None
+ page.keyboard.press('Escape')
  page.locator('.work-entry').filter(has_text='Approved Healing').locator('summary').click()
  page.get_by_role('button',name='Use ability').click()
  assert page.locator('#dlg-yes').is_visible()

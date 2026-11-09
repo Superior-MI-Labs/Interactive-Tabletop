@@ -1,3 +1,11 @@
+## v0.52.0 — Readable compact dice totals, control-first pointer ownership and hover coverage
+
+- The collapsed Dice panel now presents the settled result total prominently with a short label. The expanded summary is enlarged; natural physical dice faces remain distinct from modifiers.
+- `rollBreakdown` formats the already-settled `lastResult` (expression, physical faces, modifiers, qualified bonuses, outcome and total) in the existing immediate hover/focus card. No second dice parser, formula or state.
+- Stage pointer capture now prioritizes real buttons, forms and expandable summaries, including when prepared dice follow the cursor. Alt+drag is the explicit retrieval action for a die above a control. The stage clears stale drag-click suppression on a genuine control pointerdown.
+- Extended the existing safe `entryHint` presenter across attacks, skills/saves, abilities, feature notes, spells, equipment and reference catalog entries. Read-only 2014 SRD descriptions require an exact edition match; homebrew and unknown values are not inferred.
+- Expanded existing browser regressions for overlapping dice, prepared dice over controls, deliberate Alt pickup, modifier-adjusted compact roll totals and the character entry tooltip surfaces. No new UI framework, state store or Actions workflow.
+
 ## v0.51.0 — Safe inventory reimport matching
 
 - Replaced name-based FIFO item reconciliation, which could attach notes to the wrong duplicate after PDF row reordering.
