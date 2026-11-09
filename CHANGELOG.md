@@ -1,3 +1,11 @@
+## v0.51.0 — Safe inventory reimport matching
+
+- Replaced name-based FIFO item reconciliation, which could attach notes to the wrong duplicate after PDF row reordering.
+- Added a single conservative imported-equipment matcher shared by `Vault.reconcile` and `Vault.inventoryReimportPreview`. Only unique item names on both sides inherit authored notes; quantities, weight and positional PDF IDs are never treated as duplicate identity.
+- Retained player-authored items by their stable `custom-` or `manual-item-` IDs. The newest PDF remains authoritative for imported rows, including quantity, weight, archived state and ID.
+- Expanded the existing PDF confirmation preview with imported item additions/removals, ambiguous groups, quantity changes, retained notes and explicit warnings for old notes that cannot transfer. The confirmation wording distinguishes preserved session notes from at-risk imported item annotations.
+- Added synthetic importer/vault model regressions and browser tests for reordering, duplicates, manual items, cancellation, confirmation, and escaped incoming item names. No second importer, duplicate inventory store or GitHub workflow was added.
+
 ## v0.50.0 — One fast hover/card presenter and compact active-condition HUD
 
 - Consolidated browser-native title hints and custom `data-tip` into the existing instant HUD tooltip. Optional structured title/details/source cards use the same owner, with keyboard focus, Escape, safe text rendering, and deliberate click-to-pin info controls for touch users.

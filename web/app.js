@@ -1384,7 +1384,7 @@ function acceptImport(newCharacter,kind='json'){
   }catch(ex){toast('Import could not be saved: '+ex.message);}
  };
  if(match){
-  dialog('Update existing character?',`This PDF matches ${match.character.name}. Review the changes below before applying them. Imported stats and equipment will update; current HP, spent resources, notes, manual abilities and separately authored spells are preserved. Ambiguous imported spell settings may not be retained.\n\n${Vault.importSummary(match.character,newCharacter)}`,install,'Update character');
+  dialog('Update existing character?',`This PDF matches ${match.character.name}. Review the changes below before applying them. Imported stats and equipment will update; current HP, spent resources, session notes, manually created items and spells remain. Imported item annotations transfer only on unique matches; unmatched or ambiguous item notes are listed below and will not transfer automatically. Ambiguous imported spell settings may also be lost. Export a backup before accepting uncertain changes.\n\n${Vault.importSummary(match.character,newCharacter)}`,install,'Update character');
  }else install();
 }
 function acceptVaultBackup(raw){

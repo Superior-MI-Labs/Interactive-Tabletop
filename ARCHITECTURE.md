@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.50.0
+# Interactive Tabletop architecture — v0.51.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -295,3 +295,9 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - `web/dnd-2014-reference.json` adds 15 SRD 5.1 condition descriptions. `web/reference-catalog.js` validates and matches them by edition without changing the existing 261 spell/equipment browse records or qualified automation. 2024 and unknown conditions get an explicit manual/unsupported explanation; no source guessing or hidden server calls.
 - This batch intentionally does not automate disadvantage/advantage from condition text, add Doom/Dodge mechanics, or merge spell and condition stores. Any later rule automation requires a separate evidence/edition contract.
 
+## v0.51 — Inventory identity belongs to the vault
+
+- D&D Beyond `Eq NameN`, `Eq QtyN`, and `Eq WeightN` import into PDF-owned rows with positional `equipment-N` IDs. These positions are *not* stable equipment identities.
+- `matchImportedInventory` in `web/vault-store.js` matches previous and incoming imported rows only when normalized item names are unique on both sides. `reconcile` and `inventoryReimportPreview` reuse this exact decision. Reordered duplicates never transfer guessed annotations.
+- Imported counts, weights, archived flags and IDs come from the latest PDF; notes transfer only for a safe unique match. Manually created `custom-` and `manual-item-` records are retained by stable IDs and cannot be matched to PDF entries by name.
+- The preview explicitly identifies unmatched annotated rows and warns before confirmation. Users may cancel/export before losing unmatchable PDF notes. The app does not fabricate archived duplicate items, orphan-note state, or inferred equipment rules to conceal ambiguous identities.

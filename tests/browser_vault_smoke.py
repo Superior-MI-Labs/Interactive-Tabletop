@@ -101,6 +101,62 @@ with sync_playwright() as p:
     assert all('notes' not in x for x in final_spells if x['name']=='Duplicated')
     assert not any(x['name']=='Disguise Self' for x in final_spells)
     assert any(x['id']=='manual-spell-existing' for x in final_spells)
+    # Inventory reimport uses the same conservative identity matcher as its
+    # read-only preview; PDF row indexes and duplicate names are never trusted.
+    page.evaluate("""()=>{
+      character.inventory=[
+       {id:'equipment-0',name:'Longsword',quantity:1,weight:'3 lb',notes:'Silvered for DM',archived:false},
+       {id:'equipment-1',name:'Potion of Healing',quantity:2,weight:'',notes:'Red bottle',archived:false},
+       {id:'equipment-2',name:'Ring of Protection',quantity:1,weight:'left',notes:'Left finger',archived:false},
+       {id:'equipment-3',name:'Ring of Protection',quantity:1,weight:'right',notes:'Right finger',archived:false},
+       {id:'equipment-4',name:'Old Journal',quantity:1,weight:'',notes:'Quest lore',archived:false},
+       {id:'custom-qa',name:'Potion of Healing',quantity:1,weight:'',notes:'DM-made variant',archived:false}
+      ];save();render();
+    }""")
+    item_state=page.evaluate('JSON.stringify(character)')
+    new_inventory={**fresh_spellbook,'inventory':[
+      {'id':'equipment-0','name':'Potion of Healing','quantity':3,'weight':'','notes':'','archived':False},
+      {'id':'equipment-1','name':'Longsword','quantity':0,'weight':'4 lb','notes':'','archived':True},
+      {'id':'equipment-2','name':'Ring of Protection','quantity':1,'weight':'right','notes':'','archived':False},
+      {'id':'equipment-3','name':'Ring of Protection','quantity':1,'weight':'left','notes':'','archived':False},
+      {'id':'equipment-4','name':'Lantern','quantity':1,'weight':'2 lb','notes':'','archived':False}
+    ]}
+    page.evaluate('(ch)=>acceptImport(ch,"pdf")',new_inventory)
+    dialog=page.locator('#dialog-layer .dialog')
+    assert dialog.is_visible()
+    inventory_text=dialog.inner_text()
+    for phrase in ('Imported inventory: 2 matched, 1 added, 1 removed, 1 ambiguous',
+                   'Added imported items (1): Lantern',
+                   'Removed imported items (1): Old Journal',
+                   'Ambiguous imported item matches (1): Ring of Protection (2 previous, 2 incoming)',
+                   'Previous item notes that cannot safely transfer (3)',
+                   'Player-authored items preserved independently: 1',
+                   'will NOT transfer automatically'):
+        assert phrase in inventory_text,phrase
+    assert page.evaluate('JSON.stringify(character)')==item_state,'Inventory preview must not mutate character'
+    page.locator('#dlg-no').click()
+    assert page.evaluate('JSON.stringify(character)')==item_state,'Cancel must preserve inventory and custom items'
+    page.evaluate('(ch)=>acceptImport(ch,"pdf")',new_inventory)
+    page.locator('#dlg-yes').click()
+    page.wait_for_function("character.inventory.length===6")
+    final_items=page.evaluate('character.inventory')
+    assert next(x for x in final_items if x['name']=='Potion of Healing' and x['id']!='custom-qa')['notes']=='Red bottle'
+    assert next(x for x in final_items if x['name']=='Longsword')['notes']=='Silvered for DM'
+    assert next(x for x in final_items if x['name']=='Longsword')['archived'] is True
+    assert next(x for x in final_items if x['name']=='Longsword')['weight']=='4 lb'
+    assert all(not x['notes'] for x in final_items if x['name']=='Ring of Protection')
+    assert not any(x['name']=='Old Journal' for x in final_items)
+    assert next(x for x in final_items if x['id']=='custom-qa')['notes']=='DM-made variant'
+    assert len([x for x in final_items if x['name']=='Potion of Healing'])==2
+    # An untrusted imported equipment name is escaped in the confirmation.
+    injected_item={**new_inventory,'inventory':new_inventory['inventory']+[
+      {'id':'equipment-9','name':'<img src=x onerror=alert(1)>','quantity':1,'weight':'','notes':'','archived':False}
+    ]}
+    page.evaluate('(ch)=>acceptImport(ch,"pdf")',injected_item)
+    assert page.locator('#dialog-layer .dialog img').count()==0
+    assert '<img src=x onerror=alert(1)>' in page.locator('#dialog-layer .dialog').inner_text()
+    page.locator('#dlg-no').click()
+    assert page.evaluate('character.inventory.length')==6
     # Untrusted PDF spell names remain escaped, never parsed into modal HTML.
     injected={**fresh_spellbook,'spells':fresh_spellbook['spells']+[
        {'id':'spell-99','name':'<img src=x onerror=alert(1)>','level':1,'source':'Wizard','prepared':False}
