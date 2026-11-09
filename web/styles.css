@@ -331,16 +331,19 @@ button,select,input,textarea {min-width:0}
 #page .edit-bonus{order:2;border:1px solid #687788;background:#303d46;color:#e6c397;border-radius:5px;min-height:29px;padding:3px 7px;font-size:12px}
 #page .edit-bonus:hover{border-color:#d1a66e}
 #page .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.desk-controls{position:absolute;z-index:9;right:12px;bottom:12px;width:min(280px,calc(100% - 24px));max-width:calc(100% - 24px);display:block;border:1px solid #94754f;border-radius:8px;background:linear-gradient(170deg,#242830f7,#141a21fa);box-shadow:0 13px 33px #000c;color:#f3e4d1;overflow:hidden}
+.desk-controls{position:absolute;z-index:9;right:12px;bottom:12px;width:154px;max-width:calc(100% - 24px);display:block;border:1px solid #94754f;border-radius:8px;background:linear-gradient(170deg,#242830f7,#141a21fa);box-shadow:0 13px 33px #000c;color:#f3e4d1;overflow:hidden}
 .desk-controls[open]{width:min(360px,calc(100% - 26px))}
 .desk-heading{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;min-height:33px;cursor:pointer;color:#ffdcaa;font:14px Georgia,serif}
 .desk-heading::-webkit-details-marker{display:none}
 .collapsed-result{font:11px system-ui,sans-serif;color:#b7cad4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:155px}
-.desk-controls:not([open]) .desk-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;min-height:60px;gap:10px;padding:8px 10px}
-.desk-controls:not([open]) .collapsed-result{display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0;max-width:none;overflow:hidden;text-overflow:clip;white-space:normal}
+.desk-controls:not([open]) .desk-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto 1fr;min-height:62px;gap:2px 5px;padding:6px 9px}
+.desk-controls:not([open]) .desk-heading>span:first-child{grid-column:1;grid-row:1;font:11px/1.15 Georgia,serif}
+.desk-controls:not([open]) .expand-glyph{grid-column:2;grid-row:1/span 2;align-self:center}
+.desk-controls:not([open]) .collapsed-result{grid-column:1;grid-row:2;display:flex;flex-direction:row;align-items:center;gap:5px;min-width:0;max-width:none;overflow:hidden;text-overflow:clip;white-space:nowrap}
 .collapsed-result .compact-total{display:block;color:#ffe0a8;font:700 21px/1.05 Georgia,serif;font-variant-numeric:tabular-nums;white-space:nowrap}
-.desk-controls:not([open]) .compact-total{font-size:30px;line-height:1.05}
+.desk-controls:not([open]) .compact-total{font-size:28px;line-height:1.05}
 .collapsed-result .compact-label{display:block;min-width:0;max-width:100%;font:12px/1.3 system-ui,sans-serif;color:#d2e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.desk-controls:not([open]) .compact-label{font-size:10px;line-height:1.2}
 .collapsed-result .compact-ready{font:600 15px/1.2 system-ui,sans-serif;color:#d2e0e8}
 .desk-controls[open] .collapsed-result{display:inline-flex;align-items:baseline;gap:5px;min-width:0}
 .desk-controls[open] .collapsed-result .compact-label{font-size:11px}
