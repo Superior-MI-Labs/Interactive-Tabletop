@@ -399,7 +399,7 @@ function combatActions(){
  <label class="field">Reset<select class="input" id="economy-new-resource-reset"><option value="manual">Manual</option><option value="turn">End of turn (zero)</option><option value="short rest">Short rest</option><option value="long rest">Long rest</option></select></label>
  ${button('Create pool','economy-add-resource','','button mini subtle')}</div>${resourcePoolEditor()}
  <small>Extra Attack adds attacks within one Attack action. Haste-style grants allow one additional attack, not another full Attack action. Pathfinder-style pools can be configured here; Pathfinder rules are not automated.</small></details>
- ${state.active?button('Next turn ↗','advance-turn','','button mini subtle'):''} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}${creatureTurnBoard()}</section>`;
+ ${state.active?button('Next turn ↗','advance-turn','','button mini subtle'):''} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}</section>`;
 }
 // Encounter controls are a separate workspace over the same character and action engine.
 function identityRibbon(){
@@ -529,7 +529,7 @@ function encounterWorkspace(){
  <summary>Advanced encounter tools (optional legacy support)</summary>
  <p class="workspace-hint">Optional compatibility tools for recorded targets, confirmed events and old character records. You never need these for ordinary rolls or personal turn tracking.</p>
  ${demoPractice()}<div class="target-toolbar target-quick">${targetPicker()}</div>
- ${encounterTargets()}${trackedAttackRows()}${stateEventControls()}
+ ${encounterTargets()}${trackedAttackRows()}${creatureTurnBoard()}${stateEventControls()}
  </details></section>`;
 }
 function actionWorkspace(){
