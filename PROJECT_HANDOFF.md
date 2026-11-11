@@ -2,13 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Candidate application release:** `v0.54.0` — qualification pending.  
-**Last verified application release:** `v0.53.0`  
-**Release commit:** v0.53.0 `5344fe6` — GitHub Actions qualification and Pages deployment both passed in run `42935964032` (2026-11-10 local / 2026-11-11 UTC). Previous verified release: v0.52.0 `f3af638` (run `42577631929`).  
+**Last verified application release:** `v0.54.0`  
+**Release commit:** v0.54.0 `374f3f0` — GitHub Actions qualification and Pages deployment both passed in run `42947922006` (2026-11-10 local / 2026-11-11 UTC). Previous verified release: v0.53.0 `5344fe6` (run `42935964032`).  
 **Handoff reviewed:** 2026-11-10  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.54.0 player-first source passed complete development-branch qualification at `0a33a844` (Actions run `42947538157`, 2026-11-11 UTC). The `main` release and GitHub Pages deployment are not yet verified; last verified live release remains v0.53.0 until those separate gates succeed. Sheet Attack/Damage/Critical no longer require targets; Conditions are beside HP; My Turn is an optional manual tracker; Self/Other is transient recipient intent.
+**Current worktree:** v0.54.0 player-first release is qualified and deployed from `main` at `374f3f0` (Actions run `42947922006`, both `qualify` and `deploy` passed). Sheet Attack/Damage/Critical no longer require targets; Conditions are beside HP; My Turn is an optional manual tracker; Self/Other is transient recipient intent. Legacy creature-targeted resolution is behind the advanced disclosure. Next focus: player usability, not expanded encounter simulation.
 
 ### v0.54 priority and non-goals
 
@@ -41,7 +40,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status entering v0.54.0:** An early-alpha, local-first, browser and Python-based desktop D&D character sheet and dice tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status at v0.54.0:** An early-alpha, local-first, browser and Python-based desktop D&D character sheet and dice tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -151,6 +150,6 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 
 **v0.52 checkpoint:** The stage pointerdown has one control-first guard even while dice follow the pointer. Alt+drag retrieves dice from interactive areas; regular controls must not be intercepted. `rollBreakdown` and `updateTableResults` display the same settled result, not re-evaluated math. `entryHint` adds read-only hover cards to the existing HUD presenter; 2014 reference content remains edition-checked. Browser owners: `browser_dice_interaction_smoke.py`, `browser_action_smoke.py`, `browser_effects_smoke.py`, `browser_vault_smoke.py`. Next: licensed/provenance-safe reference item data coverage, not more UI state.
 
-**v0.54 checkpoint (qualified source on development branch):** `web/app.js` separates ordinary no-target Attack/Damage/Critical and custom dice from explicit tracked creature attacks/damage. No new engine or vault schema. `recipientChoice` is transient and resets with active-character change. My Turn is manual-first and retains the existing `effects.combat` state/engine; creature/event management lives behind a closed advanced disclosure. Conditions is next to HP and Effects retains qualified sources. Primary new regression: `tests/browser_player_first_smoke.py`, which passed together with legacy browser and unit suites in Actions run `42947538157` on commit `0a33a844`. Release/PAGES status must still be confirmed separately. Future tasks: player UX, not AI or monster management.
+**v0.54 checkpoint (qualified and deployed):** `web/app.js` separates ordinary no-target Attack/Damage/Critical and custom dice from explicit tracked creature attacks/damage. No new engine or vault schema. `recipientChoice` is transient and resets with active-character change. My Turn is manual-first and retains the existing `effects.combat` state/engine; creature/event management lives behind a closed advanced disclosure. Conditions is next to HP and Effects retains qualified sources. Primary new regression: `tests/browser_player_first_smoke.py`, which passed together with legacy browser and unit suites in Actions run `42947538157` on commit `0a33a844`. Pages deployment succeeded with main commit `374f3f0`, Actions run `42947922006`. Future tasks: player UX, not AI or monster management.
 
 **v0.53 checkpoint:** v0.49's separate Conditions presentation returns under Resources, with v0.50's reference-backed hover/focus and source grants retained. Encounter's target/turn/event controls now live in `encounterWorkspace()`; `actionWorkspace()` retains attacks/abilities and `spells()` retains spells. `targetContext()` is derived and read-only; `requireCombatTarget()` navigates to the existing manager on rejection. No `dnd-action.js` or vault changes. New UI boundaries are qualified by the existing browser and action tests. Next: study a source-qualified assistant/asset command registry, not automatic rule guessing.
