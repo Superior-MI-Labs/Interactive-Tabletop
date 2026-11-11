@@ -779,3 +779,20 @@ body.dice-dragging .dice-stage{cursor:grabbing}
  #page .combat-target-bar .target-label,#page .combat-target-status{flex-basis:100%}
  #page .combat-target-bar .button{width:100%}
 }
+
+/* Player-first controls: ordinary sheet rolls do not require encounter setup. */
+#page > .panel[data-panel="Conditions"]{width:100%;margin:0 0 7px;flex:0 0 auto}
+#page > .panel[data-panel="Conditions"] .panel-content{padding:5px 10px}
+#page .personal-turn-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;margin-bottom:8px;border:1px solid #5b6670;background:#202b35;border-radius:7px;flex:0 0 auto}
+#page .personal-turn-summary .personal-turn-heading{display:flex;flex-direction:column;gap:2px;min-width:120px}
+#page .personal-turn-summary .personal-turn-heading small{font-size:11px;opacity:.8}
+#page .personal-turn-summary .turn-tracker{margin:0;flex:1 1 220px}
+#page .personal-turn-summary .controls-row{margin-left:auto}
+#page .recipient-context{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 9px;border:1px solid #536371;border-radius:6px;background:#1e2b37}
+#page .recipient-context strong{font-size:12px;margin-right:4px}
+#page .recipient-context small{font-size:11px;line-height:1.35;flex:1 1 220px;opacity:.85}
+#page .advanced-encounter{border:1px solid #4f5b65;border-radius:6px;padding:8px;margin-top:8px}
+#page .advanced-encounter>summary{cursor:pointer;color:#d8c5a6;font-weight:600}
+#page .advanced-encounter[open]>*:not(summary){margin-top:8px}
+#page .advanced-encounter .attack-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#page .advanced-encounter .attack-row small{opacity:.75}
