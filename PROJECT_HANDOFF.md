@@ -2,6 +2,7 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
+**Candidate application release:** `v0.54.0` — qualification pending.  
 **Last verified application release:** `v0.53.0`  
 **Release commit:** v0.53.0 `5344fe6` — GitHub Actions qualification and Pages deployment both passed in run `42935964032` (2026-11-10 local / 2026-11-11 UTC). Previous verified release: v0.52.0 `f3af638` (run `42577631929`).  
 **Handoff reviewed:** 2026-11-10  
