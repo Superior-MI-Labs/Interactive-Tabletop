@@ -820,16 +820,21 @@ function notesPage(){
 function render(){
  if(!character)return;
  if(typeof hideHudTip==='function')hideHudTip();
- $$('#page details[data-panel]').forEach(el=>panelState.set(el.dataset.panel,el.open));
- const scrollers=$$('#page [data-scroll-key]');
- const scrolls=new Map(scrollers.map(el=>[el.dataset.scrollKey,{x:el.scrollLeft,y:el.scrollTop}]));
- const openEntries=new Set($$('#page details[data-action-id][open]').map(el=>el.dataset.actionId));
- const openSpells=new Set($$('#page details[data-spell-id][open]').map(el=>el.dataset.spellId));
- $('#page').innerHTML=overview();
- $$('#page [data-scroll-key]').forEach(el=>{const p=scrolls.get(el.dataset.scrollKey);if(p){el.scrollLeft=p.x;el.scrollTop=p.y;}});
- $$('#page details[data-action-id]').forEach(el=>{if(openEntries.has(el.dataset.actionId))el.open=true;});
+ const page=$('#page'),sameCharacter=page.dataset.characterId===activeId;
+ // Panel expansion is temporary UI state. Navigation must not close an ability
+ // while a DM confirms its trigger in Encounter, nor leak it to another hero.
+ if(sameCharacter){
+  $('details[data-panel]',page).forEach(el=>panelState.set(el.dataset.panel,el.open));
+  $('details[data-action-id]',page).forEach(el=>panelState.set('action:'+activeId+':'+el.dataset.actionId,el.open));
+  $('details[data-spell-id]',page).forEach(el=>panelState.set('spell:'+activeId+':'+el.dataset.spellId,el.open));
+ }
+ const scrolls=new Map($('[data-scroll-key]',page).map(el=>[el.dataset.scrollKey,{x:el.scrollLeft,y:el.scrollTop}]));
+ page.innerHTML=overview();
+ page.dataset.characterId=activeId;
+ $('[data-scroll-key]',page).forEach(el=>{const p=scrolls.get(el.dataset.scrollKey);if(p){el.scrollLeft=p.x;el.scrollTop=p.y;}});
+ $('details[data-action-id]',page).forEach(el=>{const key='action:'+activeId+':'+el.dataset.actionId;if(panelState.has(key))el.open=panelState.get(key);});
  if(view==='reference')filterCatalogEntries();
- $$('#page details[data-spell-id]').forEach(el=>{if(openSpells.has(el.dataset.spellId))el.open=true;});
+ $('details[data-spell-id]',page).forEach(el=>{const key='spell:'+activeId+':'+el.dataset.spellId;if(panelState.has(key))el.open=panelState.get(key);});
 }
 function setPath(path,value){
  const parts=path.split('.');
