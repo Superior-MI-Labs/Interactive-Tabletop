@@ -33,9 +33,11 @@ with sync_playwright() as pw:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Staged QA'")
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Start encounter').click()
  page.evaluate("()=>{const attacker=Action.addTarget(character,{name:'Missile Archer',ac:15,hp:24});selectedTargetId=attacker.id;render();}")
  page.get_by_role('button',name='Ranged weapon hit on you').click()
+ page.get_by_role('tab',name='Actions').click()
  entry=page.locator('.action-entry').filter(has_text='Reactive Deflection');entry.locator('summary').click()
  entry.get_by_role('button',name='Use ability').click()
  page.locator('#dialog-layer input[type=number]').fill('4')

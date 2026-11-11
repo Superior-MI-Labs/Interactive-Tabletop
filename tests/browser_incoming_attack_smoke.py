@@ -36,21 +36,29 @@ with sync_playwright() as pw:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Incoming Event QA'")
+ # Event controls live in Encounter; reactions stay in Actions and share state.
+ def event_click(label, kind=None):
+  page.get_by_role('tab',name='Encounter').click()
+  if kind is not None: page.locator('#incoming-attack-kind').select_option(kind)
+  page.get_by_role('button',name=label).click()
+  page.get_by_role('tab',name='Actions').click()
  page.evaluate("()=>{const t=Action.addTarget(character,{name:'Archer',ac:12,hp:20});selectedTargetId=t.id;Action.setEncounter(character,true);render();}")
  flare=page.locator('.action-entry').filter(has_text='Warding Flare')
  flare.locator('summary').click()
  assert flare.get_by_role('button',name='Use ability').is_disabled()
- page.get_by_role('button',name='Incoming attack (before roll)').click()
+ event_click('Incoming attack (before roll)')
  assert page.evaluate('Action.combatEvent(character)?.kind')=='incoming-attack'
  assert page.evaluate('Action.combatEvent(character)?.attackerId===selectedTargetId')
+ page.get_by_role('tab',name='Encounter').click()
  assert page.get_by_role('button',name='Attack hit / resolved').is_visible()
+ page.get_by_role('tab',name='Actions').click()
  assert flare.get_by_role('button',name='Use ability').is_enabled()
  flare.get_by_role('button',name='Use ability').click()
  assert page.locator('#dlg-yes').count()==1
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.resources["Warding Flare Uses"].current')==1
  assert page.evaluate('Action.combat(character).economy.spent.reaction')==1
- page.get_by_role('button',name='Attack hit / resolved').click()
+ event_click('Attack hit / resolved')
  assert page.evaluate('Action.combatEvent(character)?.kind')=='ranged-hit'
  assert page.evaluate('Action.combatEvent(character)?.parentEventId') is not None
  assert page.evaluate('Action.combat(character).economy.spent.reaction')==1
@@ -58,20 +66,18 @@ with sync_playwright() as pw:
  deflect=page.locator('.action-entry').filter(has_text='Deflect Missiles')
  deflect.locator('summary').click()
  assert deflect.get_by_role('button',name='Use ability').is_disabled()
- page.get_by_role('button',name='Next turn').click()
- page.get_by_role('button',name='Incoming attack (before roll)').click()
+ event_click('Next turn')
+ event_click('Incoming attack (before roll)')
  assert page.evaluate('Action.combatEvent(character)?.kind')=='incoming-attack'
- page.get_by_role('button',name='Attack missed / resolved').click()
+ event_click('Attack missed / resolved')
  assert page.evaluate('Action.combatEvent(character)') is None
  assert deflect.get_by_role('button',name='Use ability').is_disabled()
- page.locator('#incoming-attack-kind').select_option('spell')
- page.get_by_role('button',name='Incoming attack (before roll)').click()
- page.get_by_role('button',name='Attack hit / resolved').click()
+ event_click('Incoming attack (before roll)', 'spell')
+ event_click('Attack hit / resolved')
  assert page.evaluate('Action.combatEvent(character)') is None
  assert deflect.get_by_role('button',name='Use ability').is_disabled()
- page.locator('#incoming-attack-kind').select_option('ranged-weapon')
- page.get_by_role('button',name='Incoming attack (before roll)').click()
- page.get_by_role('button',name='Attack hit / resolved').click()
+ event_click('Incoming attack (before roll)', 'ranged-weapon')
+ event_click('Attack hit / resolved')
  assert page.evaluate('Action.combatEvent(character)?.kind')=='ranged-hit'
  assert deflect.get_by_role('button',name='Use ability').is_enabled()
  assert page.evaluate('character.resources.Ki.current')==2

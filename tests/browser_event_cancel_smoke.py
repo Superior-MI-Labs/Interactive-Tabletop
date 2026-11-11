@@ -33,14 +33,20 @@ with sync_playwright() as pw:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Staged QA'")
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Start encounter').click()
+ page.get_by_role('tab',name='Actions').click()
  button=page.locator('.action-entry').filter(has_text='Reactive Deflection')
  button.locator('summary').click()
  assert not button.get_by_role('button',name='Use ability').is_enabled(), 'Reaction blocked until confirmed ranged hit'
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Incoming attack (before roll)').click()
+ page.get_by_role('tab',name='Actions').click()
  button=page.locator('.action-entry').filter(has_text='Reactive Deflection')
  assert not button.get_by_role('button',name='Use ability').is_enabled()
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Ranged weapon hit on you').click()
+ page.get_by_role('tab',name='Actions').click()
  button=page.locator('.action-entry').filter(has_text='Reactive Deflection')
  assert button.get_by_role('button',name='Use ability').is_enabled()
  # Prepared physical dice are reversible even when grabbed: right click and Escape both cancel.

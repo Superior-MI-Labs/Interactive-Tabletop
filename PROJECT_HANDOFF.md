@@ -2,12 +2,12 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.52.0`  
-**Release commit:** Verify v0.52.0 main SHA, qualification and Pages before claiming it live. Previous verified release: v0.51.0 `87adebe` (Actions `42551341745`).  
-**Handoff reviewed:** 2026-11-08  
+**Last verified application release:** `v0.53.0`  
+**Release commit:** v0.53.0 is a release candidate until branch qualification and main Pages deployment succeed. Previously verified main: v0.52.0 `f3af638` (Actions `42577631929`).  
+**Handoff reviewed:** 2026-11-10  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.52.0 improves collapsed dice totals and hover breakdowns, expands read-only character entry cards, and prioritizes control clicks over parked/following dice. Verify CI/Pages before calling it live.
+**Current worktree:** v0.53.0 restores a dedicated Conditions block and separates Encounter from Actions without reverting v0.50–v0.52 behavior. CI/Pages verification must precede a live-release claim.
 
 ## 1. Why this file exists / how to resume
 
@@ -56,8 +56,9 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.50:** The original fast tooltip owns hover/focus cards for status icons, hearts, action controls, and effects. Active conditions display once in Effects; their manual picker is nested there. Condition descriptions live in a read-only, 2014-edition-checked SRD catalog and do not introduce gameplay automation.
 - **v0.51:** Imported equipment notes carry forward only across names unique on both PDF versions; duplicates never inherit guessed annotations. The identical vault matcher drives a read-only preview with notes at risk, while player-authored items remain independent.
 - **v0.52:** Collapsed Dice uses the already-settled modifier-adjusted total, with full provenance in the shared tooltip. Real controls get pointer priority over dice; Alt+drag deliberately retrieves dice from atop controls. Spell, attack, item, skill, feature and ability cards use character facts and optional edition-qualified SRD descriptions.
+- **v0.53:** Encounter, targets, event windows, creature turns and action economy move to their own workspace tab. Actions and Spells retain target context only. Conditions returns as a dedicated panel beside Resources; no combat/condition state or SRD rules are rolled back.
 
-v0.51.0 passed GitHub qualification and Pages deployment at commit `87adebe` (Actions run `42551341745`). Check v0.52 independently before claiming it deployed.
+v0.52.0 passed GitHub qualification and Pages deployment at commit `f3af638` (Actions run `42577631929`). Check v0.53 independently before claiming it deployed.
 
 ## 3. Architecture choices and rationale
 
@@ -70,6 +71,8 @@ v0.51.0 passed GitHub qualification and Pages deployment at commit `87adebe` (Ac
 **Decision D — canceled input is not a committed game action.** Right-click/Escape cancel prepared dice; dice launch and settlement have distinct ownership. A committed reaction or Ki cost is not refunded just because its next stage was interrupted. **Why:** consistency and prevention of double spending, late roll settlement and cross-character mutations.
 
 **Decision E — conditions have independent provenance.** A visible condition can have several approved source grants with distinct timing. Other creatures' turns require explicit DM confirmation. **Why:** one status flag or one inferred initiative clock would incorrectly delete overlapping effects. Do not build an initiative scheduler until all required turn/interrupt semantics are specified and tested.
+
+**Decision G — Encounter is a separate view, not a second state system.** The encounter UI now owns the dedicated tab for target selection, action/turn settings, individual creature turns and DM event windows. Actions and Spells show only read-only target context; the separate Conditions panel is a projection of the existing character condition flags and grants. **Why:** simplify the action list and restore direct condition visibility without reverting newer combat correctness or duplicating state.
 
 **Decision F — onboarding is normal gameplay, not a tutorial engine.** `web/demo-character.js` creates an ordinary editable vault character. The practice UI derives its prompt from the current character, target, encounter and dice state; nothing persists a separate tutorial progression. **Why:** one interaction path exercises the real engine and avoids a second source of truth.
 
@@ -92,18 +95,17 @@ These are engineering judgments based on current contracts, not eternal prohibit
 - Dice physics is approximate, not a certified fairness simulation. The sample Fighter is demonstration data, not a comprehensive rules fixture.
 - A GitHub push is **not** equivalent to a live deployment. Check Actions qualification and Pages deployment separately; do not guess run IDs or report success prematurely.
 
-## 5. Suggested next milestone — source-qualified equipment metadata and images
+## 5. Suggested next milestone — source-qualified assistant and asset planning
 
-**Goal:** Make item/spell cards more informative without inventing mechanics, republishing restricted sourcebook text or creating another equipment data store.
+**Goal:** Explore a small, specialized assistant for reference lookup, character setup, and safe asset composition using existing contracts, without putting generated prose in charge of game mechanics.
 
-**Audit first:** Compare imported item fields (damage dice, properties, quantities, descriptions) against the read-only 2014 SRD catalog. Inspect the Visual Atlas asset manifests/licensing and identify exact matches rather than guessing by name. Distinguish missing imported data from missing public reference data.
+**Audit first:** Identify the existing `ReferenceCatalog` lookup fields, declarative action planner operations, manual/DM approval points, and Visual Atlas manifest provenance. Distinguish reliable SRD metadata from imported/homebrew text and licensed original artwork.
 
-**Alternatives:** (1) Enrich the existing `ReferenceCatalog` and shared entry cards with verified provenance and optional licensed image paths; (2) add arbitrary server scraping or a parallel equipment rules engine. Prefer (1) after a grounded data audit, and defer additions that cannot be verified.
+**Alternatives:** (1) A thin chat-like planner over an explicit allowlisted command registry and verified catalog/asset queries, requiring human confirmation for mutations; (2) a separate model-driven rules engine, free-form scraping and automatic asset fabrication. Prefer (1), starting with deterministic decisions and optional local small-model language parsing only where useful.
 
-**Acceptance criteria:** Supported 2014 items expose sourced descriptive/mechanical information read-only; unknown/homebrew entries say unavailable and retain their own authored fields. Images, if introduced, resolve through the atlas manifest and its license. Existing dice/input, reimport and combat tests remain green.
+**Acceptance criteria for any future prototype:** Answer with source and edition labels, show a preview of intended actions/assets, allow cancel and DM override, reject unknown commands/rules, and route permitted mutations through the existing vault/action pipeline. Avoid new model hosting or asset pipelines until a real use case and test fixture justify them.
 
-**Future direction:** An isometric scene should bind to existing encounter target IDs and authoritative combat actions; it must not fork the rules engine.
-
+**Immediate acceptance for v0.53:** Verify separate Encounter navigation and restored Conditions panel on desktop/mobile; all existing source/turn/dice and import regressions must pass. No broad historical rollback.
 
 ## 6. Execution and publication checklist
 
@@ -143,3 +145,5 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 **v0.51 checkpoint:** `matchImportedInventory` in `web/vault-store.js` is the only item matching decision used by reconciliation and preview; normalized names must be unique in both old/new PDF rows. Positional IDs, quantity, weight and order cannot disambiguate same-name items. Import confirmation warns when previous annotated rows won't safely transfer; custom item IDs survive independently. Regression owners: `tests/test_inventory_reimport.js` and extended `tests/browser_vault_smoke.py`. Next: pointer ownership and dice totals, not a second import engine.
 
 **v0.52 checkpoint:** The stage pointerdown has one control-first guard even while dice follow the pointer. Alt+drag retrieves dice from interactive areas; regular controls must not be intercepted. `rollBreakdown` and `updateTableResults` display the same settled result, not re-evaluated math. `entryHint` adds read-only hover cards to the existing HUD presenter; 2014 reference content remains edition-checked. Browser owners: `browser_dice_interaction_smoke.py`, `browser_action_smoke.py`, `browser_effects_smoke.py`, `browser_vault_smoke.py`. Next: licensed/provenance-safe reference item data coverage, not more UI state.
+
+**v0.53 checkpoint:** v0.49's separate Conditions presentation returns under Resources, with v0.50's reference-backed hover/focus and source grants retained. Encounter's target/turn/event controls now live in `encounterWorkspace()`; `actionWorkspace()` retains attacks/abilities and `spells()` retains spells. `targetContext()` is derived and read-only; `requireCombatTarget()` navigates to the existing manager on rejection. No `dnd-action.js` or vault changes. New UI boundaries are qualified by the existing browser and action tests. Next: study a source-qualified assistant/asset command registry, not automatic rule guessing.

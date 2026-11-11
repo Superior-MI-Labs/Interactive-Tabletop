@@ -31,6 +31,7 @@ with sync_playwright() as pw:
  for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Economy QA'")
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Start encounter').click()
  page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Practice Dummy',ac:15,hp:40});selectedTargetId=foe.id;render();}")
  cfg=page.locator('.economy-config');cfg.locator('summary').click()
@@ -43,6 +44,7 @@ with sync_playwright() as pw:
  cfg.get_by_role('button',name='Create pool').click()
  assert page.evaluate('character.resources["Guard Points"].max')==3
  # The two-action custom activity consumes two pool units after explicit confirmation.
+ page.get_by_role('tab',name='Actions').click()
  entry=page.locator('.action-entry').filter(has_text='Two-Point Activity');entry.locator('summary').click()
  entry.get_by_role('button',name='Use ability').click();page.locator('#dlg-yes').click()
  assert page.evaluate('character.effects.combat.economy.spent.action')==2
@@ -58,6 +60,7 @@ with sync_playwright() as pw:
  assert page.evaluate('character.resources["Guard Points"].current')==3
  assert page.evaluate('character.effects.combat.economy.spent.bonus')==1
  # Manual mode disables automatic spending without restoring already committed costs.
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-mode').select_option('manual')
  assert page.evaluate('character.effects.combat.economy.auto') is False
  page.get_by_role('button',name='Next turn').click()

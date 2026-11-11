@@ -33,11 +33,13 @@ with sync_playwright() as playwright:
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Synthetic Duelist'")
  # No target: attack and damage cannot fall through to the character's own HP.
  old_hp=page.evaluate('character.hp.current')
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=attack]').first.click()
  assert page.evaluate('pendingRoll') is None
  assert page.evaluate('character.hp.current')==old_hp
  assert page.locator('.encounter-targets').get_attribute('open') is not None
  assert 'Choose a creature' in page.locator('.combat-target-status').inner_text()
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  new=page.locator('#target-add-form')
  new.locator('[name=name]').fill('Training Golem')
@@ -47,6 +49,7 @@ with sync_playwright() as playwright:
  assert page.evaluate('Action.targets(character).length')==1
  assert page.evaluate('selectedTargetId')=='target-1'
  assert page.evaluate('Action.targetById(character,"target-1").hp.current')==48
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('[data-target-trait="resistances"]').fill('fire')
  page.locator('[data-target-trait="resistances"]').dispatch_event('change')
@@ -54,12 +57,14 @@ with sync_playwright() as playwright:
  # This scenario explicitly exercises manual attack→damage handling.
  page.evaluate("Action.setCombatMode(character, 'manual')")
  # Hit evaluation uses an actual completed simulated roll; it never modifies HP.
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=attack]').first.click()
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  outcome=page.evaluate('lastResult.outcome')
  assert outcome in ('HIT','MISS','CRITICAL HIT')
  critical=outcome=='CRITICAL HIT'
  assert page.evaluate('character.effects.targets[0].hp.current')==48
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=damage]').first.click()
  assert page.evaluate('pendingRoll.expression')==('2d8+4' if critical else '1d8+4'), (outcome,page.evaluate('pendingRoll.expression'))
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
@@ -77,10 +82,12 @@ with sync_playwright() as playwright:
  assert 'Apply rolled damage?' in page.locator('#dialog-layer').inner_text()
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.effects.targets[0].hp.current')==48-roll_amount//2
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('[data-action="undo-last-damage"]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  # Saving throws are independent rolls; they report but do not silently damage a creature.
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-save-ability').select_option('CON')
  page.locator('#target-save-dc').fill('17')
@@ -88,6 +95,7 @@ with sync_playwright() as playwright:
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('Action.recentSave(character).dc')==17
  assert page.evaluate('character.effects.targets[0].hp.current')==48
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('#target-manual-damage').fill('12')
  page.locator('[data-action="target-manual-damage"]').evaluate('(el)=>el.click()')
@@ -97,11 +105,15 @@ with sync_playwright() as playwright:
  # Auto-mode attack hit prepares typed damage, but never applies HP without
  # explicit defense review. The inline Apply button is a single approval.
  page.set_viewport_size({'width':1440,'height':900})
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-mode').select_option('auto')
+ page.get_by_role('tab',name='Actions').click()
  # The floating dice controls can cover combat buttons; close them before a physical click.
  if page.locator('#dice-widget').get_attribute('open') is not None:
   page.locator('#dice-widget > summary').click()
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Start encounter').click()
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
@@ -116,15 +128,19 @@ with sync_playwright() as playwright:
  page.locator('#roll-effect [data-action="apply-target-damage"]').evaluate('(el)=>el.click()')
  assert page.locator('#dlg-yes').count()==0,'Auto inline review must not ask for a second click'
  assert page.evaluate('character.effects.targets[0].hp.current')==44,'9 fire damage resisted = 4 applied'
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.encounter-targets > summary').click() if page.locator('.encounter-targets').get_attribute('open') is None else None
  page.locator('[data-action="undo-last-damage"]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('character.effects.targets[0].hp.current')==48
  # A reviewed creature's verified, typed hit can auto-commit damage at settle.
  page.locator('[data-target-auto-damage]').evaluate('(el)=>{el.checked=true;el.dispatchEvent(new Event("change",{bubbles:true}));}')
  assert page.evaluate('Action.targetById(character,"target-1").auto_damage') is True
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('[data-action="advance-turn"]').first.evaluate('(el)=>el.click()')
+ page.get_by_role('tab',name='Actions').click()
  # Resting dice on the tabletop can intercept pointer clicks where they overlap
  # controls; this checks the DOM action handler, not tabletop hit-testing.
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  assert page.evaluate('pendingRoll') is not None, page.evaluate('''()=>{let eligibility;try{Action.verifyAttack(character,'action','weapon');eligibility='OK';}catch(e){eligibility=e.message;}return {selectedTargetId,active:Action.combat(character).active,mode:Action.combat(character).economy.mode,economy:Action.combat(character).economy,eligibility,activeRolls:activeRolls.length,diceCount:dice.length,diceSummary:dice.map(d=>({id:d.id,sides:d.sides,sleeping:d.sleeping,ready:d.ready,held:d.held})),selected:Action.targetById(character,selectedTargetId),pendingRoll,lastResult,toastText:document.querySelector('#toast')?.textContent};}''')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
@@ -139,20 +155,28 @@ with sync_playwright() as playwright:
  assert page.evaluate('lastResult.appliedDamage.amount')==4
  assert page.evaluate('character.effects.combat.last_damage_undo') is not None
  # The original target ID is frozen in the dice group even after selecting another.
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('[data-action="advance-turn"]').first.evaluate('(el)=>el.click()')
+ page.get_by_role('tab',name='Actions').click()
  page.evaluate('''()=>{const second=Action.addTarget(character,{name:'Second Golem',ac:16,hp:30});selectedTargetId='target-1';render();}''')
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=attack]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>15;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-target').select_option('target-2')
+ page.get_by_role('tab',name='Actions').click()
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
   finishRollIfSettled();}''')
  assert page.evaluate('character.effects.targets[0].hp.current')==40
  assert page.evaluate('character.effects.targets[1].hp.current')==30,'Re-targeting cannot steal pending damage'
  # Manual remains an explicit confirmation; cancel does not touch HP.
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-mode').select_option('manual')
+ page.get_by_role('tab',name='Actions').click()
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
@@ -164,7 +188,10 @@ with sync_playwright() as playwright:
  assert page.evaluate('character.effects.targets[1].hp.current')==30
  page.locator('#roll-effect [data-action="dismiss-target-damage"]').evaluate('(el)=>el.click()')
  # Guided mode also uses the single inline Apply as its confirmation.
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-mode').select_option('guided')
+ page.get_by_role('tab',name='Actions').click()
+ page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}

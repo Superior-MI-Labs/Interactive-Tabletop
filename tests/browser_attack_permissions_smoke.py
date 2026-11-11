@@ -35,8 +35,10 @@ with sync_playwright() as pw:
  for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Bonus QA'")
+ page.get_by_role('tab',name='Encounter').click()
  page.get_by_role('button',name='Start encounter').click()
  page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Practice Dummy',ac:15,hp:40});selectedTargetId=foe.id;render();}")
+ page.get_by_role('tab',name='Actions').click()
  entry=page.locator('.action-entry').filter(has_text='Flurry of Blows');entry.locator('summary').click()
  assert entry.get_by_role('button',name='Use ability').is_disabled()
  assert not page.locator('[data-action="bonus-attack"]').count()

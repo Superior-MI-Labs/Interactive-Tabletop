@@ -48,6 +48,7 @@ with sync_playwright() as pw:
  # Target clocks use the engine's condition grants, not the player's turn counter.
  page.evaluate('''()=>{Action.grantCondition(character,'target-1','Restrained',
   {sourceId:'training-net',expiration:'target-next-turn-end'});render();}''')
+ page.get_by_role('tab',name='Encounter').click()
  board=page.get_by_text('Creature turns',exact=False).locator('xpath=ancestor::details[1]')
  assert page.locator('.creature-turn-board').count()==1
  board=page.locator('.creature-turn-board')

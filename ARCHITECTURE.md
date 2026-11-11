@@ -1,4 +1,4 @@
-# Interactive Tabletop architecture — v0.52.0
+# Interactive Tabletop architecture — v0.53.0
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 
@@ -308,3 +308,10 @@ The onboarding callout is a projection of the active demo's existing `DndAction.
 - `finishRollIfSettled` still creates the authoritative `lastResult` record, with physical faces, modifier, qualified bonus dice, outcome and final total. `updateTableResults` renders that total prominently in the compact/expanded Dice view. `rollBreakdown` only formats this same settled evidence into the existing HUD tooltip; it never recomputes dice results or mutates combat.
 - The already-established `entryHint` helper projects imported or DM-edited fields and optional exact-2014 `ReferenceCatalog` details onto the shared `data-tip` presenter. All HTML attributes are escaped, and cards use text nodes. This is read-only metadata, not inferred automation or another character state source.
 - Browser smoke owners: dice interaction, effects/spells, action/ability and vault/inventory. Preserve the combat target contract, damage Undo, manual source provenance and 2014 edition guard.
+
+## v0.53 — Distinct encounter workspace and restored condition projection
+
+- `web/app.js` routes the original target picker, manually managed target details, combat action/turn economy and DM-confirmed event controls through the new **Encounter** workspace tab. `actionWorkspace` retains attacks/abilities and `spells` retains spells. Both display only a read-only selected-target summary and a navigation affordance to Encounter.
+- Failed offensive target qualification routes the player to Encounter and opens its existing target manager. The engine's `requireOffensiveTarget`, frozen roll ownership, explicit event lifetimes and DM confirmation rules remain authoritative. UI navigation does not create state or spend resources.
+- The v0.49-style **Conditions** panel returns beside Resources using `conditionRail` and existing `Action.setTargetCondition`. The Effects rail no longer also renders condition icons or the interim picker. Condition source grants, expiry, edition-qualified hover reference, and persisted conditions are unchanged.
+- No new vault field, combat state, assistant runtime, rules interpreter, or character/action store is introduced. Browser gates verify dedicated navigation, condition hover/toggle/provenance and shared combat behavior.

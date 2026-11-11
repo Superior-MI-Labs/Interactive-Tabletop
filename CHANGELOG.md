@@ -1,3 +1,10 @@
+## v0.53.0 — Separate encounter controls and restore Conditions panel
+
+- Moved encounter target management, selected creature controls, action/turn economy, individual creature turns, and DM-confirmed combat event controls out of Actions and into a dedicated Encounter workspace tab; Spells and Actions show only the current target context and a link to Encounter.
+- Restored the distinct Conditions panel beside Resources from the v0.49 presentation, while retaining the qualified SRD hover/focus descriptions introduced in v0.50. Effects now shows effects and concentration prompts only, without duplicate status icons.
+- Kept the existing vault, condition provenance, action planner, per-character targeting, physical dice and resource-commit logic intact. This is a UI separation, not a game-state rollback or a second encounter engine.
+- Updated Chromium browser regressions to navigate the Encounter workspace explicitly and verify condition state, source ownership and cross-workspace behavior. No new dependencies or workflow automation.
+
 ## v0.52.0 — Readable compact dice totals, control-first pointer ownership and hover coverage
 
 - The collapsed Dice panel now presents the settled result total prominently with a short label. The expanded summary is enlarged; natural physical dice faces remain distinct from modifiers.
