@@ -164,7 +164,7 @@ with sync_playwright() as p:
  assert not page.evaluate("character.conditions.includes('Blinded')")
  # Source-specific conditions retain their provenance in the same engine.
  page.evaluate("""()=>{Action.grantCondition(character,'self','Frightened',{sourceId:'qa:fright',expiration:'manual'});render();}""")
- conditions=page.locator('.hud-resources details[data-panel="Conditions"]')
+ conditions=page.locator('#page > details[data-panel="Conditions"]')
  frightened=conditions.locator('.condition-toggle[data-arg="Frightened"]')
  frightened.focus()
  assert '1 tracked source' in tooltip.inner_text()
