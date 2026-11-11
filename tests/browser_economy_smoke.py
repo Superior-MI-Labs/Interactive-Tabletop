@@ -31,8 +31,10 @@ with sync_playwright() as pw:
  for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Economy QA'")
- page.get_by_role('tab',name='Encounter').click()
- page.get_by_role('button',name='Start encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
+ page.get_by_role('button',name='Start tracking').click()
+ page.evaluate("()=>{Action.setCombatMode(character,'auto');render();}")
  page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Practice Dummy',ac:15,hp:40});selectedTargetId=foe.id;render();}")
  cfg=page.locator('.economy-config');cfg.locator('summary').click()
  cfg.locator('[data-economy-config="action"]').fill('3')
@@ -49,7 +51,7 @@ with sync_playwright() as pw:
  entry.get_by_role('button',name='Use ability').click();page.locator('#dlg-yes').click()
  assert page.evaluate('character.effects.combat.economy.spent.action')==2
  # A third action could be consumed by Attack, and not when the dice are only prepared.
- page.locator('[data-action="attack"]').first.click()
+ page.evaluate("handleAction('tracked-attack','0')")
  assert page.evaluate('character.effects.combat.economy.spent.action')==2
  page.evaluate('beginThrow()')
  assert page.evaluate('character.effects.combat.economy.spent.action')==3
@@ -60,7 +62,8 @@ with sync_playwright() as pw:
  assert page.evaluate('character.resources["Guard Points"].current')==3
  assert page.evaluate('character.effects.combat.economy.spent.bonus')==1
  # Manual mode disables automatic spending without restoring already committed costs.
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  page.locator('#combat-mode').select_option('manual')
  assert page.evaluate('character.effects.combat.economy.auto') is False
  page.get_by_role('button',name='Next turn').click()
