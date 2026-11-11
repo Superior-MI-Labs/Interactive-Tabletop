@@ -32,7 +32,7 @@ with sync_playwright() as pw:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Owner A'")
  page.evaluate("()=>{Action.setEncounter(character,true);const target=Action.addTarget(character,{name:'Ownership Dummy',ac:15,hp:30});selectedTargetId=target.id;render();}")
- page.evaluate("handleAction('attack','0')")
+ page.evaluate("handleAction('tracked-attack','0')")
  assert page.evaluate('pendingRoll.combatAttack') is True
  assert page.evaluate('pendingRoll.characterId')=='a'
  assert page.evaluate("character.effects.combat.economy.spent.action")==0
@@ -43,7 +43,7 @@ with sync_playwright() as pw:
  assert page.evaluate("Action.combat(character).economy.spent.action")==0
  page.evaluate("activateCharacter('a')")
  page.evaluate("()=>{selectedTargetId=Action.targets(character)[0].id;render();}")
- page.evaluate("handleAction('attack','0')")
+ page.evaluate("handleAction('tracked-attack','0')")
  page.evaluate("beginThrow()")
  assert page.evaluate('activeRolls.length')==1
  assert page.evaluate("Action.combat(character).economy.spent.action")==1
