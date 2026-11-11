@@ -43,7 +43,7 @@ with sync_playwright() as pw:
  entry.locator('summary').click()
  assert entry.get_by_role('button',name='Use ability').is_disabled()
  # An actual hit against known AC opens an event, never auto-spends Ki.
- page.evaluate("handleAction('attack','0')")
+ page.evaluate("handleAction('tracked-attack','0')")
  assert page.evaluate('pendingRoll') is not None
  assert page.evaluate('character.resources.Ki.current')==2
  page.evaluate('''()=>{
@@ -76,12 +76,12 @@ with sync_playwright() as pw:
  assert page.evaluate('character.resources.Ki.current')==1
  assert page.evaluate('Action.combatEvent(character).used') is True
  # A ranged hit cannot claim the melee trigger, even on natural 20.
- page.evaluate('''()=>{Action.advanceTurn(character);render();handleAction('attack','1');beginThrow();DP.faceValue=()=>20;
+ page.evaluate('''()=>{Action.advanceTurn(character);render();handleAction('tracked-attack','1');beginThrow();DP.faceValue=()=>20;
  for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();}''')
  assert page.evaluate('Action.combatEvent(character)') is None
  page.keyboard.press('Escape')
  # Guided flow waits for a human hit confirmation before opening a window.
- page.evaluate("Action.advanceTurn(character);Action.setCombatMode(character,'guided');render();handleAction('attack','0');beginThrow();DP.faceValue=()=>12;for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();")
+ page.evaluate("Action.advanceTurn(character);Action.setCombatMode(character,'guided');render();handleAction('tracked-attack','0');beginThrow();DP.faceValue=()=>12;for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();")
  assert page.evaluate('Action.combatEvent(character)') is None
  assert page.locator('#dlg-yes').count()==1
  page.locator('#dlg-yes').click()
@@ -89,13 +89,13 @@ with sync_playwright() as pw:
  assert page.evaluate('character.resources.Ki.current')==1
  # Explicit Guided Miss cannot create the hit window.
  page.keyboard.press('Escape')
- page.evaluate("Action.advanceTurn(character);render();handleAction('attack','0');beginThrow();DP.faceValue=()=>2;for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();")
+ page.evaluate("Action.advanceTurn(character);render();handleAction('tracked-attack','0');beginThrow();DP.faceValue=()=>2;for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();")
  assert page.evaluate('Action.combatEvent(character)') is None
  assert page.locator('#dlg-no').count()==1
  page.locator('#dlg-no').click()
  assert page.evaluate('Action.combatEvent(character)') is None
  # Manual mode still rolls physical dice but leaves event adjudication manual.
- page.evaluate("Action.advanceTurn(character);Action.setCombatMode(character,'manual');render();handleAction('attack','0');beginThrow();DP.faceValue=()=>20;for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();")
+ page.evaluate("Action.advanceTurn(character);Action.setCombatMode(character,'manual');render();handleAction('tracked-attack','0');beginThrow();DP.faceValue=()=>20;for(const g of activeRolls)for(const d of dice.filter(d=>g.diceIds.includes(d.id))){d.sleeping=true;d.rolling=false;}finishRollIfSettled();")
  assert page.evaluate('Action.combatEvent(character)') is None
  assert not errors,errors
  browser.close()
