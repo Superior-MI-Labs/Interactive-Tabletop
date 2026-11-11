@@ -29,8 +29,10 @@ with sync_playwright() as pw:
   page.add_script_tag(content=(R/'web'/name).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="QA Monk"')
  # Encounter controls now live in their own workspace; a homebrew 1-action condition consumes Ki and the action.
- page.get_by_role('tab',name='Encounter').click()
- page.get_by_role('button',name='Start encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
+ page.get_by_role('button',name='Start tracking').click()
+ page.evaluate("()=>{Action.setCombatMode(character,'auto');render();}")
  assert page.get_by_text('Turn 1',exact=True).is_visible()
  page.get_by_role('tab',name='Actions').click()
  entry=page.locator('.action-entry').filter(has_text='Protective Veil');entry.locator('summary').click()
@@ -49,7 +51,8 @@ with sync_playwright() as pw:
  spell.get_by_role('button',name='Cast spell').click()
  assert page.locator('#dlg-yes').count()==0
  assert page.evaluate('character.resources["Level 1 Spell Slots"].current')==2
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  page.get_by_role('button',name='Next turn').click()
  assert page.evaluate('character.effects.combat.turn')==2
  assert page.evaluate('character.effects.active[0].rounds_remaining')==1
@@ -64,7 +67,8 @@ with sync_playwright() as pw:
  assert page.locator('#dlg-yes').is_visible()
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.resources["Level 1 Spell Slots"].current')==1
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  page.get_by_role('button',name='Next turn').click()
  assert not page.evaluate('character.effects.active')
  assert 'Invisible' not in page.evaluate('character.conditions')
