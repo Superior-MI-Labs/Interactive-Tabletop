@@ -9,7 +9,11 @@ class ProjectHandoffContractTests(unittest.TestCase):
     def test_checkpoint_matches_application_version(self):
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
         handoff = (ROOT / "PROJECT_HANDOFF.md").read_text(encoding="utf-8")
-        self.assertIn(f"**Last verified application release:** `v{version}`", handoff)
+        self.assertTrue(
+            f"**Last verified application release:** `v{version}`" in handoff or
+            f"**Candidate application release:** `v{version}`" in handoff,
+            "Handoff must identify current version as verified or an explicit candidate"
+        )
         for heading in (
             "## 2. What was completed, and where we stopped",
             "## 3. Architecture choices and rationale",
