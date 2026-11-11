@@ -29,7 +29,8 @@ with sync_playwright() as pw:
   Action.grantCondition(character,t.id,'Restrained',{sourceId:'Net',expiration:'target-next-turn-end'});
   Action.grantCondition(character,t.id,'Stunned',{sourceId:'Monk',expiration:'source-next-turn-end'});
   render();}''')
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  panel=page.locator('details.encounter-targets');panel.evaluate('el=>el.open=true')
  assert page.get_by_role('button',name='End creature turn').is_visible()
  assert page.get_by_label('Tracked condition sources').get_by_role('button',name='End source').count()==2
