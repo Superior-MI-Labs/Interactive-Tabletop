@@ -3,11 +3,11 @@
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
 **Last verified application release:** `v0.53.0`  
-**Release commit:** v0.53.0 is a release candidate until branch qualification and main Pages deployment succeed. Previously verified main: v0.52.0 `f3af638` (Actions `42577631929`).  
+**Release commit:** v0.53.0 `5344fe6` — GitHub Actions qualification and Pages deployment both passed in run `42935964032` (2026-11-10 local / 2026-11-11 UTC). Previous verified release: v0.52.0 `f3af638` (run `42577631929`).  
 **Handoff reviewed:** 2026-11-10  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.53.0 restores a dedicated Conditions block and separates Encounter from Actions without reverting v0.50–v0.52 behavior. CI/Pages verification must precede a live-release claim.
+**Current worktree:** v0.53.0 restores a dedicated Conditions block and separates Encounter from Actions without reverting v0.50–v0.52 behavior. The release is qualified and deployed; the main-branch run above is the verification record.
 
 ## 1. Why this file exists / how to resume
 
@@ -58,7 +58,7 @@ Recent development sequence (consult `CHANGELOG.md` for full detail):
 - **v0.52:** Collapsed Dice uses the already-settled modifier-adjusted total, with full provenance in the shared tooltip. Real controls get pointer priority over dice; Alt+drag deliberately retrieves dice from atop controls. Spell, attack, item, skill, feature and ability cards use character facts and optional edition-qualified SRD descriptions.
 - **v0.53:** Encounter, targets, event windows, creature turns and action economy move to their own workspace tab. Actions and Spells retain target context only. Conditions returns as a dedicated panel beside Resources; no combat/condition state or SRD rules are rolled back.
 
-v0.52.0 passed GitHub qualification and Pages deployment at commit `f3af638` (Actions run `42577631929`). Check v0.53 independently before claiming it deployed.
+v0.52.0 passed GitHub qualification and Pages deployment at commit `f3af638` (Actions run `42577631929`). v0.53.0 passed independently in run `42935964032` on commit `5344fe6`.
 
 ## 3. Architecture choices and rationale
 
