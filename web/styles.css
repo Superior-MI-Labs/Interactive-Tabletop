@@ -203,7 +203,7 @@ button,select,input,textarea {min-width:0}
 #page .vital-edit[open] {flex-basis:100%;margin:3px 0 0}
 #page .vital-edit[open] summary {width:max-content}
 #page .vital-edit .form-grid {margin:7px 0}
-#page .condition-rail {display:block;padding:7px 0 0;border-top:1px solid #47545b}
+#page .condition-rail {display:block;padding:4px 0 0}
 #page .condition-guidance{margin:0 0 7px;color:#bbcad3;font-size:11px;line-height:1.4}
 #page .condition-icons {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:3px 0 5px;max-width:100%}
 #page .condition-icon {display:inline-grid;place-items:center;position:relative;flex:0 0 27px;width:27px;height:27px;padding:4px;border:1px solid #44515c;background:#2c3842;border-radius:5px;color:#a2b0bd}
@@ -644,20 +644,14 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 #page .srd-preset .button{min-height:25px;padding:3px 6px}
 @media(max-width:720px){#page .buff-bar{padding:6px;gap:4px}#page .buff-token{flex-wrap:wrap}#page .buff-token strong{white-space:normal}}
 #page .buff-empty{color:#acb8c1;font-size:11px;line-height:1.3}
-#page .condition-status{flex-basis:25px;width:25px;height:25px;border-color:#b67665;color:#ffd1a7;background:#583640}
-#page .condition-status:hover,#page .condition-status:focus-visible{background:#68464b;color:#ffe5bf}
-#page .condition-picker{margin-left:auto;min-width:0}
-#page .condition-picker>summary{list-style:none;cursor:pointer;border:1px solid #786b54;background:#2b3a45;color:#f5d3a0;padding:5px 9px;border-radius:5px;font-size:11px;font-weight:650}
-#page .condition-picker>summary::-webkit-details-marker{display:none}
-#page .condition-picker>summary:hover,#page .condition-picker>summary:focus-visible{border-color:#e3b776;background:#40505d}
-#page .condition-picker[open]{flex-basis:100%;order:2}
-#page .condition-picker[open]>summary{display:inline-block;margin-bottom:4px}
 #page .status-info{border:0;background:transparent;color:#b8cfda;cursor:pointer;font-size:14px;padding:0 3px;min-width:19px;min-height:22px;border-radius:4px}
 #page .status-info:hover,#page .status-info:focus-visible{color:#ffdfa9;background:#49535d}
-#page .condition-picker .condition-rail{max-width:100%}
+#page .hud-resources .condition-icons{width:100%}
 
-/* v0.20: one compact encounter surface inside the existing gameplay workspace.
-   Target state comes from the character's saved combat record, never DOM fields. */
+/* Encounter is its own tabbed workspace, projected from existing character combat state. */
+#page .encounter-workspace{display:grid;gap:8px;min-width:0}
+#page .encounter-context{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;margin:0 0 8px;padding:8px 10px;background:#24303a;border:1px solid #526371;border-radius:6px;font-size:12px;color:#d7d1c4}
+#page .encounter-context>span{min-width:0;overflow-wrap:anywhere}
 #page .target-quick{margin:0 0 6px;align-items:center}
 #page .encounter-targets{border:1px solid #526371;border-radius:7px;background:#202c36e8;margin:0 0 9px;overflow:visible}
 #page .encounter-targets>summary{padding:9px 11px;cursor:pointer;color:#ebca99;font:600 12px Georgia,serif;list-style-position:inside}
