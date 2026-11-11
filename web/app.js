@@ -644,6 +644,7 @@ function demoPractice(){
 }
 // A compact personal checklist; it cannot adjudicate opponents or consume an attack on a dice-only roll.
 function personalTurnSummary(){
+ if(view==='encounter')return ''; // the full tracker owns this workspace; no duplicate controls
  const state=Action.combat(character),limits=Action.poolLimits(character),spent=state.economy.spent;
  return `<section class="personal-turn-summary" aria-label="My Turn quick tracker">
  <div class="personal-turn-heading"><strong>My Turn</strong><small>${state.active?'Turn '+state.turn+' · player-managed':'Optional personal tracker · dice always available'}</small></div>
