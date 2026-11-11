@@ -66,7 +66,7 @@ with sync_playwright() as pw:
  page.locator('#dice-widget > summary').click()
  page.locator('#d20-mode').select_option('normal')
  page.locator('#dice-widget > summary').click()
- page.locator('.attack-list [data-action=attack]').first.click()
+ page.evaluate("handleAction('tracked-attack','0')")
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>20;for(const d of dice.filter(x=>activeRoll.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('lastResult.outcome')=='CRITICAL HIT'
  assert page.evaluate('pendingRoll.expression')=='2d6+2'
