@@ -130,9 +130,9 @@ with sync_playwright() as p:
  assert page.evaluate('character.effects.pending_concentration.length')==0
  assert page.evaluate("!character.conditions.includes('Invisible') && character.conditions.includes('Poisoned')")
  assert page.evaluate('character.hp.current')==35
- # Conditions are once again their own Resources-side panel, not an Effects picker.
+ # Conditions sit beside HP, not in Resources or the Effects picker.
  # All 15 controls are live views over the same character and source-grant owners.
- conditions=page.locator('.hud-resources details[data-panel="Conditions"]')
+ conditions=page.locator('#page > details[data-panel="Conditions"]')
  assert conditions.count()==1
  assert page.locator('.buff-bar .condition-status').count()==0
  assert page.locator('.condition-picker').count()==0
