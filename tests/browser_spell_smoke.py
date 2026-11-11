@@ -65,7 +65,9 @@ with sync_playwright() as playwright:
  page.locator('#dlg-yes').click()
  assert page.evaluate('character.resources["Level 1 Spell Slots"].current')==1
  assert page.evaluate('character.effects.active[0].name')=='Guidance'
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
+ page.get_by_role('button',name='Start tracking').click()
  page.get_by_role('button',name='Next turn').click()
  assert page.evaluate('character.effects.active[0].rounds_remaining') is None
  # End concentration manually.
