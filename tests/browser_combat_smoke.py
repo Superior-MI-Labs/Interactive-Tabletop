@@ -58,7 +58,8 @@ with sync_playwright() as pw:
  assert page.evaluate('character.effects.active[0].rounds_remaining')==2
  page.get_by_role('button',name='Next turn').click()
  page.get_by_role('tab',name='Spells').click()
- spell=page.locator('.spell-entry').filter(has_text='Blessing');spell.locator('summary').click()
+ spell=page.locator('.spell-entry').filter(has_text='Blessing')
+ if spell.locator('details').get_attribute('open') is None: spell.locator('summary').click()
  spell.get_by_role('button',name='Cast spell').click()
  assert page.locator('#dlg-yes').is_visible()
  page.locator('#dlg-yes').click()
