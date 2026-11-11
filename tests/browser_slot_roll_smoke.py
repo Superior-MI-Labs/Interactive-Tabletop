@@ -46,7 +46,7 @@ with sync_playwright() as pw:
  page.locator('#dice-widget > summary').click() if page.locator('#dice-widget').get_attribute('open') is None else None
  page.locator('#d20-mode').select_option('advantage')
  page.locator('#dice-widget > summary').click() # Close floating controls before hitting the sheet
- page.locator('.attack-list [data-action=attack]').first.click()
+ page.evaluate("handleAction('tracked-attack','0')")
  assert page.evaluate('pendingRoll.count')==2
  assert page.evaluate('pendingRoll.d20Mode')=='advantage'
  page.evaluate('''()=>{
