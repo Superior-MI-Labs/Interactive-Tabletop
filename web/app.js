@@ -519,7 +519,7 @@ function stateEventControls(){
  ${event?.kind==='incoming-attack'&&event.origin==='confirmed-incoming'?`<div class="controls-row">${button('Attack missed / resolved','incoming-attack-result',event.id+':miss','button mini subtle')}${button('Attack hit / resolved','incoming-attack-result',event.id+':hit','button mini primary')}</div><small>Apply pre-roll reactions before resolving. The hit decision is confirmed by your DM; ranged-weapon hits can unlock Deflect Missiles.</small>`:''}</section>`;
 }
 function trackedAttackRows(){
- return (character.attacks||[]).map((attack,i)=>`<div class="attack-row"><strong>${esc(attack.name)}</strong>${button('Tracked attack','tracked-attack',String(i),'button mini subtle')}<small>Optional legacy encounter resolution; requires a recorded creature.</small></div>`).join('');
+ return (character.attacks||[]).map((attack,i)=>`<div class="attack-row"><strong>${esc(attack.name)}</strong>${button('Tracked attack','tracked-attack',String(i),'button mini subtle')}${button('Tracked damage','tracked-damage',String(i),'button mini subtle')}<small>Optional legacy encounter resolution; requires a recorded creature.</small></div>`).join('');
 }
 function encounterWorkspace(){
  return `<section class="encounter-workspace" aria-label="My Turn">
@@ -1266,6 +1266,14 @@ function handleAction(action,arg){
      pendingRoll.combatAttack=true;pendingRoll.attackPermission='bonus';pendingRoll.attackType=type;
     }
    }catch(e){toast(e.message);}
+   break;
+  }
+  // Explicit legacy creature-damage workflow, absent from the normal sheet.
+  case 'tracked-damage':{
+   const opponent=requireCombatTarget();if(!opponent)break;
+   const index=num(arg),targetId=opponent.id;
+   const confirmed=lastAttackOutcome?.hit&&lastAttackOutcome.targetId===targetId&&lastAttackOutcome.sourceId==='attack-'+index;
+   if(prepareAttackDamage(index,targetId,Boolean(confirmed&&lastAttackOutcome.critical)))lastAttackOutcome=null;
    break;
   }
   // Explicit opt-in compatibility path. Normal sheet Attack never calls this.
