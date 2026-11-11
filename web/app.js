@@ -22,6 +22,7 @@ let history=[],pendingRoll=null,dice=[],activeRolls=[],activeRoll=null,pointer=n
 let lastDimensions={w:0,h:0},nextDieId=0;
 let queuedEffect=null,pendingHealing=null;
 let pendingDamage=[],selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
+let recipientChoice='self'; // transient self/other intent; never an encounter target or additional vault state
 let pointerPosition=null,following=false,hoverDieId=null,lastDiceGesture=null; // stage-local cursor, not a second dice scene
 
 const panelState=new Map();
@@ -65,7 +66,7 @@ function selectLoadedCharacter(){
   character.system_id=character.system_id||'dnd5e';
   character.system_edition=character.system_edition||'unspecified';
   history=character.roll_history;
-  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastAttackOutcome=null;lastResult=null;selectedTargetId='self';
+  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastAttackOutcome=null;lastResult=null;selectedTargetId='self';recipientChoice='self';
   setView('overview');
  }else{history=[];showWelcome();}
  showVaultCount();
@@ -315,12 +316,12 @@ function attackUnavailable(permission='action',type='unspecified'){
 }
 function attackRows(mode='compact'){
  return (character.attacks||[]).map((a,i)=>{
-  const reason=attackUnavailable(),disabled=reason?' disabled aria-disabled="true"':'';
+  const reason='',disabled=''; // sheet rolls never require combat permission
   const type=Action.attackType(a),range=Action.attackRange(a),bonusRemaining=Action.availableAttackGrants(character,type);
   const bonusReason=attackUnavailable('bonus',type);
   const bonusControl=bonusRemaining?`<button class="button mini" type="button" data-action="bonus-attack" data-arg="${i}" ${bonusReason?'disabled aria-disabled="true"':''} title="${esc(bonusReason||'Spend one granted '+type+' strike when dice launch')}">Bonus strike (${bonusRemaining})</button>`:'';
   const hint=entryHint(a.name,[`Attack bonus ${sgn(a.bonus)}`,`Damage: ${a.damage||'not recorded'}`,`Type: ${type}`,`Range: ${range}`].join(' · '),'Character attack · imported or DM configured');
-   const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}"${disabled} title="${esc(reason||'Roll attack; action is spent when dice are thrown')}">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}`;
+   const controls=`<button class="button mini" type="button" data-action="attack" data-arg="${i}" title="Roll attack dice; never spends an action or requires a target">Attack</button>${bonusControl}${button('Damage','damage',String(i),'button mini subtle')}${button('Critical','critical-damage',String(i),'button mini subtle')}`;
   if(mode==='detailed')return `<div class="resource-row" ${hint}><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label><label class="field">Attack range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Not classified</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
   return `<div class="attack-row" ${hint}><span class="attack-name">${esc(a.name)}${editMode?`<div class="setup-attack-fields">${field('Attack name',`attacks.${i}.name`,a.name)}${field('Attack bonus',`attacks.${i}.bonus`,a.bonus,'number')}${field('Damage dice',`attacks.${i}.damage`,a.damage||'')}</div><label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
@@ -386,10 +387,10 @@ function combatActions(){
  const tracker=state.active?`<div class="turn-tracker" aria-label="Combat action pools"><strong>Turn ${state.turn}</strong>
  ${character.system_edition==='dnd-2014'&&state.spellcasting.bonus?'<small class="spell-turn-hint" title="2014 rule: only a 1-action cantrip can also be cast this turn">Bonus spell: cantrips only</small>':''}
  ${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button class="turn-chip ${economy.spent[key]>=limits[key]?'spent':''}" type="button" data-action="mark-turn-action" data-arg="${key}" title="Spend 1 ${label.toLowerCase()} manually; all pools are character-configured">${label} ${Math.max(0,limits[key]-economy.spent[key])}/${limits[key]}</button>`).join('')}
- <small>Attacks: ${economy.attacks.made} made, ${economy.attacks.remaining} remaining in sequence · Extra action grants: ${economy.grants.filter(g=>!g.used).length}</small></div>`:'<span class="combat-notice">Turn tracking off</span>';
- return `<section class="combat-actions" aria-label="Action economy tracker"><strong>Action economy</strong> ${tracker}
- ${button(state.active?'End encounter':'Start encounter','toggle-encounter','','button mini subtle')}
- <label class="field economy-auto"><span>Combat assistance</span><select class="input" id="combat-mode" aria-label="Combat assistance mode">${[['auto','Auto'],['guided','Guided'],['manual','Manual']].map(([mode,label])=>`<option value="${mode}" ${economy.mode===mode?'selected':''}>${label}</option>`).join('')}</select></label>
+ <small>Attacks: ${economy.attacks.made} made, ${economy.attacks.remaining} remaining in sequence · Extra action grants: ${economy.grants.filter(g=>!g.used).length}</small></div>`:'<span class="combat-notice">Personal turn tracking off</span>';
+ return `<section class="combat-actions" aria-label="Action economy tracker"><strong>My Turn</strong> ${tracker}
+ ${button(state.active?'Stop tracking':'Start tracking','toggle-encounter','','button mini subtle')}
+ <label class="field economy-auto"><span>Optional turn accounting</span><select class="input" id="combat-mode" aria-label="Combat assistance mode">${[['auto','Auto'],['guided','Guided'],['manual','Manual']].map(([mode,label])=>`<option value="${mode}" ${economy.mode===mode?'selected':''}>${label}</option>`).join('')}</select></label>
  <details class="economy-config"><summary>Turn economy settings (DM approved)</summary>
  <div class="entry-pair">${[['action','Actions'],['bonus','Bonus actions'],['reaction','Reactions']].map(([key,label])=>`<label class="field">${label} per turn<input class="input sm" type="number" min="1" max="3" data-economy-config="${key}" value="${limits[key]}"></label>`).join('')}
  <label class="field">Attacks per Attack action<input class="input sm" type="number" min="1" max="4" data-economy-config="attacks_per_action" value="${Action.attacksPerAction(character)}"></label></div>
@@ -399,7 +400,7 @@ function combatActions(){
  <label class="field">Reset<select class="input" id="economy-new-resource-reset"><option value="manual">Manual</option><option value="turn">End of turn (zero)</option><option value="short rest">Short rest</option><option value="long rest">Long rest</option></select></label>
  ${button('Create pool','economy-add-resource','','button mini subtle')}</div>${resourcePoolEditor()}
  <small>Extra Attack adds attacks within one Attack action. Haste-style grants allow one additional attack, not another full Attack action. Pathfinder-style pools can be configured here; Pathfinder rules are not automated.</small></details>
- ${button('Next turn ↗','advance-turn','','button mini subtle')} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}${creatureTurnBoard()}</section>`;
+ ${state.active?button('Next turn ↗','advance-turn','','button mini subtle'):''} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}${creatureTurnBoard()}</section>`;
 }
 // Encounter controls are a separate workspace over the same character and action engine.
 function identityRibbon(){
@@ -421,7 +422,7 @@ function skillRolls(){return `<div class="skill-tools">${editBonusButton()}<labe
  <div class="rolls-tight skills-list">${rollRows('skills','editable')}</div>`;}
 function editBonusButton(){return editMode?`<button type="button" class="edit-bonus" data-action="toggle-edit-rolls" aria-pressed="${editRollModifiers}" data-tip="${editRollModifiers?'Finish editing':'Edit'} saved skill and saving throw bonuses">${editRollModifiers?'Done':'✎'}</button>`:'';}
 function workspaceTabs(){
- const items=[['overview','Actions'],['encounter','Encounter'],['spells','Spells'],['inventory','Inventory'],['features','Features'],['background','Background'],['notes','Notes'],['reference','Reference']];
+ const items=[['overview','Actions'],['encounter','My Turn'],['spells','Spells'],['inventory','Inventory'],['features','Features'],['background','Background'],['notes','Notes'],['reference','Reference']];
  return `<nav class="workspace-tabs" aria-label="Character gameplay pages" role="tablist">${items.map(([key,label])=>`<button type="button" role="tab" aria-selected="${view===key}" class="nav ${view===key?'active':''}" data-view="${key}">${label}</button>`).join('')}</nav>`;
 }
 // One encounter target list under the saved character; the UI has no combat stats of its own.
@@ -433,6 +434,7 @@ function requireCombatTarget(){
  try{return Action.requireOffensiveTarget(character,currentTargetId());}
  catch(error){
   if(view!=='encounter')setView('encounter');
+  const advanced=$('#page .advanced-encounter');if(advanced){advanced.open=true;panelState.set('Advanced encounter tools',true);}
   const manager=$('#page .encounter-targets');
   if(manager){manager.open=true;panelState.set('Encounter targets',true);}
   toast(error.message);
@@ -440,10 +442,14 @@ function requireCombatTarget(){
   return null;
  }
 }
-// Read-only target context in action/spell views. Management lives in Encounter.
-function targetContext(){
- const selected=currentTargetId(),target=selected==='self'?null:Action.targetById(character,selected);
- return `<div class="encounter-context" role="status"><span>${target?'Target: '+esc(target.name)+' · AC '+esc(Action.effectiveAC(character,target.id))+' · '+esc(target.hp.current)+'/'+esc(target.hp.max)+' HP':'No encounter creature selected'}</span>${button('Open Encounter','open-encounter','','button mini subtle')}</div>`;
+// Recipient is a per-session intention for sheet effects, not a target registry.
+// Other means "roll and relay"; only Self can offer changes to this character.
+function recipientContext(){
+ return `<div class="recipient-context" role="group" aria-label="Effect recipient">
+ <strong>Recipient</strong>
+ ${[['self','Self'],['other','Other']].map(([key,label])=>`<button type="button" class="filter-chip ${recipientChoice===key?'selected':''}" data-action="set-recipient" data-arg="${key}" aria-pressed="${recipientChoice===key}">${label}</button>`).join('')}
+ <small>${recipientChoice==='self'?'Self: approved effects may be applied to your sheet.':'Other: roll and share the result; no other character or creature is changed.'}</small>
+ </div>`;
 }
 function targetPicker(){
  const selected=currentTargetId(),target=selected==='self'?null:Action.targetById(character,selected);
@@ -513,12 +519,19 @@ function stateEventControls(){
  ${event?`<small>Current: ${esc(event.kind)} ${event.attackerId?'· from '+esc(Action.targetById(character,event.attackerId)?.name||'removed attacker'):''} ${event.origin==='resolved-attack'?'· '+esc(Action.targetById(character,event.targetId)?.name||'removed target')+' · settled attack':''} ${event.used?'(reaction used)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}
  ${event?.kind==='incoming-attack'&&event.origin==='confirmed-incoming'?`<div class="controls-row">${button('Attack missed / resolved','incoming-attack-result',event.id+':miss','button mini subtle')}${button('Attack hit / resolved','incoming-attack-result',event.id+':hit','button mini primary')}</div><small>Apply pre-roll reactions before resolving. The hit decision is confirmed by your DM; ranged-weapon hits can unlock Deflect Missiles.</small>`:''}</section>`;
 }
+function trackedAttackRows(){
+ return (character.attacks||[]).map((attack,i)=>`<div class="attack-row"><strong>${esc(attack.name)}</strong>${button('Tracked attack','tracked-attack',String(i),'button mini subtle')}<small>Optional legacy encounter resolution; requires a recorded creature.</small></div>`).join('');
+}
 function encounterWorkspace(){
- return `<section class="encounter-workspace" aria-label="Encounter, targets and turns">
- <p class="workspace-hint">Target selection, encounter state, turn economy and DM-confirmed creature events are managed here. Actions and spells use the same saved encounter state.</p>
- <div class="target-toolbar target-quick">${targetPicker()}</div>
- ${encounterTargets()}${combatActions()}${stateEventControls()}
- </section>`;
+ return `<section class="encounter-workspace" aria-label="My Turn">
+ <p class="workspace-hint">Track your own turn if useful. The character sheet and dice work whether tracking is on or off.</p>
+ ${combatActions()}
+ <details class="advanced-encounter" data-panel="Advanced encounter tools" ${panelState.get('Advanced encounter tools')?'open':''}>
+ <summary>Advanced encounter tools (optional legacy support)</summary>
+ <p class="workspace-hint">Optional compatibility tools for recorded targets, confirmed events and old character records. You never need these for ordinary rolls or personal turn tracking.</p>
+ ${demoPractice()}<div class="target-toolbar target-quick">${targetPicker()}</div>
+ ${encounterTargets()}${trackedAttackRows()}${stateEventControls()}
+ </details></section>`;
 }
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
@@ -535,7 +548,7 @@ function actionWorkspace(){
  ${sequence.kind==='save-condition'&&sequence.status==='await-effect'?button('Apply condition (DM confirmed)','staged-save-effect',sequence.id,'button mini primary'):''}
  ${sequence.status==='optional-followup'?`<button type="button" class="button mini primary" data-action="staged-followup" data-arg="${esc(sequence.id)}" ${Number(character.resources?.[sequence.followup.resource]?.current||0)<sequence.followup.cost?'disabled':''}>${esc(sequence.followup.label)} · ${esc(sequence.followup.cost)} ${esc(sequence.followup.resource)}</button>`:''}
  ${button('Decline / finish','staged-decline',sequence.id,'button mini subtle')}</div>`:'';
- return `${targetContext()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
+ return `${recipientContext()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
  ${editMode?`${button('+ Attack','add-attack','','button mini')}${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
  ${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
@@ -630,6 +643,15 @@ function demoPractice(){
  <div class="demo-practice-copy"><strong>Practice with Mara · D&amp;D 2014 Fighter</strong><span>${esc(instruction)}</span><small>Uses real character actions and dice. No tutorial progress is saved; you can edit, export or delete this demo in Characters.</small></div>
  ${control?`<div class="demo-practice-action" data-pointer-priority="control">${control}</div>`:''}</aside>`;
 }
+// A compact personal checklist; it cannot adjudicate opponents or consume an attack on a dice-only roll.
+function personalTurnSummary(){
+ const state=Action.combat(character),limits=Action.poolLimits(character),spent=state.economy.spent;
+ return `<section class="personal-turn-summary" aria-label="My Turn quick tracker">
+ <div class="personal-turn-heading"><strong>My Turn</strong><small>${state.active?'Turn '+state.turn+' · player-managed':'Optional personal tracker · dice always available'}</small></div>
+ ${state.active?`<div class="turn-tracker">${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button type="button" class="turn-chip ${spent[key]>=limits[key]?'spent':''}" data-action="mark-turn-action" data-arg="${key}" title="Mark one ${label.toLowerCase()} as used; rolls never spend actions automatically">${label} ${Math.max(0,limits[key]-spent[key])}/${limits[key]}</button>`).join('')}</div>`:''}
+ <div class="controls-row">${button(state.active?'Next turn':'Start tracking',state.active?'advance-turn':'toggle-encounter','','button mini subtle')}${button('Turn settings','open-my-turn','','button mini subtle')}</div>
+ </section>`;
+}
 function overview(){
  const hp=character.hp;
  const res=Object.entries(character.resources||{}).map(([key,v])=>resourcePips(key,v)).join('');
@@ -637,7 +659,7 @@ function overview(){
   `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
   <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- return identityRibbon()+characterSetup()+demoPractice()+buffBar()+
+ return identityRibbon()+characterSetup()+buffBar()+
  `<section class="vitals-panel" aria-label="Hit points and conditions">
  <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
  ${heartMeter(hp)}
@@ -647,10 +669,11 @@ function overview(){
  <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
  ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}
  </div></details></div></section>
+ ${panel('Conditions',conditionRail())}${personalTurnSummary()}
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
  <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
  <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
- <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}${panel('Conditions',conditionRail())}</div>
+ <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}</div>
  <div class="hud-zone hud-main">${workspacePane()}</div>
  </div>`;
 }
@@ -765,7 +788,7 @@ function spells(){
    if(spellFilter==='available')return sp.available!==false&&!sp.prepared&&!sp.always_prepared&&sp.level!==0;
    return true;
  });
- return `${targetContext()}<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
+ return `${recipientContext()}<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
  <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells">${button('+ Spell','add-spell','','button mini')}</div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
@@ -912,8 +935,10 @@ function handleAction(action,arg){
   }
   case 'edit-mode':editMode=!editMode;if(!editMode)editRollModifiers=false;render();break;
   case 'undo-last-damage':try{if(Action.undoLastDamage(character)){save();render();toast('Last damage application undone.');}else toast('Nothing to undo.');}catch(e){toast(e.message);}break;
-  case 'open-encounter':setView('encounter');$('#combat-target')?.focus();break;
-  case 'open-targets':{if(view!=='encounter')setView('encounter');const manager=$('#page .encounter-targets');if(manager){manager.open=true;panelState.set('Encounter targets',true);$('[name=name]',manager)?.focus();}break;}
+  case 'open-encounter':setView('encounter');break;
+  case 'open-my-turn':setView('encounter');break;
+  case 'set-recipient':if(arg==='self'||arg==='other'){recipientChoice=arg;render();}break;
+  case 'open-targets':{if(view!=='encounter')setView('encounter');const advanced=$('#page .advanced-encounter');if(advanced){advanced.open=true;panelState.set('Advanced encounter tools',true);}const manager=$('#page .encounter-targets');if(manager){manager.open=true;panelState.set('Encounter targets',true);$('[name=name]',manager)?.focus();}break;}
   case 'target-remove':dialog('Remove encounter target?',`Remove ${Action.targetById(character,arg)?.name||'this target'} from this character's encounter notes?`,()=>{
    Action.removeTarget(character,arg);selectedTargetId='self';pendingDamage=pendingDamage.filter(x=>x.targetId!==arg);save();render();updateTableResults();
   });break;
@@ -1073,7 +1098,6 @@ function handleAction(action,arg){
     }catch(e){toast('Cannot use '+p.name+': '+e.message);}break;
    }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
-   const offensiveTarget=p.effect==='damage'?requireCombatTarget():null;if(p.effect==='damage'&&!offensiveTarget)break;
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
    const details=[p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
    dialog('Use '+p.name+'?',details.join(' · ')+'. Continue only if appropriate under your table rules.',()=>{
@@ -1082,10 +1106,11 @@ function handleAction(action,arg){
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      // Never charge a resource if the required dice cannot be prepared.
      if(p.roll&&!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough space for this throw. Clear unused dice first.');
-     if(p.effect==='damage')Action.requireOffensiveTarget(character,offensiveTarget.id);
-     Action.commitUsage(character,p);Action.startEffect(character,p);save();render();
+     Action.commitUsage(character,p);
+     if(recipientChoice==='self')Action.startEffect(character,p);
+     save();render();
      const confirmed=p;
-     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:confirmed.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:offensiveTarget.id,damageType:confirmed.damageType,source:confirmed.name}:null);
+     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,recipientChoice==='self'&&confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:null);
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
@@ -1157,7 +1182,6 @@ function handleAction(action,arg){
    const ref=References?.match('spell',sp.name,character.system_edition);
    let planned;try{planned=Action.planSpell(character,sp,choice?Number(choice.value):undefined,ref?.automation);}catch(e){toast('Cannot cast '+sp.name+': '+e.message);break;}
    if(planned.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
-   const offensiveTarget=planned.effect==='damage'?requireCombatTarget():null;if(planned.effect==='damage'&&!offensiveTarget)break;
    try{Action.verifyEconomy(character,planned);}catch(e){toast(e.message);break;}
    const activeConcentration=Action.activeEffects(character).find(e=>e.concentration);
    const info=[planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.bonusDice?`${planned.bonusMode==='sustained'?'While active':planned.charges+' use(s)'} × ${planned.bonusDice} for ${planned.bonusScopes.join(' / ')} (self only)`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
@@ -1166,14 +1190,15 @@ function handleAction(action,arg){
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      const fresh=Action.planSpell(character,sp,planned.slotLevel,ref?.automation);
      if(fresh.roll&&!canPrepareDice(fresh.roll.count,fresh.roll.sides))throw Error('Not enough room for dice.');
-     if(fresh.effect==='damage')Action.requireOffensiveTarget(character,offensiveTarget.id);
-     Action.commitUsage(character,fresh);Action.startEffect(character,fresh);save();render();
-     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:fresh.effect==='damage'?{kind:'target-damage',characterId:activeId,targetId:offensiveTarget.id,damageType:fresh.damageType,source:fresh.name}:null);
+     Action.commitUsage(character,fresh);
+     if(recipientChoice==='self')Action.startEffect(character,fresh);
+     save();render();
+     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,recipientChoice==='self'&&fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:null);
      else toast('Cast '+fresh.name+'; resolve spell effects with your DM.');
     }catch(e){toast('Could not cast spell: '+e.message);}
    });break;
   }
-  case 'toggle-encounter':Action.setEncounter(character,!Action.combat(character).active);abandonCharacterDice(activeId);save();render();break;
+  case 'toggle-encounter':{const active=Action.combat(character).active;if(!active)Action.setCombatMode(character,'manual');Action.setEncounter(character,!active);abandonCharacterDice(activeId);save();render();break;}
   case 'mark-turn-action':try{Action.markAction(character,arg);save();render();}catch(e){toast(e.message);}break;
   case 'economy-add-resource':try{
    Action.addResourcePool(character,$('#economy-new-resource')?.value,Number($('#economy-new-resource-max')?.value),$('#economy-new-resource-reset')?.value);
@@ -1201,11 +1226,7 @@ function handleAction(action,arg){
   case 'action-roll':case 'action-damage':{
    const a=character.actions?.[num(arg)];if(!a)break;
    const expression=action==='action-roll'?a.roll:a.damage;if(!expression)break;
-   const target=requireCombatTarget();if(!target)break;
-   const targetId=target.id;
-   const effect=action==='action-roll'?{kind:'target-attack',characterId:activeId,targetId}:
-     {kind:'target-damage',characterId:activeId,targetId,damageType:selectedDamageType,source:a.name};
-   queueRoll(expression,`${a.name} ${action==='action-roll'?'attack':'damage'} vs ${target.name}`,effect,action==='action-roll'?'attack':'untyped');break;
+   queueRoll(expression,`${a.name} ${action==='action-roll'?'attack':'damage'}`,null,action==='action-roll'?'attack':'untyped');break;
   }
   case 'dismiss-roll-heal':pendingHealing=null;updateTableResults();break;
   case 'apply-roll-heal':{
@@ -1230,16 +1251,36 @@ function handleAction(action,arg){
   case 'toggle-archived':showArchived=!showArchived;render();break;
   case 'archive':{const r=character.inventory[num(arg)];if(r){r.archived=!r.archived;save();render();}break;}
   case 'roll-ability':{const a=character.abilities[arg];if(a)queueRoll(`1d20${sgn(a.modifier)}`,arg+' check',null,'ability-check');break;}
-  case 'attack':case 'bonus-attack':{const a=character.attacks[num(arg)];if(a){const opponent=requireCombatTarget();if(!opponent)break;const targetId=opponent.id,permission=action==='bonus-attack'?'bonus':'action',type=Action.attackType(a);
-   try{Action.verifyAttack(character,permission,type);
-    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+(permission==='bonus'?' bonus strike':' attack')+' vs '+Action.targetById(character,targetId).name,{kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg),attackId:String(a.id||a.name),attackType:type,attackRange:Action.attackRange(a)},'attack')){pendingRoll.combatAttack=true;pendingRoll.attackPermission=permission;pendingRoll.attackType=type;}
-   if(character.demo_id===window.TabletopDemo?.ID&&pendingRoll)render();
-   }catch(e){toast(e.message);}}break;}
-  case 'damage':{
+  case 'attack':{
+   const a=character.attacks?.[num(arg)];if(a)queueRoll(`1d20${sgn(a.bonus)}`,a.name+' attack',null,'attack');
+   break;
+  }
+  case 'damage':case 'critical-damage':{
+   prepareSheetDamage(num(arg),action==='critical-damage');break;
+  }
+  case 'bonus-attack':{
+   const a=character.attacks?.[num(arg)];if(!a)break;
+   try{
+    const type=Action.attackType(a);
+    Action.verifyAttack(character,'bonus',type);
+    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+' granted bonus strike',null,'attack')){
+     pendingRoll.combatAttack=true;pendingRoll.attackPermission='bonus';pendingRoll.attackType=type;
+    }
+   }catch(e){toast(e.message);}
+   break;
+  }
+  // Explicit opt-in compatibility path. Normal sheet Attack never calls this.
+  case 'tracked-attack':{
+   const a=character.attacks?.[num(arg)];if(!a)break;
    const opponent=requireCombatTarget();if(!opponent)break;
-   const index=num(arg),targetId=opponent.id;
-   const confirmed=lastAttackOutcome?.hit&&lastAttackOutcome.targetId===targetId&&lastAttackOutcome.sourceId==='attack-'+index;
-   if(prepareAttackDamage(index,targetId,Boolean(confirmed&&lastAttackOutcome.critical)))lastAttackOutcome=null;
+   const targetId=opponent.id,type=Action.attackType(a);
+   try{
+    Action.verifyAttack(character,'action',type);
+    if(queueRoll(`1d20${sgn(a.bonus)}`,a.name+' tracked attack vs '+opponent.name,
+      {kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg),attackId:String(a.id||a.name),attackType:type,attackRange:Action.attackRange(a)},'attack')){
+      pendingRoll.combatAttack=true;pendingRoll.attackPermission='action';pendingRoll.attackType=type;
+    }
+   }catch(e){toast(e.message);}
    break;
   }
   case 'clear-history':history.length=0;lastResult=null;updateTableResults();save();break;
@@ -1302,7 +1343,18 @@ function canPrepareDice(count,sides){
  const reusable=dice.filter(d=>d.sides===sides&&d.sleeping&&!d.held&&!activeRolls.some(g=>g.diceIds.includes(d.id))).length;
  return Math.max(0,count-reusable)+dice.length<=35;
 }
-// One attack→damage preparation path for Auto, Guided and the manual Damage button.
+// Read a character-owned damage expression without creating an encounter target
+// or queuing HP changes. Critical dice are an explicit player choice.
+function prepareSheetDamage(index,critical=false){
+ const attack=character.attacks?.[index];if(!attack)return false;
+ const match=/\\d+d\\d+(?:[+-]\\d+)?/i.exec(attack.damage||'');
+ if(!match){toast('Configure damage dice for '+attack.name+' before rolling.');return false;}
+ try{
+  const expression=critical?Action.criticalDamageExpression(match[0]):Action.dice(match[0]).expression;
+  return queueRoll(expression,attack.name+(critical?' critical':'')+' damage');
+ }catch(e){toast(e.message);return false;}
+}
+// Explicit legacy target-bound damage preparation (never used by the sheet Damage button).
 // Never mutate HP, overwrite another prepared throw, or infer unlisted damage dice.
 function prepareAttackDamage(index,targetId,critical=false,verifiedHit=false){
  const attack=character.attacks?.[index],target=Action.requireOffensiveTarget(character,targetId);
