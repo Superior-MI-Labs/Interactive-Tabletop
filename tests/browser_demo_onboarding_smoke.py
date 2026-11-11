@@ -36,7 +36,10 @@ with sync_playwright() as pw:
  for f in ['dnd-slots.js','character-import.js','vault-store.js','demo-character.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/f).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Mara Vale (Demo)'")
+ page.get_by_role('tab',name='My Turn').click()
+ page.locator('details.advanced-encounter').evaluate('(el)=>el.open=true')
  assert page.locator('.demo-callout').is_visible()
+ page.get_by_role('tab',name='Actions').click()
  assert 'DEMO' in page.locator('.sheet-eyebrow').inner_text()
  assert page.locator('#vault-count').inner_text()=='(1)'
  assert page.evaluate('window.__demoStorage()?.characters.length')==1
