@@ -38,8 +38,10 @@ with sync_playwright() as pw:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Turn QA' && ReferenceCatalog.ready()")
- page.get_by_role('tab',name='Encounter').click()
- page.get_by_role('button',name='Start encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
+ page.get_by_role('button',name='Start tracking').click()
+ page.evaluate("()=>{Action.setCombatMode(character,'auto');render();}")
  page.get_by_role('tab',name='Spells').click()
  def cast(name):
   sp=page.locator('.spell-entry').filter(has_text=name)
@@ -58,7 +60,8 @@ with sync_playwright() as pw:
  assert page.locator('#dlg-yes').count()==1
  page.locator('#dlg-no').click()
  assert page.evaluate('character.effects.combat.used.action') is False
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  assert page.get_by_text('Bonus spell: cantrips only').is_visible()
  page.get_by_role('button',name='Next turn').click()
  assert page.evaluate('character.effects.combat.spellcasting.bonus') is False
