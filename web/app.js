@@ -1288,6 +1288,7 @@ function handleAction(action,arg){
       {kind:'target-attack',characterId:activeId,targetId,sourceId:'attack-'+num(arg),attackId:String(a.id||a.name),attackType:type,attackRange:Action.attackRange(a)},'attack')){
       pendingRoll.combatAttack=true;pendingRoll.attackPermission='action';pendingRoll.attackType=type;
     }
+    if(character.demo_id===window.TabletopDemo?.ID&&pendingRoll)render();
    }catch(e){toast(e.message);}
    break;
   }
