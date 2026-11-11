@@ -35,15 +35,17 @@ with sync_playwright() as pw:
  for name in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/name).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Bonus QA'")
- page.get_by_role('tab',name='Encounter').click()
- page.get_by_role('button',name='Start encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
+ page.get_by_role('button',name='Start tracking').click()
+ page.evaluate("()=>{Action.setCombatMode(character,'auto');render();}")
  page.evaluate("()=>{const foe=Action.addTarget(character,{name:'Practice Dummy',ac:15,hp:40});selectedTargetId=foe.id;render();}")
  page.get_by_role('tab',name='Actions').click()
  entry=page.locator('.action-entry').filter(has_text='Flurry of Blows');entry.locator('summary').click()
  assert entry.get_by_role('button',name='Use ability').is_disabled()
  assert not page.locator('[data-action="bonus-attack"]').count()
  for expected_remaining in (1,0):
-  page.evaluate("handleAction('attack','0')")
+  page.evaluate("handleAction('tracked-attack','0')")
   assert page.evaluate('character.effects.combat.economy.spent.action')==(0 if expected_remaining==1 else 1)
   page.evaluate('beginThrow()')
   assert page.evaluate('character.effects.combat.economy.attacks.remaining')==expected_remaining
