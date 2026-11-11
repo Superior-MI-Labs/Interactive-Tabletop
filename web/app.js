@@ -952,7 +952,7 @@ function handleAction(action,arg){
   }
   case 'choose-creature':{
    if(!Action.targetById(character,arg)||arg==='self'){toast('This creature is no longer tracked.');break;}
-   selectedTargetId=arg;view='overview';render();toast('Selected '+Action.targetById(character,arg).name+'.');break;
+   selectedTargetId=arg;render();toast('Selected '+Action.targetById(character,arg).name+'.');break;
   }
   case 'advance-target-turn':{
    const target=Action.targetById(character,arg);
