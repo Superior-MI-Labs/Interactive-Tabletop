@@ -8,7 +8,7 @@
 **Handoff reviewed:** 2026-11-10  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** Candidate v0.54.0 on `agent/v054-player-first-sheet` implements player-first no-target rolls, Self/Other recipient choice, Conditions near HP, optional manual My Turn, and hides legacy encounter controls. Do not treat this as a verified deployment until qualification and Pages pass. Last verified release remains v0.53.0.
+**Current worktree:** v0.54.0 player-first source passed complete development-branch qualification at `0a33a844` (Actions run `42947538157`, 2026-11-11 UTC). The `main` release and GitHub Pages deployment are not yet verified; last verified live release remains v0.53.0 until those separate gates succeed. Sheet Attack/Damage/Critical no longer require targets; Conditions are beside HP; My Turn is an optional manual tracker; Self/Other is transient recipient intent.
 
 ### v0.54 priority and non-goals
 
@@ -41,7 +41,7 @@ Author code in `web/`. `docs/` is **generated Pages output**, not a place for ha
 
 ## 2. What was completed, and where we stopped
 
-**Status at v0.52.0:** An early-alpha, local-first, browser and Python-based desktop D&D tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
+**Status entering v0.54.0:** An early-alpha, local-first, browser and Python-based desktop D&D character sheet and dice tabletop. It supports multi-character vaults, D&D Beyond fillable-PDF imports, interactive physical dice, typed combat/effect handling, explicit event-triggered ability eligibility, and qualified portions of the **2014** SRD. Unsupported or ambiguous rules remain manual/DM-adjudicated. No universal TTRPG engine or complete initiative scheduler is claimed.
 
 Recent development sequence (consult `CHANGELOG.md` for full detail):
 
@@ -77,7 +77,7 @@ v0.52.0 passed GitHub qualification and Pages deployment at commit `f3af638` (Ac
 
 **Decision E — conditions have independent provenance.** A visible condition can have several approved source grants with distinct timing. Other creatures' turns require explicit DM confirmation. **Why:** one status flag or one inferred initiative clock would incorrectly delete overlapping effects. Do not build an initiative scheduler until all required turn/interrupt semantics are specified and tested.
 
-**Decision G — Encounter is a separate view, not a second state system.** The encounter UI now owns the dedicated tab for target selection, action/turn settings, individual creature turns and DM event windows. Actions and Spells show only read-only target context; the separate Conditions panel is a projection of the existing character condition flags and grants. **Why:** simplify the action list and restore direct condition visibility without reverting newer combat correctness or duplicating state.
+**Decision G — Player sheet first; legacy encounters are optional.** Ordinary physical attack, damage, critical and custom rolls never need a target, spend an action or apply HP damage. Confirmed spell/ability uses may still debit explicitly configured resources, while transient Self/Other intent distinguishes character-owned effects from roll-and-relay results. My Turn uses the existing combat ledger in Manual mode by default. Targeted attack resolution, target HP and DM event controls remain in closed advanced legacy tools on the same vault/engine. Conditions is a single status panel beside HP, with source-owned grants unchanged. **Why:** normal D&D sessions depend on each player managing their own sheet and reporting dice, not controlling monsters or party members.
 
 **Decision F — onboarding is normal gameplay, not a tutorial engine.** `web/demo-character.js` creates an ordinary editable vault character. The practice UI derives its prompt from the current character, target, encounter and dice state; nothing persists a separate tutorial progression. **Why:** one interaction path exercises the real engine and avoids a second source of truth.
 
@@ -100,17 +100,17 @@ These are engineering judgments based on current contracts, not eternal prohibit
 - Dice physics is approximate, not a certified fairness simulation. The sample Fighter is demonstration data, not a comprehensive rules fixture.
 - A GitHub push is **not** equivalent to a live deployment. Check Actions qualification and Pages deployment separately; do not guess run IDs or report success prematurely.
 
-## 5. Suggested next milestone — source-qualified assistant and asset planning
+## 5. Suggested next milestone — validate player-first usability in an actual session
 
-**Goal:** Explore a small, specialized assistant for reference lookup, character setup, and safe asset composition using existing contracts, without putting generated prose in charge of game mechanics.
+**Goal:** Verify the character sheet works smoothly in a Discord-based D&D session without monster setup, party records, active encounter or external AI. Preserve v0.54's separation between informative dice rolls, deliberate player resource commitments, and optional consequence application.
 
-**Audit first:** Identify the existing `ReferenceCatalog` lookup fields, declarative action planner operations, manual/DM approval points, and Visual Atlas manifest provenance. Distinguish reliable SRD metadata from imported/homebrew text and licensed original artwork.
+**Audit first:** Run a real player's attack, damage, critical, skill check, saving throw, self-heal, other-heal, condition toggle, effect expiration and manual turn. Check whether the layout is legible on narrow screens and whether the user can complete an entire turn without changing tabs unnecessarily. Use the actual saved character and source-owned rules; avoid guessed abilities from import text.
 
-**Alternatives:** (1) A thin chat-like planner over an explicit allowlisted command registry and verified catalog/asset queries, requiring human confirmation for mutations; (2) a separate model-driven rules engine, free-form scraping and automatic asset fabrication. Prefer (1), starting with deterministic decisions and optional local small-model language parsing only where useful.
+**Alternatives:** (1) Consolidate and improve the existing panel/tooltip/roll/commit paths; (2) add a second sheet state model, monster registry or new rules engine. Prefer (1). Do not expand encounter management or build an AI assistant without a distinct, demonstrated player problem.
 
-**Acceptance criteria for any future prototype:** Answer with source and edition labels, show a preview of intended actions/assets, allow cancel and DM override, reject unknown commands/rules, and route permitted mutations through the existing vault/action pipeline. Avoid new model hosting or asset pipelines until a real use case and test fixture justify them.
+**Acceptance:** Every informational roll works without target, is labeled with its dice and modifiers, and never debits turn resources. Confirmed spell/ability use still spends only configured slots/resources; canceled dice do not spend. Self/Other cannot mutate the wrong character; Condition grants and active effects retain independent provenance. The optional My Turn manual tracker works while the rest of the sheet remains fully usable. Complete Chromium and engine regression gates remain mandatory.
 
-**Immediate acceptance for v0.53:** Verify separate Encounter navigation and restored Conditions panel on desktop/mobile; all existing source/turn/dice and import regressions must pass. No broad historical rollback.
+**Known intentional limitation:** Other recipient means roll-and-relay; no external HP, concentration or condition tracking. Legacy target-specific features are archived under Advanced encounter tools for backwards compatibility and are not the focus of new work.
 
 ## 6. Execution and publication checklist
 
@@ -150,5 +150,7 @@ Update this file **at the end of each qualified feature batch** (same commit as 
 **v0.51 checkpoint:** `matchImportedInventory` in `web/vault-store.js` is the only item matching decision used by reconciliation and preview; normalized names must be unique in both old/new PDF rows. Positional IDs, quantity, weight and order cannot disambiguate same-name items. Import confirmation warns when previous annotated rows won't safely transfer; custom item IDs survive independently. Regression owners: `tests/test_inventory_reimport.js` and extended `tests/browser_vault_smoke.py`. Next: pointer ownership and dice totals, not a second import engine.
 
 **v0.52 checkpoint:** The stage pointerdown has one control-first guard even while dice follow the pointer. Alt+drag retrieves dice from interactive areas; regular controls must not be intercepted. `rollBreakdown` and `updateTableResults` display the same settled result, not re-evaluated math. `entryHint` adds read-only hover cards to the existing HUD presenter; 2014 reference content remains edition-checked. Browser owners: `browser_dice_interaction_smoke.py`, `browser_action_smoke.py`, `browser_effects_smoke.py`, `browser_vault_smoke.py`. Next: licensed/provenance-safe reference item data coverage, not more UI state.
+
+**v0.54 checkpoint (qualified source on development branch):** `web/app.js` separates ordinary no-target Attack/Damage/Critical and custom dice from explicit tracked creature attacks/damage. No new engine or vault schema. `recipientChoice` is transient and resets with active-character change. My Turn is manual-first and retains the existing `effects.combat` state/engine; creature/event management lives behind a closed advanced disclosure. Conditions is next to HP and Effects retains qualified sources. Primary new regression: `tests/browser_player_first_smoke.py`, which passed together with legacy browser and unit suites in Actions run `42947538157` on commit `0a33a844`. Release/PAGES status must still be confirmed separately. Future tasks: player UX, not AI or monster management.
 
 **v0.53 checkpoint:** v0.49's separate Conditions presentation returns under Resources, with v0.50's reference-backed hover/focus and source grants retained. Encounter's target/turn/event controls now live in `encounterWorkspace()`; `actionWorkspace()` retains attacks/abilities and `spells()` retains spells. `targetContext()` is derived and read-only; `requireCombatTarget()` navigates to the existing manager on rejection. No `dnd-action.js` or vault changes. New UI boundaries are qualified by the existing browser and action tests. Next: study a source-qualified assistant/asset command registry, not automatic rule guessing.
