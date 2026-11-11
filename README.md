@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.52.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.54.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.52.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.54.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -24,16 +24,16 @@ Choose **Create character** in the top bar or Characters vault to build a **manu
 
 ### Manual resources and spell slots (v0.45)
 
-When editing a character, open **Spells → Configure standard spell slots** to set each spell level's total and remaining slots. These values are never inferred from a class or spell list; the standard Spellcasting and Pact Magic systems are deliberately separate. For feature resources such as Ki or homebrew points, open **Encounter → Turn economy settings**, create or edit a named resource pool, and set its refresh rule. Manual attack/spell entries reject invalid dice and attack bonuses before saving.
+When editing a character, open **Spells → Configure standard spell slots** to set each spell level's total and remaining slots. These values are never inferred from a class or spell list; the standard Spellcasting and Pact Magic systems are deliberately separate. For feature resources such as Ki or homebrew points, open **My Turn → Turn economy settings**, create or edit a named resource pool, and set its refresh rule. Manual attack/spell entries reject invalid dice and attack bonuses before saving.
 
 
 **v0.52 dice and hover update:** The collapsed Dice widget now shows a large settled total and concise roll label; hover/focus reveals physical faces, expression, modifier, bonuses, outcome, and total via the existing HUD card. Expanded totals are enlarged, too. Existing dice math, history, and physical faces are unchanged. Normal clicks on controls now take priority over dice resting/following above them. Alt+drag deliberately retrieves a die from atop a control; free tabletop drag/throw remains available. Fast, read-only hover cards extend to character attacks, skills/saves, spells, abilities, equipment, features, and SRD catalog rows; only matching 2014 references provide catalog descriptions. Imported and DM-configured fields remain authoritative.
 
 **v0.51 inventory reimport safety:** PDF equipment entries now match by name only when the name is unique on both versions of a character import. Unstable `equipment-N` positions, changed quantities and weight do not establish identity. Duplicate names cannot steal another item’s notes. The shared read-only preview reports added/removed items, ambiguity, quantity changes, safe note transfers and old annotations that will not transfer. Separately authored items remain by stable ID. The latest PDF still owns imported quantities, weights and archived status; this release does not infer rules or equipment descriptions.
 
-**v0.50 status and hover cards:** The instant heart/effect tooltip is now the shared presenter for controls, including older browser-native title hints. At v0.50, active conditions appeared in Effects with a **+ Conditions** picker. **As of v0.53, this presentation was reverted:** Conditions has its own panel beside Resources, while Effects displays actual effect records and concentration prompts. Hover or keyboard focus reveals an edition-qualified SRD 5.1 summary for each supported 2014 condition; tap/click a status icon or effect info control to pin a card, Escape to close. The reference catalog now includes 15 read-only conditions. This adds explanations, **not** condition mechanics or a second character state store.
+**v0.50 status and hover cards:** The instant heart/effect tooltip is now the shared presenter for controls, including older browser-native title hints. At v0.50, active conditions appeared in Effects with a **+ Conditions** picker. **As of v0.54, Conditions has its own panel beside HP:**, while Effects displays actual effect records and concentration prompts. Hover or keyboard focus reveals an edition-qualified SRD 5.1 summary for each supported 2014 condition; tap/click a status icon or effect info control to pin a card, Escape to close. The reference catalog now includes 15 read-only conditions. This adds explanations, **not** condition mechanics or a second character state store.
 
-**v0.49 combat target safety:** Attacks and configured offensive effects require a deliberately selected encounter creature; the implicit self-target is rejected before dice preparation or resource spending. A persistent target bar exposes selection. Auto can apply settled, typed weapon damage without another click only after a verified classified attack hit and a uniquely identified damage type from the attack record and explicit per-creature defensive-profile review; unknown types and unqualified conditions remain DM-reviewed. Guided/Auto's inline Apply is one approval, while Manual retains a confirmation. The existing damage planner and Undo remain authoritative.
+**Historical v0.49 combat target safety (now advanced legacy resolution only):** Explicit tracked creature resolution requires a deliberately selected encounter creature; ordinary player Attack and Damage rolls do not. A persistent target bar exposes selection. Auto can apply settled, typed weapon damage without another click only after a verified classified attack hit and a uniquely identified damage type from the attack record and explicit per-creature defensive-profile review; unknown types and unqualified conditions remain DM-reviewed. Guided/Auto's inline Apply is one approval, while Manual retains a confirmation. The existing damage planner and Undo remain authoritative.
 
 **v0.48 PDF reimport preview:** Updating a matching character from a D&D Beyond PDF now shows named imported spell additions and removals, ambiguous duplicate spell matches, and source changes before confirmation. Imported duplicates with unresolved identity do not inherit previous preparation or DM-configured rules; separately authored spells are preserved by ID. The preview is read-only. Cancel leaves the character unchanged. Export a vault backup before a major update.
 
@@ -41,16 +41,26 @@ When editing a character, open **Spells → Configure standard spell slots** to 
 
 **v0.46 spellcasting:** In Edit sheet, each spell can specify its casting ability (STR/DEX/CON/INT/WIS/CHA) or a bounded fixed modifier override. Qualified 2014 self-healing uses that explicit configuration. Legacy unambiguous source labels still work, but mixed class sources require an ability selection. Configuration survives unambiguous PDF reimports; no automatic class progression or new spell effects are introduced.
 
+## v0.54 — Player-first character sheet and dice
+
+**Everyday play needs only your character.** Use Actions to roll attacks, damage, critical damage and custom dice without an encounter target, enemy setup, or unspent Attack action. Ordinary rolls never alter enemy HP or spend turn actions. Confirmed **Use ability** and **Cast spell** requests still debit verified configured resources/slots.
+
+Use **Self / Other** in Actions and Spells. Self permits qualified self-effects and explicit self-healing. Other produces dice/results for another player or the DM, without changing any other character or applying self-effects. Until supported, track concentration and timed external effects manually.
+
+The **Conditions** panel is now next to HP and retains all manual toggles and independently owned effect-source expiration. The Effects bar remains separate. **My Turn** is an optional personal checklist that starts in Manual mode; attacks/dice remain available after a turn allowance is spent. Older encounter target and DM-event controls are preserved only in **My Turn → Advanced encounter tools**, collapsed by default.
+
+### Historical release notes
+
 ## v0.53 — Separate Encounter and Conditions surfaces
 
-**Encounter** is its own workspace tab. Creature selection, target HP/defenses, DM event windows, turn/action economy and creature turns all live there. **Actions** contains attacks and abilities; **Spells** contains spells. Those views show a small read-only target summary and a link to Encounter rather than duplicating encounter controls. Target identity, event gating, costs and dice remain governed by the same combat engine.
+In v0.53, **Encounter** was its own workspace tab (replaced with My Turn in v0.54). Creature selection, target HP/defenses, DM event windows, turn/action economy and creature turns all live there. **Actions** contains attacks and abilities; **Spells** contains spells. Those views show a small read-only target summary and a link to Encounter rather than duplicating encounter controls. Target identity, event gating, costs and dice remain governed by the same combat engine.
 
-The **Conditions** panel is once again a separate expandable block beside Resources, with all 15 manual condition icons and source-qualified hover information. The Effects bar displays active effects and concentration checks, without duplicating condition icons. This restores the v0.49 presentation while keeping later provenance and accessibility improvements.
+In v0.53, the **Conditions** panel returned as a separate expandable block beside Resources (moved next to HP in v0.54), with all 15 manual condition icons and source-qualified hover information. The Effects bar displays active effects and concentration checks, without duplicating condition icons. This restores the v0.49 presentation while keeping later provenance and accessibility improvements.
 
 ## Play in your browser
 
 1. Open [Interactive Tabletop](https://superior-mi-labs.github.io/Interactive-Tabletop/). A genuinely new browser vault starts with **Mara Vale (Demo)**, an editable fictional level-5 Fighter and Training Dummy.
-2. Choose **Encounter** to start tracking and select a creature, then choose **Actions** to throw physical attack dice. The demo includes two attacks per Attack action, Second Wind and Action Surge.
+2. Choose **Actions** to roll attacks or damage directly. Use Self / Other when appropriate. The optional **My Turn** checklist tracks your own actions; monsters, parties and initiative are not required.
 3. To use your own hero, choose **Import PDF** for a fillable D&D Beyond sheet. Existing vaults are not changed, and **Characters → Add demo fighter** lets you opt in at any time, including on desktop.
 4. Use **Characters → Reset demo** to restore sample stats, or delete the demo permanently. Export JSON backups regularly to protect real and demo characters.
 
@@ -59,15 +69,15 @@ No signup or application server is needed. The hosted version parses PDF fields 
 
 ### Guided practice and creature turns (v0.42)
 
-The demo character now displays **contextual practice steps** instead of a static instruction banner: start encounter tracking, select the Training Dummy, prepare and throw a longsword attack, and try the second attack granted by Extra Attack. The button at each stage invokes the ordinary combat engine. It does not maintain a second tutorial state or advance stages based on guesses. Prepared dice may be canceled without spending a turn action, and right-click/Escape follow the same cancellation rules as regular play.
+The legacy demo retains **contextual encounter practice steps** under My Turn → Advanced encounter tools instead of occupying the everyday sheet: start encounter tracking, select the Training Dummy, prepare and throw a longsword attack, and try the second attack granted by Extra Attack. The button at each stage invokes the ordinary combat engine. It does not maintain a second tutorial state or advance stages based on guesses. Prepared dice may be canceled without spending a turn action, and right-click/Escape follow the same cancellation rules as regular play.
 
-The **Encounter → Creature turns** section lists every manually tracked creature, its current individual turn counter, and scheduled condition expirations anchored to that creature. Choose **Select** to target it or **End turn** to request DM confirmation of its turn boundary. This does not move other creatures or your action economy and does not infer initiative. Controls that explicitly opt into pointer priority remain clickable even when a physical die overlaps them; normal dice grabbing elsewhere is unchanged.
+The legacy **My Turn → Advanced encounter tools → Creature turns** section lists every manually tracked creature, its current individual turn counter, and scheduled condition expirations anchored to that creature. Choose **Select** to target it or **End turn** to request DM confirmation of its turn boundary. This does not move other creatures or your action economy and does not infer initiative. Controls that explicitly opt into pointer priority remain clickable even when a physical die overlaps them; normal dice grabbing elsewhere is unchanged.
 
 ### Condition source and turn-boundary tracking (v0.40)
 
 A DM-approved failed-save condition can now carry **independent source ownership** and one of three explicit expiration policies: **DM-managed** (default for older saves), **end of your next turn** (the opt-in 2014 Stunning Strike template), or **end of the affected creature’s next turn**. Multiple effects imposing the same condition do not intensify it, and ending one source does not remove another. Existing manually applied or imported conditions are never silently expired by a newly added timed source.
 
-Your **Next turn** action ends your preceding turn and advances your existing personal action economy. For other creatures, select that encounter target and use **End creature turn**, confirmed by the DM, to advance that creature’s independent condition clock. This is **not** an automatic initiative engine; no turn order, reactions between creatures, or external combat events are inferred. The UI allows an individual source to be ended without removing other sources. Undoing your personal turn restores any conditions that expired at that boundary. Ending/restarting encounter tracking conservatively converts unresolved turn-based grants to DM-managed instead of fabricating a new initiative history.
+If you enable personal tracking, **Next turn** ends your preceding turn and advances your existing personal action economy. For other creatures, select that encounter target and use **End creature turn**, confirmed by the DM, to advance that creature’s independent condition clock. This is **not** an automatic initiative engine; no turn order, reactions between creatures, or external combat events are inferred. The UI allows an individual source to be ended without removing other sources. Undoing your personal turn restores any conditions that expired at that boundary. Ending/restarting encounter tracking conservatively converts unresolved turn-based grants to DM-managed instead of fabricating a new initiative history.
 
 ### Staged ability interruption safety (v0.39)
 
@@ -141,14 +151,14 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.52.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.54.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.52.0.zip" SkyBlueEyes-Tabletop-v0.52.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.54.0.zip" SkyBlueEyes-Tabletop-v0.52.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.

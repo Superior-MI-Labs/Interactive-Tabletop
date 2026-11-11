@@ -7,7 +7,11 @@
 **Handoff reviewed:** 2026-11-10  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.53.0 restores a dedicated Conditions block and separates Encounter from Actions without reverting v0.50–v0.52 behavior. The release is qualified and deployed; the main-branch run above is the verification record.
+**Current worktree:** Candidate v0.54.0 on `agent/v054-player-first-sheet` implements player-first no-target rolls, Self/Other recipient choice, Conditions near HP, optional manual My Turn, and hides legacy encounter controls. Do not treat this as a verified deployment until qualification and Pages pass. Last verified release remains v0.53.0.
+
+### v0.54 priority and non-goals
+
+The application is a **player-owned sheet and physical dice tray for Discord/DM sessions**. Players roll independently and handle their own resources, conditions and optional turn tracking; the DM adjudicates enemies and other characters. Do not require monster/party setup for ordinary play, spend actions on informational rolls, or build a separate rules engine. Preserve verified resource commitments, Self-only effects, the existing vault and old advanced target/evidence records. No monster/party initiative features or assistant/AI expansion before player-first usability is qualified.
 
 ## 1. Why this file exists / how to resume
 

@@ -2,6 +2,10 @@
 
 Living engine contract. Check `VERSION` and `CHANGELOG.md` for the current shipped version; this document is not a second rules engine.
 
+## Player-first roll and recipient contract (v0.54)
+
+Normal sheet Attack, Damage, Critical and generic roll buttons are **dice-only**. They never create or require an encounter target, spend an action, infer a hit, emit a hit event, or change HP. Configured ability/spell use remains an explicit confirmed transaction through the existing planner. The Self/Other selector is transient intent only: Other never applies an effect to the current character or changes an external recipient. Any external duration/concentration is player-/DM-managed. Only explicit **Tracked attack/damage** in advanced legacy tools may create target-specific evidence, invoke `requireOffensiveTarget`, or apply an approved creature consequence. The personal turn tracker uses the existing combat ledger and begins in Manual mode.
+
 ## Source of truth
 
 - Each character has one `rules_profile` setting. `manual` is the safe default; `srd-2014` selects only validated, edition-specific automation profiles from the shipped, offline SRD catalog.

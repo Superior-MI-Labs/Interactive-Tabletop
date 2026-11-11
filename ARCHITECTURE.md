@@ -1,4 +1,12 @@
-# Interactive Tabletop architecture — v0.53.0
+# Interactive Tabletop architecture — v0.54.0
+
+## v0.54 — Player-first interaction boundary
+
+A character sheet is useful without an encounter: **roll, commit and resolve are distinct operations**. Ordinary Attack/Damage/Critical/custom-roll buttons use the existing physical `queueRoll` pipeline with no creature ID, HP mutation, `commitAttack` or hit adjudication. Their settled results and bonuses are character-scoped and informational.
+
+Transient **Self / Other** recipient intent is not persisted and resets on character change. Self may offer qualified self-effects and explicit self-healing; Other can spend only deliberately confirmed ability/spell resources, while suppressing all self-effect application and any external HP mutation. External concentration and timed effects remain DM/player-managed rather than silently inferred. No second target registry or rules engine is introduced.
+
+Optional **My Turn** uses the existing `effects.combat` ledger and `markAction`/`advanceTurn`; initiating normal tracking selects Manual accounting, and ordinary dice never consume action units. Explicit Tracked attack / Tracked damage are available solely in advanced legacy tools, where `requireOffensiveTarget`, provenance checks and the existing damage planner retain authority. Legacy creature clocks and event controls live in a closed-by-default disclosure. Conditions are still engine-owned and now visible next to HP.
 
 The **character JSON document** remains authoritative for a given character. The **vault envelope** (`schema_version: 1`, `active_id`, `characters[]`) owns collection identity and persistence; it is not a second rules model.
 

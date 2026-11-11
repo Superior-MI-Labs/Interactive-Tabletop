@@ -1,3 +1,12 @@
+## v0.54.0 — Player-first character sheet and optional personal turn
+
+- Normal Attack, Damage, Critical and standalone ability dice rolls work without encounter setup, a target, unspent turn actions or automatic HP application; use the existing dice, modifier and history pipeline.
+- Added transient Self / Other intent for confirmed ability and spell uses. Other returns a roll for the table without changing self-effects or external character state.
+- Moved the dedicated Conditions toggle panel beside HP; preserved the active-effects strip and independent condition-source lifecycle.
+- Changed the Encounter workspace to optional My Turn. New personal tracking starts in Manual mode; ordinary sheet rolls never debit its action pool.
+- Kept creature/event controls and explicit Tracked attack / Tracked damage behind an advanced legacy disclosure without deleting old vault records or duplicating the combat engine.
+- Updated regressions for no-target player rolls and separated existing legacy-target qualification.
+
 ## v0.53.0 — Separate encounter controls and restore Conditions panel
 
 - Moved encounter target management, selected creature controls, action/turn economy, individual creature turns, and DM-confirmed combat event controls out of Actions and into a dedicated Encounter workspace tab; Spells and Actions show only the current target context and a link to Encounter.
