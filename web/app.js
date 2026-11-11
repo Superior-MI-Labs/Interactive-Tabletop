@@ -269,15 +269,15 @@ function conditionTip(name,active){
  const sources=grants.length?` · ${grants.length} tracked source${grants.length===1?'':'s'}`:'';
  return `data-tip='${esc(name+' · '+(active?'Active':'Inactive')+sources)}' data-tip-detail='${esc(detail)}' data-tip-source='${esc(reference?'SRD 5.1 (2014) · Reference only; no automatic condition rules':'Manual/unsupported rules · DM adjudicates')}'`;
 }
-function conditionIcon(name,active,interactive){
+function conditionIcon(name,active){
  const path=conditionPaths[name];
  if(!path)return `<span class='unknown-condition' data-tip='${esc(name+' · Active')}' data-tip-detail='Unrecognized imported condition; resolve with your DM.'>${esc(name)}</span>`;
- return `<button type='button' class='condition-icon ${active?'on':''} ${interactive?'condition-toggle':'condition-status'}' ${interactive?`data-action='condition' data-arg='${esc(name)}' aria-pressed='${active}'`:'data-tip-pin'} ${conditionTip(name,active)} aria-label='${esc(name)}: ${active?'active':'inactive'}${interactive?'; toggle condition':'; show details'}'><svg aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='${path}'/></svg></button>`;
+ return `<button type='button' class='condition-icon ${active?'on':''} condition-toggle' data-action='condition' data-arg='${esc(name)}' aria-pressed='${active}' ${conditionTip(name,active)} aria-label='${esc(name)}: ${active?'active':'inactive'}; toggle condition'><svg aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='${path}'/></svg></button>`;
 }
 function conditionRail(){
  const active=character.conditions||[];
  return `<div class='condition-rail'><p class='condition-guidance'>Toggle a condition manually. Tracked spell and ability sources still end through their own controls.</p>
- <div class='condition-icons' aria-label='Toggle character conditions'>${Object.keys(conditionPaths).map(name=>conditionIcon(name,active.includes(name),true)).join('')}</div></div>`;
+ <div class='condition-icons' aria-label='Toggle character conditions'>${Object.keys(conditionPaths).map(name=>conditionIcon(name,active.includes(name))).join('')}</div></div>`;
 }
 function heartMeter(hp){
  const total=Math.max(1,Math.ceil(hp.max/5));

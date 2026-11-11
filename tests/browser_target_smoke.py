@@ -31,6 +31,14 @@ with sync_playwright() as playwright:
  for filename in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','reference-catalog.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/filename).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Synthetic Duelist'")
+ # Encounter management is not duplicated inside Actions.
+ assert page.locator('.workspace-content .encounter-targets').count()==0
+ assert page.locator('.workspace-content .combat-actions').count()==0
+ assert page.locator('.encounter-context').count()==1
+ page.get_by_role('tab',name='Encounter').click()
+ assert page.locator('.workspace-content .encounter-targets').count()==1
+ assert page.locator('.workspace-content .combat-actions').count()==1
+ page.get_by_role('tab',name='Actions').click()
  # No target: attack and damage cannot fall through to the character's own HP.
  old_hp=page.evaluate('character.hp.current')
  page.get_by_role('tab',name='Actions').click()
@@ -176,7 +184,6 @@ with sync_playwright() as playwright:
  page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-mode').select_option('manual')
  page.get_by_role('tab',name='Actions').click()
- page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;
   for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id))){d.sleeping=true;d.rolling=false;}
@@ -190,7 +197,6 @@ with sync_playwright() as playwright:
  # Guided mode also uses the single inline Apply as its confirmation.
  page.get_by_role('tab',name='Encounter').click()
  page.locator('#combat-mode').select_option('guided')
- page.get_by_role('tab',name='Actions').click()
  page.get_by_role('tab',name='Actions').click()
  page.locator('.attack-list [data-action=damage]').first.evaluate('(el)=>el.click()')
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>5;

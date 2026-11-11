@@ -132,7 +132,8 @@ with sync_playwright() as pw:
  assert page.evaluate('character.spells[0].spellcasting_modifier')==3,'Invalid override must not overwrite the good value'
  assert 'whole number' in page.locator('#status-msg').inner_text()
  page.locator('[data-view="overview"]').click()
- # Named custom pools use the existing action-economy configuration, not spell-slot aliases.
+ # Named custom pools use Encounter's existing economy configuration, not spell-slot aliases.
+ page.get_by_role('tab',name='Encounter').click()
  page.locator('.economy-config summary').click()
  page.locator('#economy-new-resource').fill('Focus Points')
  page.locator('#economy-new-resource-max').fill('4')
