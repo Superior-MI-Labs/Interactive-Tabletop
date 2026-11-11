@@ -24,9 +24,12 @@ with sync_playwright() as pw:
   {id:'demo',character:TabletopDemo.create(),updated_at:'2026'}]};}''')
  page.add_script_tag(content=(ROOT/'web/app.js').read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Mara Vale (Demo)'")
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  guide=page.locator('.demo-callout')
  assert 'Begin encounter tracking' in guide.inner_text()
  guide.get_by_role('button',name='1 · Start practice encounter').click()
+ page.evaluate("()=>{Action.setCombatMode(character,'auto');render();}")
  assert page.evaluate('Action.combat(character).active')
  assert 'Training Dummy' in guide.inner_text()
  guide.get_by_role('button',name='2 · Target Training Dummy').click()
@@ -48,7 +51,8 @@ with sync_playwright() as pw:
  # Target clocks use the engine's condition grants, not the player's turn counter.
  page.evaluate('''()=>{Action.grantCondition(character,'target-1','Restrained',
   {sourceId:'training-net',expiration:'target-next-turn-end'});render();}''')
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  board=page.get_by_text('Creature turns',exact=False).locator('xpath=ancestor::details[1]')
  assert page.locator('.creature-turn-board').count()==1
  board=page.locator('.creature-turn-board')
