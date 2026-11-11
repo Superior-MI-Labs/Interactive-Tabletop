@@ -38,7 +38,8 @@ with sync_playwright() as pw:
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Incoming Event QA'")
  # Event controls live in Encounter; reactions stay in Actions and share state.
  def event_click(label, kind=None):
-  page.get_by_role('tab',name='Encounter').click()
+  page.evaluate("panelState.set('Advanced encounter tools',true)")
+  page.get_by_role('tab',name='My Turn').click()
   if kind is not None: page.locator('#incoming-attack-kind').select_option(kind)
   page.get_by_role('button',name=label).click()
   page.get_by_role('tab',name='Actions').click()
@@ -49,7 +50,8 @@ with sync_playwright() as pw:
  event_click('Incoming attack (before roll)')
  assert page.evaluate('Action.combatEvent(character)?.kind')=='incoming-attack'
  assert page.evaluate('Action.combatEvent(character)?.attackerId===selectedTargetId')
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  assert page.get_by_role('button',name='Attack hit / resolved').is_visible()
  page.get_by_role('tab',name='Actions').click()
  assert flare.get_by_role('button',name='Use ability').is_enabled()
