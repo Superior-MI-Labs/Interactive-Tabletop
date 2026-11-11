@@ -130,15 +130,17 @@ with sync_playwright() as p:
  assert page.evaluate('character.effects.pending_concentration.length')==0
  assert page.evaluate("!character.conditions.includes('Invisible') && character.conditions.includes('Poisoned')")
  assert page.evaluate('character.hp.current')==35
- # The previously duplicated conditions panel is now only a compact Effects
- # icon plus a collapsible manual picker. It still writes via setTargetCondition.
- assert page.locator('.buff-bar .condition-status').count()==1
- assert page.locator('.buff-bar .debuff-token').count()==0
- assert page.locator('.hud-resources .condition-rail').count()==0
- assert page.locator('.condition-picker').count()==1
+ # Conditions are once again their own Resources-side panel, not an Effects picker.
+ # All 15 controls are live views over the same character and source-grant owners.
+ conditions=page.locator('.hud-resources details[data-panel="Conditions"]')
+ assert conditions.count()==1
+ assert page.locator('.buff-bar .condition-status').count()==0
+ assert page.locator('.condition-picker').count()==0
+ assert conditions.locator('.condition-toggle').count()==15
  assert page.evaluate("ReferenceCatalog.list('condition').length")==15
  assert page.evaluate("ReferenceCatalog.list().length")==261
- condition=page.locator('.buff-bar .condition-status[aria-label^="Poisoned"]')
+ condition=conditions.locator('.condition-toggle[data-arg="Poisoned"]')
+ assert condition.get_attribute('aria-pressed')=='true'
  snap=page.evaluate('JSON.stringify(character)')
  condition.focus()
  tooltip=page.locator('#hud-tooltip')
@@ -146,28 +148,24 @@ with sync_playwright() as p:
  assert 'disadvantage' in tooltip.inner_text()
  assert 'SRD 5.1 (2014)' in tooltip.inner_text()
  assert page.evaluate('JSON.stringify(character)')==snap
- condition.evaluate('(el)=>el.click()')
- assert page.locator('#hud-tooltip.is-pinned').is_visible()
  page.keyboard.press('Escape')
  assert tooltip.is_hidden()
- # Browser-native title hints are migrated to the same immediate tip.
+ # Browser-native title hints still use the same fast tip presenter.
  hp_edit=page.locator('.vital-edit > summary')
  hp_edit.focus()
  assert tooltip.is_visible()
  assert 'Adjust HP totals' in tooltip.inner_text()
  assert hp_edit.get_attribute('title') is None
  page.keyboard.press('Escape')
- page.locator('.condition-picker > summary').evaluate('(el)=>el.click()')
- assert page.locator('.condition-picker .condition-toggle').count()==15
- page.locator(".condition-toggle[data-arg='Blinded']").evaluate('(el)=>el.click()')
+ conditions.locator('.condition-toggle[data-arg="Blinded"]').evaluate('(el)=>el.click()')
  assert page.evaluate("character.conditions.includes('Blinded')")
- assert page.locator('.condition-picker').get_attribute('open') is not None
- assert page.locator('.buff-bar .condition-status').count()==2
- page.locator(".condition-toggle[data-arg='Blinded']").evaluate('(el)=>el.click()')
+ assert conditions.locator('.condition-toggle[aria-pressed="true"]').count()==2
+ conditions.locator('.condition-toggle[data-arg="Blinded"]').evaluate('(el)=>el.click()')
  assert not page.evaluate("character.conditions.includes('Blinded')")
- # Provenance remains in independent source grants, not the status chip.
+ # Source-specific conditions retain their provenance in the same engine.
  page.evaluate("""()=>{Action.grantCondition(character,'self','Frightened',{sourceId:'qa:fright',expiration:'manual'});render();}""")
- frightened=page.locator('.condition-status[aria-label^="Frightened"]')
+ conditions=page.locator('.hud-resources details[data-panel="Conditions"]')
+ frightened=conditions.locator('.condition-toggle[data-arg="Frightened"]')
  frightened.focus()
  assert '1 tracked source' in tooltip.inner_text()
  assert page.evaluate("Action.conditionGrants(character,'self').length")==1
@@ -180,7 +178,7 @@ with sync_playwright() as p:
  assert '<img src=x onerror=alert(1)>' in tooltip.inner_text()
  page.keyboard.press('Escape')
  page.evaluate("()=>{Action.endEffect(character,'ability:markup');character.system_edition='dnd-2024';render();}")
- page.locator('.buff-bar .condition-status[aria-label^="Poisoned"]').focus()
+ conditions.locator('.condition-toggle[data-arg="Poisoned"]').focus()
  assert 'No matching 2014 reference description' in tooltip.inner_text()
  assert 'SRD 5.1 (2014)' not in tooltip.inner_text()
  page.keyboard.press('Escape')
@@ -189,4 +187,4 @@ with sync_playwright() as p:
  page.wait_for_timeout(100)
  assert page.evaluate('document.documentElement.scrollWidth')<=400,'Mobile horizontal document overflow'
  b.close()
- print('PASS browser 2014 effects, concentration, one hover card, active condition icons, 15-entry picker, source grants, edition guard, XSS and mobile')
+ print('PASS browser 2014 effects, concentration, one hover card, restored Conditions panel, 15 icons, source grants, edition guard, XSS and mobile')
