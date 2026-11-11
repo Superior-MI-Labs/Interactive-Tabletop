@@ -133,7 +133,8 @@ with sync_playwright() as pw:
  assert 'whole number' in page.locator('#status-msg').inner_text()
  page.locator('[data-view="overview"]').click()
  # Named custom pools use Encounter's existing economy configuration, not spell-slot aliases.
- page.get_by_role('tab',name='Encounter').click()
+ page.evaluate("panelState.set('Advanced encounter tools',true)")
+ page.get_by_role('tab',name='My Turn').click()
  page.locator('.economy-config summary').click()
  page.locator('#economy-new-resource').fill('Focus Points')
  page.locator('#economy-new-resource-max').fill('4')
