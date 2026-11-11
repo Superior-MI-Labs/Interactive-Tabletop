@@ -316,7 +316,6 @@ function attackUnavailable(permission='action',type='unspecified'){
 }
 function attackRows(mode='compact'){
  return (character.attacks||[]).map((a,i)=>{
-  const reason='',disabled=''; // sheet rolls never require combat permission
   const type=Action.attackType(a),range=Action.attackRange(a),bonusRemaining=Action.availableAttackGrants(character,type);
   const bonusReason=attackUnavailable('bonus',type);
   const bonusControl=bonusRemaining?`<button class="button mini" type="button" data-action="bonus-attack" data-arg="${i}" ${bonusReason?'disabled aria-disabled="true"':''} title="${esc(bonusReason||'Spend one granted '+type+' strike when dice launch')}">Bonus strike (${bonusRemaining})</button>`:'';
@@ -636,7 +635,7 @@ function demoPractice(){
  else if(sword<0){instruction='The original longsword was edited or removed. Select an attack below to practice with your current sheet.';}
  else if(made===0||remaining>0){instruction=made?'Extra Attack: your second attack uses the same Attack action, not another action.':'Choose the longsword attack, then throw its physical d20 to commit the action.';
   let reason='';try{Action.verifyAttack(character,'action',Action.attackType(character.attacks[sword]));}catch(e){reason=e.message;}
-  control=reason?`<small>${esc(reason)} · use Next turn if the action is spent.</small>`:button(made?'4 · Try Extra Attack':'3 · Prepare longsword attack','attack',String(sword),'button mini primary');}
+  control=reason?`<small>${esc(reason)} · use Next turn if the action is spent.</small>`:button(made?'4 · Try Extra Attack':'3 · Prepare longsword attack','tracked-attack',String(sword),'button mini primary');}
  else{instruction='Both attacks for this turn are complete. Start your next turn to practice again.';
   control=button('Next character turn','advance-turn','','button mini primary');}
  return `<aside class="demo-callout" role="note" aria-label="Demo character instructions">
@@ -1099,7 +1098,7 @@ function handleAction(action,arg){
    }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
-   const details=[p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
+   const details=[recipientChoice==='other'?'Other: share the result; do not apply this effect to your character':null,p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
    dialog('Use '+p.name+'?',details.join(' · ')+'. Continue only if appropriate under your table rules.',()=>{
     try{
      // Never spend resources while the active dice animation is unresolved.
@@ -1184,7 +1183,7 @@ function handleAction(action,arg){
    if(planned.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,planned);}catch(e){toast(e.message);break;}
    const activeConcentration=Action.activeEffects(character).find(e=>e.concentration);
-   const info=[planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.bonusDice?`${planned.bonusMode==='sustained'?'While active':planned.charges+' use(s)'} × ${planned.bonusDice} for ${planned.bonusScopes.join(' / ')} (self only)`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
+   const info=[recipientChoice==='other'?'Other: share the result; no self-application or automatic external effect':null,planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.bonusDice?`${planned.bonusMode==='sustained'?'While active':planned.charges+' use(s)'} × ${planned.bonusDice} for ${planned.bonusScopes.join(' / ')} (self only)`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
    dialog('Cast '+planned.name+'?',info.join(' · ')+'. Spell effects still require your table’s rulings.',()=>{
     try{
      // Other dice groups can be in flight; a new roll only needs free resting dice.
@@ -1347,7 +1346,7 @@ function canPrepareDice(count,sides){
 // or queuing HP changes. Critical dice are an explicit player choice.
 function prepareSheetDamage(index,critical=false){
  const attack=character.attacks?.[index];if(!attack)return false;
- const match=/\\d+d\\d+(?:[+-]\\d+)?/i.exec(attack.damage||'');
+ const match=/\d+d\d+(?:[+-]\d+)?/i.exec(attack.damage||'');
  if(!match){toast('Configure damage dice for '+attack.name+' before rolling.');return false;}
  try{
   const expression=critical?Action.criticalDamageExpression(match[0]):Action.dice(match[0]).expression;
