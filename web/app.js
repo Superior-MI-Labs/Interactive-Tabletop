@@ -340,10 +340,10 @@ function effectDetails(effect){
 }
 function buffBar(){
  if(!character)return '';
- const active=Action.activeEffects(character),checks=character.effects?.pending_concentration||[],conditions=character.conditions||[];
- return `<section class='buff-bar' aria-label='Active buffs, debuffs and conditions'>
+ const active=Action.activeEffects(character),checks=character.effects?.pending_concentration||[];
+ return `<section class='buff-bar' aria-label='Active buffs and debuffs'>
  <span class='buff-caption'>EFFECTS</span>
- ${!active.length&&!conditions.length&&!checks.length?`<small class='buff-empty'>No active effects</small>`:''}
+ ${!active.length&&!checks.length?`<small class='buff-empty'>No active effects</small>`:''}
  ${active.map(effect=>`<div class='buff-token' data-tip='${esc(effect.name)}' data-tip-detail='${esc(effectDetails(effect))}' data-tip-source='Character effect · Configured source and DM rules'>
   <strong>${effect.concentration?'◉ ':'✦ '}${esc(effect.name)}</strong>
   ${effect.ac_bonus?`<span>AC +${esc(effect.ac_bonus)}</span>`:''}
@@ -351,10 +351,8 @@ function buffBar(){
   <small>${effect.rounds_remaining==null?'Until ended':`${esc(effect.rounds_remaining)} rounds`}</small>
   <button type='button' class='status-info' data-tip-pin data-tip='${esc(effect.name)}' data-tip-detail='${esc(effectDetails(effect))}' data-tip-source='Character effect · Configured source and DM rules' aria-label='Effect details: ${esc(effect.name)}'>ⓘ</button>
   ${button('×','effect-end',effect.id,'button mini subtle')}</div>`).join('')}
- ${conditions.map(name=>conditionIcon(name,true,false)).join('')}
- ${checks.map(check=>`<div class='buff-token buff-check'><strong>Concentration DC ${esc(check.dc)}</strong>${button('Roll CON save','concentration-check',check.id,'button mini primary')}</div>`).join('')}
- <details class='condition-picker' data-panel='Conditions' ${panelState.get('Conditions')?'open':''}><summary aria-label='Add or remove conditions'>+ Conditions</summary>${conditionRail()}</details>
- </section>`;
+  ${checks.map(check=>`<div class='buff-token buff-check'><strong>Concentration DC ${esc(check.dc)}</strong>${button('Roll CON save','concentration-check',check.id,'button mini primary')}</div>`).join('')}
+  </section>`;
 }
 function creatureTurnBoard(){
  const state=Action.combat(character);
@@ -403,7 +401,7 @@ function combatActions(){
  <small>Extra Attack adds attacks within one Attack action. Haste-style grants allow one additional attack, not another full Attack action. Pathfinder-style pools can be configured here; Pathfinder rules are not automated.</small></details>
  ${button('Next turn ↗','advance-turn','','button mini subtle')} ${state.undo_turn?button('Undo turn','undo-turn','','button mini subtle'):''}${creatureTurnBoard()}</section>`;
 }
-// The sheet is the complete combat screen. Details are never duplicated in another tab.
+// Encounter controls are a separate workspace over the same character and action engine.
 function identityRibbon(){
  const move=(String(character.speed||'').match(/\d+\s*ft/gi)||[]).map(s=>parseInt(s,10)).join(' / ')||character.speed;
  return `<header class="identity-ribbon">
@@ -423,7 +421,7 @@ function skillRolls(){return `<div class="skill-tools">${editBonusButton()}<labe
  <div class="rolls-tight skills-list">${rollRows('skills','editable')}</div>`;}
 function editBonusButton(){return editMode?`<button type="button" class="edit-bonus" data-action="toggle-edit-rolls" aria-pressed="${editRollModifiers}" data-tip="${editRollModifiers?'Finish editing':'Edit'} saved skill and saving throw bonuses">${editRollModifiers?'Done':'✎'}</button>`:'';}
 function workspaceTabs(){
- const items=[['overview','Actions'],['spells','Spells'],['inventory','Inventory'],['features','Features'],['background','Background'],['notes','Notes'],['reference','Reference']];
+ const items=[['overview','Actions'],['encounter','Encounter'],['spells','Spells'],['inventory','Inventory'],['features','Features'],['background','Background'],['notes','Notes'],['reference','Reference']];
  return `<nav class="workspace-tabs" aria-label="Character gameplay pages" role="tablist">${items.map(([key,label])=>`<button type="button" role="tab" aria-selected="${view===key}" class="nav ${view===key?'active':''}" data-view="${key}">${label}</button>`).join('')}</nav>`;
 }
 // One encounter target list under the saved character; the UI has no combat stats of its own.
@@ -434,12 +432,18 @@ function currentTargetId(){
 function requireCombatTarget(){
  try{return Action.requireOffensiveTarget(character,currentTargetId());}
  catch(error){
+  if(view!=='encounter')setView('encounter');
   const manager=$('#page .encounter-targets');
   if(manager){manager.open=true;panelState.set('Encounter targets',true);}
   toast(error.message);
   $('#combat-target')?.focus();
   return null;
  }
+}
+// Read-only target context in action/spell views. Management lives in Encounter.
+function targetContext(){
+ const selected=currentTargetId(),target=selected==='self'?null:Action.targetById(character,selected);
+ return `<div class="encounter-context" role="status"><span>${target?'Target: '+esc(target.name)+' · AC '+esc(Action.effectiveAC(character,target.id))+' · '+esc(target.hp.current)+'/'+esc(target.hp.max)+' HP':'No encounter creature selected'}</span>${button('Open Encounter','open-encounter','','button mini subtle')}</div>`;
 }
 function targetPicker(){
  const selected=currentTargetId(),target=selected==='self'?null:Action.targetById(character,selected);
@@ -509,6 +513,13 @@ function stateEventControls(){
  ${event?`<small>Current: ${esc(event.kind)} ${event.attackerId?'· from '+esc(Action.targetById(character,event.attackerId)?.name||'removed attacker'):''} ${event.origin==='resolved-attack'?'· '+esc(Action.targetById(character,event.targetId)?.name||'removed target')+' · settled attack':''} ${event.used?'(reaction used)':'(available)'} · ${button('Close window','combat-event-close','','button mini subtle')}</small>`:''}
  ${event?.kind==='incoming-attack'&&event.origin==='confirmed-incoming'?`<div class="controls-row">${button('Attack missed / resolved','incoming-attack-result',event.id+':miss','button mini subtle')}${button('Attack hit / resolved','incoming-attack-result',event.id+':hit','button mini primary')}</div><small>Apply pre-roll reactions before resolving. The hit decision is confirmed by your DM; ranged-weapon hits can unlock Deflect Missiles.</small>`:''}</section>`;
 }
+function encounterWorkspace(){
+ return `<section class="encounter-workspace" aria-label="Encounter, targets and turns">
+ <p class="workspace-hint">Target selection, encounter state, turn economy and DM-confirmed creature events are managed here. Actions and spells use the same saved encounter state.</p>
+ <div class="target-toolbar target-quick">${targetPicker()}</div>
+ ${encounterTargets()}${combatActions()}${stateEventControls()}
+ </section>`;
+}
 function actionWorkspace(){
  const attackFilter=actionFilter==='all'||actionFilter==='attack';
  const specialFilter=actionFilter==='all'||actionFilter==='action';
@@ -524,10 +535,10 @@ function actionWorkspace(){
  ${sequence.kind==='save-condition'&&sequence.status==='await-effect'?button('Apply condition (DM confirmed)','staged-save-effect',sequence.id,'button mini primary'):''}
  ${sequence.status==='optional-followup'?`<button type="button" class="button mini primary" data-action="staged-followup" data-arg="${esc(sequence.id)}" ${Number(character.resources?.[sequence.followup.resource]?.current||0)<sequence.followup.cost?'disabled':''}>${esc(sequence.followup.label)} · ${esc(sequence.followup.cost)} ${esc(sequence.followup.resource)}</button>`:''}
  ${button('Decline / finish','staged-decline',sequence.id,'button mini subtle')}</div>`:'';
- return `<div class="target-toolbar target-quick">${targetPicker()}</div>${encounterTargets()}${combatActions()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
+ return `${targetContext()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
  ${editMode?`${button('+ Attack','add-attack','','button mini')}${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
- ${stateEventControls()}${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
+ ${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
  ${specialFilter?`<div class="ability-action-list" aria-label="Imported and custom actions">${entries.map(a=>{
    const roll=a.roll||'', damage=a.damage||'';
    return `<details class="work-entry action-entry" data-action-id="${esc(a.id||a.index)}"><summary ${entryHint(a.name,[a.description||'No imported description; confirm with your DM.',a.roll?'Roll '+a.roll:'',a.damage?'Damage '+a.damage:'',a.resource&&a.cost?'Cost: '+a.cost+' '+a.resource:''].filter(Boolean).join(' · '),'Character ability · '+(a.source||'DM configured'))}><span class="entry-title">${esc(a.name)}</span><span class="entry-meta">${esc(a.activation||'special')}${a.source==='manual'?' · Custom':a.source==='user-reference'?' · Screenshot reference':''}</span></summary>
@@ -563,7 +574,7 @@ function actionWorkspace(){
  }).join('')}</div></div>`:''}`;
 }
 function workspacePane(){
- let content=({overview:actionWorkspace,inventory,spells,features,background:backgroundPage,notes:notesPage,reference:referenceWorkspace}[view]||actionWorkspace)();
+ let content=({overview:actionWorkspace,encounter:encounterWorkspace,inventory,spells,features,background:backgroundPage,notes:notesPage,reference:referenceWorkspace}[view]||actionWorkspace)();
  return `<section class="game-workspace" aria-label="Tabbed gameplay workspace"><div class="workspace-caption">GAMEPLAY <span>• ${esc(character.name)}</span></div>${workspaceTabs()}<div class="workspace-content" data-scroll-key="workspace" role="tabpanel">${content}</div></section>`;
 }
 // A read-only projection of manually created character data. No onboarding
@@ -639,7 +650,7 @@ function overview(){
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
  <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
  <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
- <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}</div>
+ <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}${panel('Conditions',conditionRail())}</div>
  <div class="hud-zone hud-main">${workspacePane()}</div>
  </div>`;
 }
@@ -754,7 +765,7 @@ function spells(){
    if(spellFilter==='available')return sp.available!==false&&!sp.prepared&&!sp.always_prepared&&sp.level!==0;
    return true;
  });
- return `<div class="target-toolbar target-quick">${targetPicker()}</div><div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
+ return `${targetContext()}<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
  <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells">${button('+ Spell','add-spell','','button mini')}</div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
@@ -896,7 +907,8 @@ function handleAction(action,arg){
   }
   case 'edit-mode':editMode=!editMode;if(!editMode)editRollModifiers=false;render();break;
   case 'undo-last-damage':try{if(Action.undoLastDamage(character)){save();render();toast('Last damage application undone.');}else toast('Nothing to undo.');}catch(e){toast(e.message);}break;
-  case 'open-targets':{const manager=$('#page .encounter-targets');if(manager){manager.open=true;panelState.set('Encounter targets',true);$('[name=name]',manager)?.focus();}break;}
+  case 'open-encounter':setView('encounter');$('#combat-target')?.focus();break;
+  case 'open-targets':{if(view!=='encounter')setView('encounter');const manager=$('#page .encounter-targets');if(manager){manager.open=true;panelState.set('Encounter targets',true);$('[name=name]',manager)?.focus();}break;}
   case 'target-remove':dialog('Remove encounter target?',`Remove ${Action.targetById(character,arg)?.name||'this target'} from this character's encounter notes?`,()=>{
    Action.removeTarget(character,arg);selectedTargetId='self';pendingDamage=pendingDamage.filter(x=>x.targetId!==arg);save();render();updateTableResults();
   });break;
