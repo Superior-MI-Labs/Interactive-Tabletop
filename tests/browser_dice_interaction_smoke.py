@@ -79,7 +79,7 @@ with sync_playwright() as pw:
  assert page.evaluate('activeRolls.length')==2
  # Catch a rolling d20; original group should remain active while it is held.
  p2=page.evaluate('''()=>{const d=dice.find(x=>x.sides===20);const r=document.querySelector('#dice-stage').getBoundingClientRect();
- d.v=[0,0,0];d.w=[0,0,0];return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
+ d.v=[0,0,0];d.w=[0,0,0];DP.park(d);return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
  page.mouse.move(p2['x'],p2['y']);page.mouse.down()
  assert page.evaluate('pointer?.mode')=='existing'
  page.mouse.move(p2['x']+35,p2['y']+15,steps=3);page.mouse.up()
