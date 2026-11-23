@@ -1,3 +1,11 @@
+## v0.55.0 — Physical dice rotation and settlement consistency (candidate)
+
+- Removed pointer-driven quaternion rotation while held. Flick velocity now gives directional angular momentum and bounded shake varies its release.
+- Removed arbitrary wall-spin kicks; resting now requires a flat supporting face rather than low velocity alone.
+- Read tetrahedral d4 results at the upper vertex and display that label instead of misleading side-face numbers.
+- Extended physics tests for supported settling, all four d4 orientations and directional flick spin; no new runtime dependency, parallel dice engine or saved character state.
+- Convex-contact simulation and die-to-die collision remain approximate; fairness and material response are not certified.
+
 ## v0.54.0 — Player-first character sheet and optional personal turn
 
 - Normal Attack, Damage, Critical and standalone ability dice rolls work without encounter setup, a target, unspent turn actions or automatic HP application; use the existing dice, modifier and history pipeline.

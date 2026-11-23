@@ -15,7 +15,7 @@ The **character JSON document** remains authoritative for a given character. The
 - `main.py`: desktop pypdf extraction and vault JSON read/write; no independent character normalization on this path. Old single-character GET is read-only for migration compatibility.
 - `web/vault-store.js`: collection contract, legacy migration, conservative import reconciliation, IndexedDB and desktop API storage adapters.
 - `web/app.js`: UI rendering, interactions, orchestration and dice scene. It reads/updates one active character in the vault; it must not maintain another character database.
-- `web/dice-physics.js`: shared approximate dice simulation, independent of character vault selection.
+- `web/dice-physics.js`: shared approximate convex dice simulation, independent of character vault selection. Velocity/contact impulses and orientation determine results; d4 uses the upper vertex and other dice an upper face. Sleep requires a nearly flat supporting face. Rendering and results read one orientation. This remains approximate, not a certified rigid-body/fairness engine.
 - `web/styles.css`: only UI stylesheet, `web/theme-assets.json` is the visual manifest.
 - `docs/`: generated site. Never edit the generated sources directly; run `tools/build_site.py`.
 

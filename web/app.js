@@ -1805,10 +1805,10 @@ function initDiceCanvas(){
    pointer.dx=pointer.dx*.50+dx/dt*1000*.50;
    pointer.dy=pointer.dy*.50+dy/dt*1000*.50;
    pointer.shake=Math.min(350,pointer.shake+Math.hypot(dx,dy));pointer.x=x;pointer.y=y;pointer.lastTime=performance.now();
+   // Holding only translates dice. Physical spin begins with the release impulse.
    pointer.selected.forEach((d,i)=>{
      const off=pointer.offsets[i];d.x=Math.max(d.r,Math.min(lastDimensions.w-d.r,x+off.x));
      d.y=Math.max(d.r,Math.min(lastDimensions.h-d.r,y+off.y));d.z=DP.height(d)+23;
-     d.q=DP.advance(d.q,[dy*.052,dx*.052,dx*.018],1);
    });
  });
  stage.addEventListener('pointerup',e=>{
@@ -2079,13 +2079,23 @@ function drawDie(d){
   ctx.fillStyle=`rgb(${Math.floor(light)},${Math.floor(light+11)},${Math.floor(light+23)})`;ctx.fill();
   ctx.strokeStyle=d.ready?'#ffe0a4':'#d9ad72';ctx.lineWidth=d.ready?2.4:1.8;ctx.stroke();
   const area=Math.abs(f.pts.reduce((sum,p,i)=>sum+p[0]*f.pts[(i+1)%f.pts.length][1]-p[1]*f.pts[(i+1)%f.pts.length][0],0)/2);
-  if(area>110&&f.shade>.16){
+  if(sides!==4&&area>110&&f.shade>.16){
    const cx=f.pts.reduce((s,p)=>s+p[0],0)/f.pts.length,cy=f.pts.reduce((s,p)=>s+p[1],0)/f.pts.length;
    ctx.fillStyle='#fff2d5';ctx.shadowColor='#070a0e';ctx.shadowBlur=3;
    ctx.font=`bold ${Math.max(11,Math.min(21,Math.sqrt(area)*.38))}px Georgia`;
    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(sides===100?String(f.index*10).padStart(2,'0'):f.index+1,cx,cy);
    ctx.shadowBlur=0;
   }
+ }
+ // Tetrahedral dice use vertex values; render the physically upper vertex.
+ if(sides===4){
+   const vertex=vertices[DP.faceValue(d)-1];
+   const px=x+size*vertex[0],py=sy-size*vertex[1]+size*.20*vertex[2];
+   const tx=px+(x-px)*.30,ty=py+(sy-py)*.30;
+   ctx.fillStyle='#fff2d5';ctx.strokeStyle='#0b1018';ctx.lineWidth=3;
+   ctx.font='bold 17px Georgia';ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.strokeText(String(DP.faceValue(d)),tx,ty);
+   ctx.fillText(String(DP.faceValue(d)),tx,ty);
  }
  if(d.ready||d.id===hoverDieId||d.held){ctx.save();ctx.strokeStyle=d.held?'#a9d9f2':d.ready?'#f5c788bf':'#e5c08bb3';ctx.lineWidth=d.held?3:2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.ellipse(x,sy,size*1.19,size*1.13,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
  else if(d.sleeping){ctx.fillStyle='#fff0c7';ctx.font='bold 16px Georgia';ctx.textAlign='center';ctx.fillText(String(DP.faceValue(d)),x,y+size+19);}
