@@ -665,7 +665,7 @@ function overview(){
   <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
  return identityRibbon()+characterSetup()+buffBar()+
- `<section class="vitals-panel" aria-label="Hit points and conditions">
+ `<section class="vitals-panel" aria-label="Hit points">
  <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
  ${heartMeter(hp)}
  <div class="vital-controls"><label class="amount-label" for="hp-amount">HP</label><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
