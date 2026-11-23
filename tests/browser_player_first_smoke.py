@@ -42,8 +42,8 @@ with sync_playwright() as pw:
  for file in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/file).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Player Sheet QA'")
- assert page.locator('details[data-panel="Conditions"]').count()==1
- assert page.locator('#page > details[data-panel="Conditions"]').count()==1
+ assert page.locator('details[data-panel="Conditions"]').count()==0
+ assert page.locator('.buff-bar .condition-rail .condition-toggle').count()==15
  assert page.locator('.recipient-context').is_visible()
  assert page.get_by_role('tab',name='My Turn').count()==1
  assert page.locator('.encounter-targets').count()==0
@@ -62,10 +62,10 @@ with sync_playwright() as pw:
  assert page.evaluate('pendingRoll.expression')=='2d8+3'
  page.evaluate('cancelPreparedRoll()')
 
- page.locator('#page > details[data-panel="Conditions"] [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
+ page.locator('.buff-bar .condition-rail [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
  assert page.evaluate("character.conditions.includes('Poisoned')")
  assert page.evaluate("Action.activeEffects(character).length")==0
- page.locator('#page > details[data-panel="Conditions"] [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
+ page.locator('.buff-bar .condition-rail [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
  assert not page.evaluate("character.conditions.includes('Poisoned')")
 
  page.get_by_label('My Turn quick tracker').get_by_role('button',name='Start tracking').click(modifiers=['Alt'])
