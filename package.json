@@ -1,0 +1,8 @@
+{
+  "name": "interactive-tabletop",
+  "version": "0.56.0",
+  "private": true,
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0"
+  }
+}
