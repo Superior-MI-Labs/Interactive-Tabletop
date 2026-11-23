@@ -18,6 +18,12 @@ class ReleaseContract(unittest.TestCase):
             self.assertTrue((ROOT/'web/dnd-slots.js').is_file())
         self.assertIn('v'+version,(ROOT/'web/service-worker.js').read_text())
         self.assertIn('v'+version,(ROOT/'web/index.html').read_text())
+    def test_generated_physics_is_collected_in_desktop_zip(self):
+        builder=(ROOT/'tools/build_release.py').read_text()
+        self.assertLess(builder.index("subprocess.run("),
+                        builder.index("paths=[ROOT/f for f in FILES]"),
+                        "Generate dice-physics.js before collecting archive paths")
+
     def test_script_references_and_order(self):
         html=(ROOT/'web/index.html').read_text()
         files=re.findall(r'<script[^>]*\bsrc=["\']\./([^"\']+)',html)
