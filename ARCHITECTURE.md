@@ -1,5 +1,9 @@
 # Interactive Tabletop architecture — v0.54.0
 
+## v0.57 — Physical hand contract
+
+The same `web/dice-physics.source.js` Rapier world owns spring joints and rigid-body state. Each held die is a dynamic convex body connected to an invisible kinematic grip anchor. Only the anchor follows mouse position and wheel-selected height; the die reacts to spring forces and collisions. On release, the joint is removed and the existing body receives its initial velocity and direction-relative spin. The angle is changed in exactly five-degree wheel notches. All height/angle/spin/slingshot/force-ring state remains transient in `web/app.js`. Canvas owns rendering, `startDiceGroup` owns the single gameplay/roll commitment, and already recorded results cannot change from subsequent punches. Visible dice win pointer clicks, and Alt-click is the escape hatch to reach controls underneath.
+
 ## v0.54 — Player-first interaction boundary
 
 A character sheet is useful without an encounter: **roll, commit and resolve are distinct operations**. Ordinary Attack/Damage/Critical/custom-roll buttons use the existing physical `queueRoll` pipeline with no creature ID, HP mutation, `commitAttack` or hit adjudication. Their settled results and bonuses are character-scoped and informational.
