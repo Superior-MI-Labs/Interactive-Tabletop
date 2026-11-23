@@ -20,6 +20,8 @@ let editMode=false, actionFilter='all',spellFilter='all';
 const DP=globalThis.DicePhysics;
 let history=[],pendingRoll=null,dice=[],activeRolls=[],activeRoll=null,pointer=null,frame=0,lastFrame=0,accumulator=0,canvas=null,ctx=null;
 let lastDimensions={w:0,h:0},nextDieId=0;
+let throwSettings={height:.35,angleDeg:15,spin:0};
+let punchEffect=null;
 let queuedEffect=null,pendingHealing=null;
 let pendingDamage=[],selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
 let recipientChoice='self'; // transient self/other intent; never an encounter target or additional vault state
@@ -1704,135 +1706,182 @@ function initDiceCanvas(){
  // Capture events on the tabletop ancestor, and intercept ONLY a visible die hit.
  // This also works when a die lies above a button, input or scrollable panel.
  const findDie=(x,y)=>[...dice].reverse().find(d=>DP.hitTest(d,x,y,lastDimensions.w,lastDimensions.h,Math.max(10,d.r*.23)));
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const control='button,input,select,textarea,summary,label,a[href],[role="button"],[role="tab"],[contenteditable],[data-pointer-priority="control"]';
+ const moveGrips=()=>{
+  if(!pointer?.down)return;
+  pointer.selected.forEach((d,i)=>{
+   const off=pointer.offsets[i],prior=pointer.prior[i];
+   const liftY=(DP.height(d)+throwSettings.height*d.r*5-prior.z)*.45;
+   DP.moveGrip(d,clamp(pointer.x+off.x,d.r,lastDimensions.w-d.r),
+    clamp(pointer.y+off.y+liftY,d.r,lastDimensions.h-d.r),throwSettings.height);
+  });
+ };
  const cancelGrab=()=>{
   if(!pointer?.down)return false;
   const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
   try{stage.releasePointerCapture(held.id);}catch(_){}
-  held.selected.forEach((d,i)=>{d.held=false;const before=held.prior[i];
-   if(before){Object.assign(d,{x:before.x,y:before.y,q:before.q,v:before.v,w:before.w,z:before.z,
-    rolling:before.rolling,sleeping:before.sleeping,restTime:before.restTime});DP.park(d);}
-  });
+  held.selected.forEach((d,i)=>{Object.assign(d,held.prior[i]);d.held=false;DP.park(d);});
   return true;
  };
  const cancelGesture=()=>{
-  const hadPrepared=Boolean(pendingRoll);
-  if(pointer?.down)cancelGrab();
-  if(hadPrepared)cancelPreparedRoll();
-  return hadPrepared;
+  const grabbed=cancelGrab(),prepared=Boolean(pendingRoll);
+  if(prepared)cancelPreparedRoll();
+  return grabbed||prepared;
  };
- const releaseGrab=(vx,vy,shake)=>{
-   if(!pointer?.down)return;
-   const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
-   try{stage.releasePointerCapture(held.id);}catch(_){}
-   if(held.mode==='existing'){
-     // Catch and rethrow an in-flight die; its original roll still owns its result.
-     held.selected.forEach(d=>{d.held=false;DP.launch(d,vx,vy,shake);});
-   } else if(held.mode==='manual'){
-     startDiceGroup(held.selected,{modifier:0,label:`d${held.selected[0].sides}`,expression:`1d${held.selected[0].sides}`},vx,vy,shake,null);
-   } else beginThrow(vx||120,vy||45,shake||80);
-   lastDiceGesture={time:performance.now(),x:held.x,y:held.y};
+ const releaseGrab=()=>{
+  if(!pointer?.down)return;
+  const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
+  try{stage.releasePointerCapture(held.id);}catch(_){}
+  const fade=clamp(1-(performance.now()-held.lastTime)/150,0,1);
+  const vx=clamp(held.dx*fade,-850,850),vy=clamp(held.dy*fade,-850,850);
+  const settings={...throwSettings,sling:held.slingAnchor?{
+   anchorX:held.slingAnchor.x,anchorY:held.slingAnchor.y,fromX:held.x,fromY:held.y}:null};
+  if(held.mode==='existing')held.selected.forEach(d=>DP.release(d,vx,vy,settings));
+  else {
+   const p=held.selected[0],ok=held.mode==='manual'
+    ?startDiceGroup(held.selected,{modifier:0,label:'d'+p.sides,expression:'1d'+p.sides},vx,vy,0,null,settings)
+    :beginThrow(vx,vy,0,settings);
+   if(!ok)held.selected.forEach((d,i)=>{Object.assign(d,held.prior[i]);d.held=false;DP.park(d);});
+  }
+  lastDiceGesture={time:performance.now(),x:held.x,y:held.y};
  };
  stage.addEventListener('click',e=>{
-   if(!lastDiceGesture)return;
-   const recent=performance.now()-lastDiceGesture.time<600;
-   const near=Math.hypot(e.clientX-(stage.getBoundingClientRect().left+lastDiceGesture.x),e.clientY-(stage.getBoundingClientRect().top+lastDiceGesture.y))<250;
-   if(recent&&near){e.preventDefault();e.stopPropagation();}
-   lastDiceGesture=null;
+  if(!lastDiceGesture)return;
+  const recent=performance.now()-lastDiceGesture.time<600;
+  const r=stage.getBoundingClientRect();
+  const near=Math.hypot(e.clientX-r.left-lastDiceGesture.x,e.clientY-r.top-lastDiceGesture.y)<250;
+  if(recent&&near){e.preventDefault();e.stopPropagation();}
+  lastDiceGesture=null;
  },true);
  stage.addEventListener('contextmenu',e=>{
-   e.preventDefault();e.stopPropagation();
-   cancelGesture();
+  if(pointer?.down){e.preventDefault();e.stopPropagation();cancelGesture();}
  });
- // Pointer Events do not emit a second pointerdown if a second mouse button
- // is pressed while the primary button remains held. mousedown does.
  document.addEventListener('mousedown',e=>{
-   if(e.button!==2||!pointer?.down)return;
-   e.preventDefault();e.stopPropagation();
-   cancelGesture();
+  if(e.button!==2||!pointer?.down)return;
+  e.preventDefault();e.stopPropagation();cancelGesture();
  },true);
  stage.addEventListener('pointerdown',e=>{
-   if(pointer?.down||e.button!==0)return;
-   const followingGroup=following&&pendingRoll?dice.filter(d=>d.ready):[];
-   // The canvas is visual; the stage captures input above the sheet. Resting
-   // dice must not intercept actual UI controls. Alt+drag is the deliberate
-   // way to retrieve a die from atop a control. Prepared dice still own the
-   // release gesture only on unobstructed tabletop; actual controls always win.
-   if(!e.altKey&&e.target.closest?.('button,input,select,textarea,summary,label,a[href],[role="button"],[role="tab"],[contenteditable],[data-pointer-priority="control"]')){
-    lastDiceGesture=null; // A new control click must not inherit old drag suppression.
-    return;
-   }
-   const {x,y}=relative(e);pointerPosition={x,y};
-   // Mixed dice orbit the cursor; its exact position can fall between the dice.
-   // Catch that click before underlying buttons rather than requiring a die hit.
-   const hit=followingGroup.length?followingGroup[0]:findDie(x,y);
-   if(!hit)return;
+  if(pointer?.down||e.button!==0)return;
+  const {x,y}=relative(e);pointerPosition={x,y};
+  const hit=findDie(x,y),ui=e.target.closest?.(control);
+  if(e.shiftKey&&!e.altKey&&(hit||!ui)){
    e.preventDefault();e.stopPropagation();
-   hoverDieId=hit.id;stage.classList.remove('die-hover');
-   stage.setPointerCapture(e.pointerId);
-   following=false;stage.classList.remove('dice-following');
-   const active=activeRolls.find(g=>g.diceIds.includes(hit.id));
-   // A pending automatic roll keeps its own ready dice when an unrelated die
-   // is grabbed. No one-roll global lockout and no lost attached heal effect.
-   const mode=followingGroup.length?'prepared':active?'existing':hit.ready&&pendingRoll?'prepared':'manual';
-   const selected=mode==='prepared'?followingGroup.length?followingGroup:dice.filter(d=>d.ready):[hit];
-   const prior=selected.map(d=>({sleeping:d.sleeping,rolling:d.rolling,v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
-   selected.forEach(d=>{d.held=true;d.sleeping=true;DP.park(d);});
-   pointer={id:e.pointerId,x,y,dx:0,dy:0,shake:0,down:true,lastTime:performance.now(),selected,mode,
-    offsets:selected.map(d=>({x:d.x-x,y:d.y-y})),prior};
-   document.body.classList.add('dice-dragging');
-   $('#tray-help').textContent='Drag to shake · release to throw · right-click cancels';
+   const hits=DP.punch(dice,x,y);
+   punchEffect={x,y,time:performance.now()};
+   lastDiceGesture={time:performance.now(),x,y};
+   $('#tray-help').textContent='Force punch · '+hits+' dice affected';
+   return;
+  }
+  // Die hit-testing precedes UI button priority; Alt clicks through a die.
+  if(e.altKey)return;
+  const followingGroup=following&&pendingRoll?dice.filter(d=>d.ready):[];
+  const hitDie=hit&&!hit.ready?hit:(followingGroup[0]||hit);
+  if(!hitDie)return;
+  e.preventDefault();e.stopPropagation();
+  hoverDieId=hitDie.id;stage.classList.remove('die-hover');
+  stage.setPointerCapture(e.pointerId);
+  following=false;stage.classList.remove('dice-following');
+  const active=activeRolls.find(g=>g.diceIds.includes(hitDie.id));
+  const mode=active?'existing':hitDie.ready&&pendingRoll?'prepared':'manual';
+  const selected=mode==='prepared'?dice.filter(d=>d.ready):[hitDie];
+  const prior=selected.map(d=>({ready:d.ready,sleeping:d.sleeping,rolling:d.rolling,
+   v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
+  const offsets=selected.map(d=>({x:d.x-x,y:d.y-y}));
+  selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
+  pointer={id:e.pointerId,x,y,dx:0,dy:0,down:true,lastTime:performance.now(),selected,mode,
+   offsets,prior,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
+  moveGrips();
+  document.body.classList.add('dice-dragging');
+  $('#tray-help').textContent='Grab · wheel lift · Ctrl+wheel 5° angle · Shift+wheel spin · Ctrl slingshot · right-click cancel';
  },true);
  stage.addEventListener('pointermove',e=>{
-   const {x,y}=relative(e);pointerPosition={x,y};
-   if(!pointer?.down){
-     const overControl=e.target.closest?.('button,input,select,textarea,summary,label,a[href],[role="button"],[role="tab"],[contenteditable],[data-pointer-priority="control"]');
-   hoverDieId=!overControl||following?findDie(x,y)?.id??null:null;
+  const {x,y}=relative(e);pointerPosition={x,y};
+  if(!pointer?.down){
+   hoverDieId=findDie(x,y)?.id??null;
    stage.classList.toggle('die-hover',hoverDieId!==null);
-     if(following&&pendingRoll){
-       const selected=dice.filter(d=>d.ready);
-       selected.forEach((d,i)=>{
-         const cols=Math.min(4,selected.length),col=i%cols,row=Math.floor(i/cols);
-         const spacing=diceSpacing();
-         d.x=Math.max(d.r,Math.min(lastDimensions.w-d.r,x+(col-(cols-1)/2)*spacing));
-         d.y=Math.max(d.r,Math.min(lastDimensions.h-d.r,y+row*spacing));d.z=DP.height(d)+15;
-       });
-     }
-     return;
+   if(following&&pendingRoll){
+    const selected=dice.filter(d=>d.ready);
+    selected.forEach((d,i)=>{
+     const cols=Math.min(4,selected.length),col=i%cols,row=Math.floor(i/cols),spacing=diceSpacing();
+     d.x=clamp(x+(col-(cols-1)/2)*spacing,d.r,lastDimensions.w-d.r);
+     d.y=clamp(y+row*spacing,d.r,lastDimensions.h-d.r);d.z=DP.height(d)+15;
+     DP.park(d);
+    });
    }
-   if(pointer.id!==e.pointerId)return;
-   e.preventDefault();
-   const dt=Math.max(8,performance.now()-pointer.lastTime),dx=x-pointer.x,dy=y-pointer.y;
-   pointer.dx=pointer.dx*.50+dx/dt*1000*.50;
-   pointer.dy=pointer.dy*.50+dy/dt*1000*.50;
-   pointer.shake=Math.min(350,pointer.shake+Math.hypot(dx,dy));pointer.x=x;pointer.y=y;pointer.lastTime=performance.now();
-   // Holding only translates dice. Physical spin begins with the release impulse.
-   pointer.selected.forEach((d,i)=>{
-     const off=pointer.offsets[i];d.x=Math.max(d.r,Math.min(lastDimensions.w-d.r,x+off.x));
-     d.y=Math.max(d.r,Math.min(lastDimensions.h-d.r,y+off.y));d.z=DP.height(d)+23;
-   });
+   return;
+  }
+  if(pointer.id!==e.pointerId)return;
+  e.preventDefault();
+  const dt=Math.max(8,performance.now()-pointer.lastTime),dx=x-pointer.x,dy=y-pointer.y;
+  pointer.dx=pointer.dx*.5+dx/dt*500;
+  pointer.dy=pointer.dy*.5+dy/dt*500;
+  pointer.x=x;pointer.y=y;pointer.lastTime=performance.now();
+  if(e.ctrlKey&&!pointer.slingAnchor)pointer.slingAnchor={x,y};
+  if(!e.ctrlKey)pointer.slingAnchor=null;
+  moveGrips();
  });
+ stage.addEventListener('wheel',e=>{
+  if(!pointer?.down)return;
+  e.preventDefault();e.stopPropagation();
+  const mode=e.shiftKey?'spin':e.ctrlKey?'angle':'height';
+  if(pointer.wheelMode!==mode){pointer.wheelMode=mode;pointer.wheelRemainder=0;}
+  pointer.wheelRemainder+=e.deltaMode===1?e.deltaY*40:e.deltaMode===2?e.deltaY*120:e.deltaY;
+  const steps=Math.trunc(pointer.wheelRemainder/100);
+  pointer.wheelRemainder-=steps*100;
+  if(!steps)return;
+  if(mode==='angle')throwSettings.angleDeg=clamp(throwSettings.angleDeg-steps*5,-85,85);
+  else if(mode==='spin')throwSettings.spin=clamp(Math.round((throwSettings.spin-steps*.1)*10)/10,-1,1);
+  else throwSettings.height=clamp(Math.round((throwSettings.height-steps*.05)*100)/100,0,1);
+  moveGrips();
+ },{capture:true,passive:false});
  stage.addEventListener('pointerup',e=>{
-   if(!pointer?.down||pointer.id!==e.pointerId)return;
-   pointer.x=relative(e).x;pointer.y=relative(e).y;
-   releaseGrab(Math.max(-850,Math.min(850,pointer.dx)),Math.max(-850,Math.min(850,pointer.dy)),pointer.shake);
+  if(pointer?.down&&pointer.id===e.pointerId){pointer.x=relative(e).x;pointer.y=relative(e).y;releaseGrab();}
  });
  stage.addEventListener('pointercancel',e=>{
-   if(!pointer?.down||pointer.id!==e.pointerId)return;
-   const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
-   held.selected.forEach((d,i)=>{
-     d.held=false;const before=held.prior[i];
-     if(held.mode==='existing'&&before){
-       Object.assign(d,before);
-     }else{d.sleeping=true;d.z=DP.height(d);}
-      DP.park(d);
-   });
+  if(pointer?.down&&pointer.id===e.pointerId)cancelGrab();
  });
  document.addEventListener('keydown',e=>{
-   if(e.key!=='Escape'||(!pendingRoll&&!pointer?.down))return;
-   if(!cancelGesture())return;
-   e.preventDefault();toast('Prepared roll canceled; no combat costs spent.');
+  if(e.key==='Control'&&pointer?.down&&!pointer.slingAnchor)
+   pointer.slingAnchor={x:pointer.x,y:pointer.y};
+  if(e.key==='Escape'&&(pointer?.down||pendingRoll)&&cancelGesture()){
+   e.preventDefault();toast('Dice interaction canceled; no uncommitted costs spent.');
+  }
  });
- stage.addEventListener('pointerleave',()=>{if(!pointer?.down){pointerPosition=null;hoverDieId=null;stage.classList.remove('die-hover');}});
+ document.addEventListener('keyup',e=>{
+  if(e.key==='Control'&&pointer?.down)pointer.slingAnchor=null;
+ });
+ stage.addEventListener('pointerleave',()=>{
+  if(!pointer?.down){pointerPosition=null;hoverDieId=null;stage.classList.remove('die-hover');}
+ });
+ const drawGestureHud=(now,W,H)=>{
+  if(punchEffect){
+   const progress=(now-punchEffect.time)/320;
+   if(progress>=1)punchEffect=null;
+   else{
+    ctx.save();ctx.beginPath();ctx.arc(punchEffect.x,punchEffect.y,125*progress,0,Math.PI*2);
+    ctx.strokeStyle='rgba(119,201,247,'+((1-progress)*.8)+')';
+    ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
+   }
+  }
+  if(!pointer?.down)return;
+  const p=pointer;
+  if(p.slingAnchor){
+   ctx.save();ctx.setLineDash([7,5]);ctx.lineWidth=2.5;ctx.strokeStyle='#f2bb6b';
+   ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.slingAnchor.x,p.slingAnchor.y);
+   ctx.stroke();ctx.restore();
+  }
+  const x=clamp(p.x+22,8,Math.max(8,W-206)),y=clamp(p.y-95,8,Math.max(8,H-65));
+  ctx.save();ctx.fillStyle='rgba(12,22,35,.91)';ctx.strokeStyle='rgba(208,223,236,.55)';
+  ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x,y,197,64,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#e4ebf5';ctx.font='12px system-ui';ctx.textAlign='left';
+  ctx.fillText('HEIGHT  '+throwSettings.height.toFixed(2),x+10,y+17);
+  ctx.fillText('ANGLE '+(throwSettings.angleDeg>=0?'+':'')+throwSettings.angleDeg+
+   '°   SPIN '+(throwSettings.spin>0?'+':'')+throwSettings.spin.toFixed(1),x+10,y+54);
+  ctx.fillStyle='#46566c';ctx.fillRect(x+10,y+24,177,7);
+  ctx.fillStyle='#80c7ef';ctx.fillRect(x+10,y+24,177*throwSettings.height,7);
+  ctx.restore();
+ };
  const draw=(now)=>{
   const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
   if(canvas.width!==Math.round(r.width*dpr)||canvas.height!==Math.round(r.height*dpr)){
@@ -1848,6 +1897,7 @@ function initDiceCanvas(){
   }
   finishRollIfSettled();
   renderTray(r.width,r.height);
+  drawGestureHud(now,r.width,r.height);
   frame=requestAnimationFrame(draw);
  };
  frame=requestAnimationFrame(draw);
