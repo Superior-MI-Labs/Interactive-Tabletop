@@ -26,6 +26,7 @@ for(const sides of [4,6,8,10,12,20,100]){
  assert.ok(d.sleeping,`d${sides} did not reach a resting state`);
  assert.ok(steps>100,`d${sides} stopped immediately`);
  assert.ok(Math.abs(d.z-DP.height(d))<.001,`d${sides} does not rest on its physical support`);
+ assert.ok(Math.min(...mesh.faces.map(f=>DP.rotate(d.q,f.normal)[2]))<-.985,`d${sides} stopped on an edge rather than a supporting face`);
  const face=DP.faceValue(d);
  assert.ok(sides===100?(face>=0&&face<=90&&face%10===0):(face>=1&&face<=sides),`d${sides} face invalid: ${face}`);
 }
@@ -35,4 +36,20 @@ DP.launch(a,200,40,30);DP.launch(b,-180,40,30);
 for(let i=0;i<1000;i++){DP.step(a,1/120,500,400);DP.step(b,1/120,500,400);DP.collide([a,b]);}
 assert.ok(a.sleeping&&b.sleeping,'Collision group did not settle');
 assert.ok(Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>a.r+b.r-2,'Dice still penetrate');
+// A tetrahedral d4 reads its upper vertex; tiny resting motion keeps that value.
+const tetra=DP.mesh(4);
+for(let i=0;i<tetra.v.length;i++){
+ const v=tetra.v[i],cross=[v[1],-v[0],0];
+ const raw=[1+v[2],...cross],len=Math.hypot(...raw);
+ const d=DP.makeDie(4,200,200);
+ d.q=raw.map(n=>n/len);d.z=DP.height(d);
+ assert.equal(DP.faceValue(d),i+1,'d4 vertex identity');
+ const value=DP.faceValue(d);
+ d.q=DP.advance(d.q,[0,1,0],.001);
+ assert.equal(DP.faceValue(d),value,'small resting wobble changes d4 value');
+}
+// Angular velocity changes sign with flick direction, before any collision.
+const right=DP.makeDie(6,180,170),left=DP.makeDie(6,180,170);
+DP.launch(right,500,0,0);DP.launch(left,-500,0,0);
+assert.ok(right.w[1]>0&&left.w[1]<0,'flick direction does not control spin');
 console.log('dice physics tests passed');

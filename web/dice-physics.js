@@ -72,6 +72,12 @@
   }
   function faceValue(d){
     const shape=mesh(d.sides);
+    if(d.sides===4){
+      // A tetrahedron rests on a face and is read at its opposite, upper vertex.
+      let vertex=0,up=-Infinity;
+      shape.v.forEach((v,i)=>{const z=rotate(d.q,v)[2];if(z>up){up=z;vertex=i;}});
+      return vertex+1;
+    }
     let face=0,up=-Infinity;
     shape.faces.forEach((f,i)=>{const z=rotate(d.q,f.normal)[2];if(z>up){up=z;face=i;}});
     return d.sides===100?(face*10):face+1; // d100: 00,10,...,90, 00 maps to 100 for a full percentile die
@@ -111,7 +117,9 @@
   function launch(d,vx,vy,spin){
     d.z=height(d)+55;
     d.v=[vx,vy,270+random()*150];
-    d.w=[(random()-.5)*8+spin*.03,(random()-.5)*8+spin*.035,(random()-.5)*9];
+    // Flick speed imparts rolling angular velocity; shake only varies the release.
+    const roll=.6/d.r,variation=Math.min(7,2+Math.max(0,spin)*.014);
+    d.w=[-vy*roll+(random()-.5)*variation,vx*roll+(random()-.5)*variation,(random()-.5)*variation];
     d.sleeping=false;d.restTime=0;d.rolling=true;d.held=false;
   }
   const G=1040;
@@ -126,7 +134,7 @@
     for(let axis=0;axis<2;axis++){
       const key=axis===0?'x':'y',max=axis===0?width:heightLimit;
       const v=d[key];
-      if(v<d.r||v>max-d.r){d[key]=Math.max(d.r,Math.min(max-d.r,v));d.v[axis]*=-.46;d.w[1-axis]+=(random()-.5)*1.1;}
+      if(v<d.r||v>max-d.r){d[key]=Math.max(d.r,Math.min(max-d.r,v));d.v[axis]*=-.46;}
     }
     const floor=height(d),gap=d.z-floor;
     if(gap<=.03){
@@ -155,7 +163,9 @@
       d.v[0]*=Math.exp(-3.4*dt);d.v[1]*=Math.exp(-3.4*dt);
       d.w=scale(d.w,Math.exp(-4.5*dt));
       if(Math.abs(d.v[2])<6)d.v[2]=0;
-      if(norm(d.v)<25&&norm(d.w)<.85)d.restTime+=dt;else d.restTime=0;
+      // A stable rest needs a supporting face, not just low velocity on an edge.
+      const faceSupported=mesh(d.sides).faces.some(f=>rotate(d.q,f.normal)[2]<-.985);
+      if(faceSupported&&norm(d.v)<25&&norm(d.w)<.85)d.restTime+=dt;else d.restTime=0;
       if(d.restTime>.65){d.sleeping=true;d.rolling=false;d.v=[0,0,0];d.w=[0,0,0];d.z=height(d);}
     }else d.restTime=0;
   }
