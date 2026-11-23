@@ -178,6 +178,25 @@ with sync_playwright() as pw:
  assert page.evaluate('punchCharge===null&&punchEffect===null'),'Switch must discard charging impulse'
  page.mouse.up();page.keyboard.up('Shift')
  assert page.evaluate('pendingRoll===null&&pointer===null'),'Old gesture cannot affect new character'
+ # The physical mouse is the throwing hand: fast releases must not clip
+ # to the former 850/900px/s caps or halve their measured speed.
+ flick=page.evaluate('''()=>{
+  const d=DP.makeDie(8,260,180,26);d.id=++nextDieId;dice.push(d);DP.park(d);
+  const r=document.querySelector('#dice-stage').getBoundingClientRect();
+  return {id:d.id,x:r.left+d.x,y:r.top+d.y-d.z*.45};
+ }''')
+ page.mouse.move(flick['x'],flick['y']);page.mouse.down()
+ assert page.evaluate('pointer?.selected[0].id')==flick['id']
+ page.mouse.move(flick['x']+240,flick['y'])
+ assert page.evaluate('pointer.samples.length>=2'),'Mouse movement must enter release history'
+ page.evaluate('''()=>{
+  const t=performance.now(),h=pointer;
+  h.samples=[{x:h.x-240,y:h.y,time:t-30},{x:h.x,y:h.y,time:t}];
+ }''')
+ page.mouse.up()
+ assert page.evaluate('dice.find(d=>d.id==='+str(flick['id'])+').v[0]')>5500,\
+  'Fast physical toss must retain measured pointer velocity beyond former speed caps'
+ assert page.evaluate('activeRolls.length')==1,'Ordinary toss still uses one roll owner'
  assert not errors,errors
- print('PASS browser: physical grip, Alt click-through, wheel controls, sling, charged Shift-click over buttons, concurrent rolls, cancel, modifiers')
+ print('PASS browser: uncapped hand throws, wheel controls, sling, charged punch, concurrent rolls, cancel and modifiers')
  browser.close()
