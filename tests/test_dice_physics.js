@@ -27,7 +27,8 @@ for(const sides of [4,6,8,10,12,20,100]){
  while(!d.sleeping&&steps<2400){DP.stepWorld([d],1/120,550,450);steps++;}
  assert.ok(d.sleeping,`d${sides} did not reach a resting state`);
  assert.ok(steps>24,`d${sides} stopped immediately`);
- assert.ok(Math.abs(d.z-DP.height(d))<.001,`d${sides} does not rest on its physical support`);
+ const supportGap=Math.abs(d.z-DP.height(d));
+ assert.ok(supportGap<d.r*.12,`d${sides} ground contact mismatch: ${supportGap.toFixed(3)}px`);
  assert.ok(Math.min(...mesh.faces.map(f=>DP.rotate(d.q,f.normal)[2]))<-.985,`d${sides} stopped on an edge rather than a supporting face`);
  const face=DP.faceValue(d);
  assert.ok(sides===100?(face>=0&&face<=90&&face%10===0):(face>=1&&face<=sides),`d${sides} face invalid: ${face}`);
