@@ -66,7 +66,7 @@ with sync_playwright() as pw:
  # A finished die can overlap this button; Alt deliberately reaches the UI.
  bonus.click(modifiers=['Alt'])
  assert page.evaluate("Action.availableAttackGrants(character,'unarmed')")==2
- assert page.evaluate('pendingRoll is not null'),'Alt-click must prepare the bonus roll'
+ assert page.evaluate('pendingRoll !== null'),'Alt-click must prepare the bonus roll'
  page.evaluate('beginThrow()')
  assert page.evaluate("Action.availableAttackGrants(character,'unarmed')")==1
  assert page.evaluate('character.effects.combat.economy.spent.action')==1
