@@ -46,11 +46,11 @@ with sync_playwright() as pw:
  assert page.evaluate('pendingRoll?.expression')=='1d20+3','Alt-click must activate the underlying sheet button'
  # A prepared die following the cursor must also leave real controls usable.
  widget=page.locator('#dice-widget > summary')
- widget.click()
+ widget.click(modifiers=['Alt'])
  assert page.locator('#dice-widget').get_attribute('open') is not None
  assert page.evaluate('pendingRoll?.expression')=='1d20+3'
  assert page.evaluate('pointer===null')
- widget.click()
+ widget.click(modifiers=['Alt'])
  page.evaluate('cancelPreparedRoll()')
  assert page.evaluate('pendingRoll===null')
  # Normal left-click grabs the same die even if it overlaps a button.

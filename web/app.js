@@ -1729,6 +1729,7 @@ function initDiceCanvas(){
   if(prepared)cancelPreparedRoll();
   return grabbed||prepared;
  };
+ let suppressContextUntil=0;
  const releaseGrab=()=>{
   if(!pointer?.down)return;
   const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
@@ -1755,10 +1756,11 @@ function initDiceCanvas(){
   lastDiceGesture=null;
  },true);
  stage.addEventListener('contextmenu',e=>{
-  if(pointer?.down){e.preventDefault();e.stopPropagation();cancelGesture();}
+  if(pointer?.down||performance.now()<suppressContextUntil){e.preventDefault();e.stopPropagation();cancelGesture();}
  });
  document.addEventListener('mousedown',e=>{
   if(e.button!==2||!pointer?.down)return;
+  suppressContextUntil=performance.now()+350;
   e.preventDefault();e.stopPropagation();cancelGesture();
  },true);
  stage.addEventListener('pointerdown',e=>{
