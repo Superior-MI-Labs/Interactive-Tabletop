@@ -1866,7 +1866,7 @@ function initDiceCanvas(){
  });
  const drawGestureHud=(now,W,H)=>{
   if(punchEffect){
-   const progress=(now-punchEffect.time)/320;
+   const progress=Math.max(0,(now-punchEffect.time)/320);
    if(progress>=1)punchEffect=null;
    else{
     ctx.save();ctx.beginPath();ctx.arc(punchEffect.x,punchEffect.y,125*progress,0,Math.PI*2);
