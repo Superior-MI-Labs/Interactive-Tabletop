@@ -65,6 +65,24 @@ assert.ok(transferred,'Dragged die did not push a resting d20');
 DP.release(held,160,0,{angleDeg:0,spin:0});
 for(let i=0;i<1200;i++)DP.stepWorld([held,resting],1/120,540,470);
 assert.ok(held.sleeping&&resting.sleeping,'Both interacting dice should settle');
+// A fast mouse shake must converge to the real hand target, without a lasting
+// orbital spin around the pointer. Releasing/canceling restores normal damping.
+const shake=DP.makeDie(6,260,200);
+DP.grab(shake,260,200,.8);
+for(let i=0;i<30;i++){
+ DP.moveGrip(shake,i%2?455:65,i%3?290:100,.8);
+ DP.stepWorld([shake],1/120,550,450);
+}
+for(let i=0;i<300;i++){
+ DP.moveGrip(shake,260,200,.8);
+ DP.stepWorld([shake],1/120,550,450);
+}
+assert.ok(Math.hypot(shake.x-260,shake.y-200)<16,'Held die keeps orbiting instead of approaching hand target');
+assert.ok(Math.hypot(...shake.w)<4,'Shake angular momentum fails to damp while holding');
+shake.held=false;shake.ready=false;shake.sleeping=true;shake.v=[0,0,0];shake.w=[0,0,0];
+DP.park(shake); // Must detach the joint and restore default rotational damping.
+DP.launch(shake,240,0,0,{angleDeg:0,spin:1});
+assert.ok(shake.w[1]>0,'Canceling the grip must not reverse or suppress the next throw');
 // A tetrahedral d4 reads its upper vertex; tiny resting motion keeps that value.
 const tetra=DP.mesh(4);
 for(let i=0;i<tetra.v.length;i++){

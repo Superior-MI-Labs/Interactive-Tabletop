@@ -177,6 +177,9 @@ function createDicePhysics(RAPIER) {
  }
  function endGrip(d){
   const g=grips.get(d);if(!g)return;
+  // Restore baseline rotational response on every exit: drop, cancel,
+  // character switch, or ordinary release.
+  const b=bodies.get(d);if(b)b.setAngularDamping(1.35);
   world.removeImpulseJoint(g.joint,true);
   world.removeRigidBody(g.anchor);
   grips.delete(d);
@@ -236,7 +239,7 @@ function createDicePhysics(RAPIER) {
  }
  function release(d,vx=0,vy=0,settings={}){
   const b=body(d);
-  endGrip(d);b.setAngularDamping(1.35);
+  endGrip(d);
   d.held=false;d.ready=false;d.sleeping=false;d.rolling=true;
   setColliding(d,b);
   if(settings.sling){
