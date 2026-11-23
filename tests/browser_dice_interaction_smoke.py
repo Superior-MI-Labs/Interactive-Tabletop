@@ -114,7 +114,8 @@ with sync_playwright() as pw:
  assert page.evaluate('punchCharge!==null && pointer===null'),'Shift+click must charge without grabbing'
  assert page.evaluate('punchEffect===null'),'No pulse may fire before release'
  page.mouse.up()
- assert page.evaluate('punchEffect.power>=.35&&punchEffect.power<1'),'Quick pulse starts at 35%'
+ assert page.evaluate('punchEffect.power>=.15&&punchEffect.power<.6'),'Quick pulse starts at 15%' 
+ assert page.evaluate('Math.abs(DP.punchRadius(.15)-DP.punchRadius(1)*.15)<1e-8'),'Quick pulse radius is 15% of maximum'
  assert page.evaluate('activeRolls.length')==0,'Force punch must never create a roll group'
  # Even directly over a working ability button, Shift+click must never invoke it.
  ability=page.locator('.ability-roll').first.bounding_box()
