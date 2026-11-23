@@ -102,14 +102,27 @@ with sync_playwright() as pw:
  page.evaluate('''()=>{for(const d of dice){d.sleeping=true;d.held=false;d.rolling=false;}finishRollIfSettled()}''')
  assert page.evaluate('activeRolls.length')==0
  assert page.evaluate('history.length')==2
- # A shift-click applies a radial impulse without creating another roll group.
+ # Shift+press only charges; releasing the left button emits the impulse.
  n=page.evaluate('''()=>{const d=dice[0];const r=document.querySelector('#dice-stage').getBoundingClientRect();
  return {x:r.left+d.x,y:r.top+d.y-d.z*.45};}''')
  page.keyboard.down('Shift')
- page.mouse.click(n['x'],n['y'])
- page.keyboard.up('Shift')
- assert page.evaluate('pointer===null'),'Force punch must not start a grab'
+ page.mouse.move(n['x'],n['y']);page.mouse.down()
+ assert page.evaluate('punchCharge!==null && pointer===null'),'Shift+click must charge without grabbing'
+ assert page.evaluate('punchEffect===null'),'No pulse may fire before release'
+ page.mouse.up()
+ assert page.evaluate('punchEffect.power>=.35&&punchEffect.power<1'),'Quick pulse starts at 35%'
  assert page.evaluate('activeRolls.length')==0,'Force punch must never create a roll group'
+ # Even directly over a working ability button, Shift+click must never invoke it.
+ ability=page.locator('.ability-roll').first.bounding_box()
+ cx=ability['x']+ability['width']/2;cy=ability['y']+ability['height']/2
+ page.mouse.move(cx,cy);page.mouse.down()
+ assert page.evaluate('punchCharge!==null && pendingRoll===null'),'Shift+click must override ability controls'
+ page.wait_for_timeout(550)
+ assert page.evaluate('punchCharge!==null && pendingRoll===null'),'Holding charge must not fire or click'
+ page.mouse.up();page.keyboard.up('Shift')
+ assert page.evaluate('punchEffect.power===1'),'Half-second hold must reach full power'
+ assert page.evaluate('punchEffect.radius===DP.punchRadius(1)'),'Pulse and preview share the physical radius'
+ assert page.evaluate('pendingRoll===null && pointer===null'),'A charged button click must never prepare a roll'
  # Settled modifier-adjusted total is prominent in the collapsed Dice header.
  # This reuses the same roll-group calculator, not a second UI formula.
  page.evaluate('''()=>{queueRoll('1d20+6','Longsword attack');beginThrow();
@@ -146,5 +159,5 @@ with sync_playwright() as pw:
  assert page.locator('#dice-widget').get_attribute('open') is None
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
  assert not errors,errors
- print('PASS browser: dice-first grab, Alt click-through, wheel/angle/spin, sling toggle, concurrent rolls, cancel, modifiers, zero errors')
+ print('PASS browser: physical grip, Alt click-through, wheel controls, sling, charged Shift-click over buttons, concurrent rolls, cancel, modifiers')
  browser.close()

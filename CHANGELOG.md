@@ -1,4 +1,13 @@
-## v0.57.0 — Physical spring grip and expressive throws (candidate)
+## v0.58.0 — Grip damping, bounded slingshot and charged force punch (candidate)
+
+- Corrected signed throw spin relative to travel: positive spin aligns with physically forward rolling (`up × direction`), negative spin creates backspin.
+- Moved the existing Rapier spring attachment almost to the die center, increased joint/rotation damping, and capped the kinematic hand-anchor displacement per step to prevent long spiraling after a fast mouse flick.
+- Unified Ctrl slingshot and normal holding around the same hand spring. Ctrl pins a slingshot origin; the moving hand target is capped at 160 px of pull; Ctrl release returns normal following. Tension ranges from 0 to 1 and launches up to 1,400 px/s (stronger than previous throws).
+- The dotted sling/grip tether now terminates on the actual physical dice, with a displayed 0–100% tension indicator.
+- Shift+left-click always intercepts dice-stage controls, begins a 35%-charged radial pulse and fills to 100% over 500 ms. Mouse release fires (never mouse down); visible radius grows with charge, full physical impulse is 3× its old peak. Canceled gestures have no pulse or gameplay cost.
+- Extended unit and browser regressions for physical spin sign, sling cap/max velocity, punch power/radius, charge-on-release, and Shift+click priority over buttons.
+
+## v0.57.0 — Physical spring grip and expressive throws
 
 - Replaced cursor-teleported held dice with dynamic Rapier convex bodies attached to off-center spring joints and invisible kinematic hand anchors. Grabbing, shaking, lifting and floor dragging now apply physical forces.
 - Plain wheel adjusts lift (0–1); Ctrl+wheel adjusts launch angle by 5° per notch (-85° to +85°); Shift+wheel adjusts direction-relative forward/backspin (-1 to +1). A small in-tray indicator displays all three.
