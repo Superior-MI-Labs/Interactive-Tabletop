@@ -279,8 +279,10 @@ function conditionIcon(name,active){
 }
 function conditionRail(){
  const active=character.conditions||[];
- return `<div class='condition-rail'><p class='condition-guidance'>Toggle a condition manually. Tracked spell and ability sources still end through their own controls.</p>
- <div class='condition-icons' aria-label='Toggle character conditions'>${Object.keys(conditionPaths).map(name=>conditionIcon(name,active.includes(name))).join('')}</div></div>`;
+ return `<div class='condition-rail' aria-label='Conditions'>
+  <span class='buff-caption'>CONDITIONS</span>
+  <div class='condition-icons' aria-label='Toggle character conditions'>${Object.keys(conditionPaths).map(name=>conditionIcon(name,active.includes(name))).join('')}</div>
+ </div>`;
 }
 function heartMeter(hp){
  const total=Math.max(1,Math.ceil(hp.max/5));
@@ -343,7 +345,8 @@ function effectDetails(effect){
 function buffBar(){
  if(!character)return '';
  const active=Action.activeEffects(character),checks=character.effects?.pending_concentration||[];
- return `<section class='buff-bar' aria-label='Active buffs and debuffs'>
+ return `<section class='buff-bar' aria-label='Conditions, buffs and debuffs'>
+ ${conditionRail()}<span class='buff-separator' aria-hidden='true'></span>
  <span class='buff-caption'>EFFECTS</span>
  ${!active.length&&!checks.length?`<small class='buff-empty'>No active effects</small>`:''}
  ${active.map(effect=>`<div class='buff-token' data-tip='${esc(effect.name)}' data-tip-detail='${esc(effectDetails(effect))}' data-tip-source='Character effect · Configured source and DM rules'>
@@ -671,7 +674,7 @@ function overview(){
  <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
  ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}
  </div></details></div></section>
- ${panel('Conditions',conditionRail())}${personalTurnSummary()}
+ ${personalTurnSummary()}
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
  <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
  <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
@@ -1720,6 +1723,29 @@ function initDiceCanvas(){
  // including its buttons, and triggers its pulse on release.
  const findDie=(x,y)=>[...dice].reverse().find(d=>DP.hitTest(d,x,y,lastDimensions.w,lastDimensions.h,Math.max(10,d.r*.23)));
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ // The pointer is the virtual throwing hand, not a velocity-capped spring proxy.
+ const recordHandMotion=(hand,x,y,time)=>{
+  const samples=hand.samples,last=samples[samples.length-1];
+  if(last.x===x&&last.y===y)return;
+  samples.push({x,y,time});
+  while(samples.length>2&&(samples.length>18||samples[1].time<time-90))samples.shift();
+ };
+ const handThrowVelocity=(hand,now)=>{
+  const samples=hand.samples,last=samples[samples.length-1];
+  if(samples.length<2)return {x:0,y:0};
+  const age=Math.max(0,now-last.time);
+  if(age>=130)return {x:0,y:0};
+  let first=samples[0];
+  for(let i=samples.length-2;i>0;i--){
+   if(samples[i].time<last.time-40)break;
+   first=samples[i];
+  }
+  const dt=Math.max(8,last.time-first.time);
+  // No arbitrary speed cap; old motion naturally becomes a drop.
+  const retention=age<=55?1:(130-age)/75;
+  return {x:(last.x-first.x)/dt*1000*retention,
+   y:(last.y-first.y)/dt*1000*retention};
+ };
  const punchLevel=(gesture,now)=>DP.MIN_PUNCH_CHARGE+(1-DP.MIN_PUNCH_CHARGE)*clamp((now-gesture.start)/500,0,1);
  const moveGrips=()=>{
   if(!pointer?.down)return;
@@ -1755,8 +1781,8 @@ function initDiceCanvas(){
   if(!pointer?.down)return;
   const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
   try{stage.releasePointerCapture(held.id);}catch(_){}
-  const fade=clamp(1-(performance.now()-held.lastTime)/150,0,1);
-  const vx=clamp(held.dx*fade,-850,850),vy=clamp(held.dy*fade,-850,850);
+  const speed=handThrowVelocity(held,performance.now());
+  const vx=speed.x,vy=speed.y;
   const settings={...throwSettings,sling:held.slingAnchor?{
    anchorX:held.slingAnchor.x,anchorY:held.slingAnchor.y,fromX:held.x,fromY:held.y}:null};
   if(held.mode==='existing')held.selected.forEach(d=>DP.release(d,vx,vy,settings));
@@ -1814,7 +1840,7 @@ function initDiceCanvas(){
   const offsets=selected.map(d=>({x:d.x-x,y:d.y-y}));
   const supports=selected.map(d=>DP.height(d));
   selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
-  pointer={id:e.pointerId,x,y,dx:0,dy:0,down:true,lastTime:performance.now(),selected,mode,
+  pointer={id:e.pointerId,x,y,down:true,samples:[{x,y,time:performance.now()}],selected,mode,
    offsets,prior,supports,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
   moveGrips();
   document.body.classList.add('dice-dragging');
@@ -1844,10 +1870,8 @@ function initDiceCanvas(){
   }
   if(pointer.id!==e.pointerId)return;
   e.preventDefault();
-  const dt=Math.max(8,performance.now()-pointer.lastTime),dx=x-pointer.x,dy=y-pointer.y;
-  pointer.dx=pointer.dx*.5+dx/dt*500;
-  pointer.dy=pointer.dy*.5+dy/dt*500;
-  pointer.x=x;pointer.y=y;pointer.lastTime=performance.now();
+  recordHandMotion(pointer,x,y,performance.now());
+  pointer.x=x;pointer.y=y;
   if(e.ctrlKey&&!pointer.slingAnchor)pointer.slingAnchor={x,y};
   if(!e.ctrlKey)pointer.slingAnchor=null;
   moveGrips();
@@ -1881,7 +1905,11 @@ function initDiceCanvas(){
    $('#tray-help').textContent='Force punch · '+Math.round(power*100)+'% · '+hits+' dice affected';
    return;
   }
-  if(pointer?.down&&pointer.id===e.pointerId){pointer.x=relative(e).x;pointer.y=relative(e).y;releaseGrab();}
+  if(pointer?.down&&pointer.id===e.pointerId){
+   const pos=relative(e);
+   recordHandMotion(pointer,pos.x,pos.y,performance.now());
+   pointer.x=pos.x;pointer.y=pos.y;releaseGrab();
+  }
  });
  stage.addEventListener('pointercancel',e=>{
   if(punchCharge?.id===e.pointerId){punchCharge=null;return;}
