@@ -108,8 +108,18 @@ function createDicePhysics(RAPIER) {
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
 
  const PIXEL=.01,STEP=1/120,MAX_SPEED=900;
+ const MAX_SLING_PULL=160,MAX_SLING_SPEED=1400,MAX_HAND_STEP=.085;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const planeDir=(x,y)=>{const l=Math.hypot(x,y);return l>1e-6?[x/l,y/l]:[0,0];};
+ // Single hand target. Ctrl pins a sling origin and caps how far the
+ // physical hand anchor may be pulled from it; no second grip/joint.
+ function slingVector(originX,originY,x,y){
+  const dx=x-originX,dy=y-originY,distance=Math.hypot(dx,dy);
+  const power=clamp(distance/MAX_SLING_PULL,0,1);
+  const factor=distance>MAX_SLING_PULL?MAX_SLING_PULL/distance:1;
+  return {x:originX+dx*factor,y:originY+dy*factor,power};
+ }
+ const punchRadius=charge=>125*(.75+.75*clamp(charge,0,1));
  let world=null,initialized=null,walls=[],extent=[0,0];
  const bodies=new Map(),grips=new Map();
  const pos=d=>({x:d.x*PIXEL,y:d.y*PIXEL,z:d.z*PIXEL});
@@ -191,13 +201,15 @@ function createDicePhysics(RAPIER) {
   setColliding(d,b);
   b.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
   b.wakeUp();
-  // Off-center attachment lets genuine mouse accelerations rotate the die.
-  const local={x:d.r*PIXEL*.24,y:0,z:d.r*PIXEL*.16};
+  // Near-center grip plus strong damping prevents orbital spring spinning.
+  // A tiny offset retains a little real angular response to hand shaking.
+  const local={x:d.r*PIXEL*.045,y:0,z:d.r*PIXEL*.03};
   const off=rotate(d.q,[local.x/PIXEL,local.y/PIXEL,local.z/PIXEL]);
   const anchor=world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased()
    .setTranslation((d.x+off[0])*PIXEL,(d.y+off[1])*PIXEL,(d.z+off[2])*PIXEL));
+  b.setAngularDamping(5);
   const joint=world.createImpulseJoint(
-   RAPIER.JointData.spring(0,64,7.2,{x:0,y:0,z:0},local),anchor,b,true);
+   RAPIER.JointData.spring(0,220,17,{x:0,y:0,z:0},local),anchor,b,true);
   grips.set(d,{anchor,joint,offset:off,target:anchor.translation()});
   moveGrip(d,x,y,lift);
  }
@@ -210,25 +222,30 @@ function createDicePhysics(RAPIER) {
  }
  function releaseVelocity(b,vx,vy,settings={}){
   const angle=clamp(Number(settings.angleDeg)||0,-85,85)*Math.PI/180;
-  const speed=Math.min(MAX_SPEED,Math.hypot(vx,vy)),dir=planeDir(vx,vy);
+  const cap=settings.sling?MAX_SLING_SPEED:MAX_SPEED;
+  const speed=Math.min(cap,Math.hypot(vx,vy)),dir=planeDir(vx,vy);
   b.setLinvel({x:dir[0]*speed*Math.cos(angle)*PIXEL,
    y:dir[1]*speed*Math.cos(angle)*PIXEL,z:speed*Math.sin(angle)*PIXEL},true);
   const spin=clamp(Number(settings.spin)||0,-1,1);
   if(spin&&speed>1){
    const w=b.angvel(),turn=spin*18;
-   // Positive spin rolls forward in the horizontal throw direction.
-   b.setAngvel({x:w.x+dir[1]*turn,y:w.y-dir[0]*turn,z:w.z},true);
+   // Ground rolling: omega = up CROSS travel, so the contact point moves
+   // backward relative to the die. Positive spin aids forward rolling.
+   b.setAngvel({x:w.x-dir[1]*turn,y:w.y+dir[0]*turn,z:w.z},true);
   }
  }
  function release(d,vx=0,vy=0,settings={}){
   const b=body(d);
-  endGrip(d);d.held=false;d.ready=false;d.sleeping=false;d.rolling=true;
+  endGrip(d);b.setAngularDamping(1.35);
+  d.held=false;d.ready=false;d.sleeping=false;d.rolling=true;
   setColliding(d,b);
   if(settings.sling){
-   const s=settings.sling,dx=s.anchorX-s.fromX,dy=s.anchorY-s.fromY;
-   const l=Math.hypot(dx,dy);
-   const power=l>8?Math.min(MAX_SPEED,l*4.3):0;
-   vx=l?dx/l*power:0;vy=l?dy/l*power:0;
+   const s=settings.sling;
+   const pulled=slingVector(s.anchorX,s.anchorY,s.fromX,s.fromY);
+   const dx=s.anchorX-pulled.x,dy=s.anchorY-pulled.y;
+   const dir=planeDir(dx,dy);
+   vx=dir[0]*pulled.power*MAX_SLING_SPEED;
+   vy=dir[1]*pulled.power*MAX_SLING_SPEED;
   }
   releaseVelocity(b,vx,vy,settings);
   sync(d,b);
@@ -242,13 +259,14 @@ function createDicePhysics(RAPIER) {
   park(d);releaseVelocity(body(d),vx,vy,{angleDeg:settings.angleDeg??15,spin:settings.spin??0});
   sync(d,body(d));
  }
- function punch(dice,x,y,radius=125){
+ function punch(dice,x,y,charge=1){
+  const level=clamp(charge,0,1),radius=punchRadius(level);
   let hits=0;
   for(const d of dice){
    if(d.ready||d.held)continue;
    const dx=d.x-x,dy=d.y-y,l=Math.hypot(dx,dy);
    if(l>=radius)continue;
-   const dir=l>1?planeDir(dx,dy):[1,0],power=.75*(1-l/radius);
+   const dir=l>1?planeDir(dx,dy):[1,0],power=2.25*level*(1-l/radius);
    const b=body(d),p=b.translation();
    b.applyImpulseAtPoint({x:dir[0]*power,y:dir[1]*power,z:power*.12},
     {x:p.x,y:p.y,z:p.z+d.r*PIXEL*.22},true);
@@ -273,10 +291,20 @@ function createDicePhysics(RAPIER) {
    }else if(b.bodyType()!==RAPIER.RigidBodyType.Dynamic)
     b.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
   }
-  for(const g of grips.values())g.anchor.setNextKinematicTranslation(g.target);
+  // Limit per-step hand motion. A large mouse flick must not inject an
+  // unbounded kinematic velocity into a small spring-attached die.
+  for(const g of grips.values()){
+   const now=g.anchor.translation(),delta={
+    x:g.target.x-now.x,y:g.target.y-now.y,z:g.target.z-now.z};
+   const length=Math.hypot(delta.x,delta.y,delta.z);
+   const amount=length>MAX_HAND_STEP?MAX_HAND_STEP/length:1;
+   g.anchor.setNextKinematicTranslation({
+    x:now.x+delta.x*amount,y:now.y+delta.y*amount,
+    z:now.z+delta.z*amount});
+  }
   world.step();
   for(const d of dice)if(!d.ready||d.held)sync(d,bodies.get(d));
  }
  return {init,mesh,rotate,advance,orientation,faceValue,makeDie,launch,release,
-  grab,moveGrip,park,punch,stepWorld,height,hitTest,random};
+  grab,moveGrip,park,punch,punchRadius,slingVector,stepWorld,height,hitTest,random};
 }
