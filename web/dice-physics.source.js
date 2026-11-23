@@ -108,7 +108,8 @@ function createDicePhysics(RAPIER) {
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
 
  const PIXEL=.01,STEP=1/120;
- const MAX_SLING_PULL=480,MAX_SLING_SPEED=2800,MAX_HAND_STEP=.45;
+ const MAX_SLING_PULL=480,MAX_SLING_SPEED=2800,MAX_HAND_STEP=.28;
+  const HAND_THROW_SOFT_LIMIT=1600;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const planeDir=(x,y)=>{const l=Math.hypot(x,y);return l>1e-6?[x/l,y/l]:[0,0];};
  // Single hand target. Ctrl pins a sling origin and caps how far the
@@ -244,9 +245,9 @@ function createDicePhysics(RAPIER) {
   const anchor=world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased()
    .setTranslation((d.x+off[0])*PIXEL,(d.y+off[1])*PIXEL,(d.z+off[2])*PIXEL));
   b.setAngularDamping(12);b.setLinearDamping(8);
-  // Stronger near-critical spring follows fast input without lasting bounce.
+  // Compliant damped spring permits a little hand-to-die lag.
   const joint=world.createImpulseJoint(
-   RAPIER.JointData.spring(0,1800,36,{x:0,y:0,z:0},local),anchor,b,true);
+   RAPIER.JointData.spring(0,1100,38,{x:0,y:0,z:0},local),anchor,b,true);
   // Fixed support reference avoids an orientation→hand-position feedback loop.
   grips.set(d,{anchor,joint,offset:off,support:height(d),target:anchor.translation()});
   moveGrip(d,x,y,lift);
@@ -260,10 +261,12 @@ function createDicePhysics(RAPIER) {
  }
  function releaseVelocity(b,vx,vy,settings={}){
   const angle=clamp(Number(settings.angleDeg)||0,-45,45)*Math.PI/180;
-  // A physical hand toss must use the measured pointer speed unattenuated.
-  // Only the deliberately powered Ctrl sling has a fixed launch limit.
-  const rawSpeed=Math.hypot(vx,vy);
-  const speed=settings.sling?Math.min(MAX_SLING_SPEED,rawSpeed):rawSpeed;
+  // A real hand toss retains low-speed precision but compresses very fast flicks
+   // smoothly, without a hard cut-off or scripted forces after release.
+   // Ctrl slingshot and programmatic launches retain their normal launch speed.
+   const rawSpeed=Math.hypot(vx,vy);
+   const speed=settings.sling?Math.min(MAX_SLING_SPEED,rawSpeed):
+    settings.handThrow?HAND_THROW_SOFT_LIMIT*Math.tanh(rawSpeed/HAND_THROW_SOFT_LIMIT):rawSpeed;
   const dir=planeDir(vx,vy);
   b.setLinvel({x:dir[0]*speed*Math.cos(angle)*PIXEL,
    y:dir[1]*speed*Math.cos(angle)*PIXEL,z:speed*Math.sin(angle)*PIXEL},true);

@@ -46,6 +46,11 @@ with sync_playwright() as pw:
  assert page.locator('.buff-bar .condition-rail .condition-toggle').count()==15
  assert page.locator('.recipient-context').is_visible()
  assert page.get_by_role('tab',name='My Turn').count()==1
+ assert page.locator('.personal-turn-summary').count()==0
+ assert page.locator('.vitals-line').count()==1
+ assert page.locator('.vitals-panel [data-action=rest]').count()==0
+ assert page.locator('.identity-ribbon .header-rest [data-action=rest]').count()==2
+ assert page.locator('.identity-ribbon .header-rest').bounding_box()['x']<page.locator('.identity-ribbon .status-chips').bounding_box()['x']
  assert page.locator('.encounter-targets').count()==0
  assert page.evaluate('Action.targets(character).length')==0
 
@@ -68,19 +73,23 @@ with sync_playwright() as pw:
  page.locator('.buff-bar .condition-rail [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
  assert not page.evaluate("character.conditions.includes('Poisoned')")
 
- page.get_by_label('My Turn quick tracker').get_by_role('button',name='Start tracking').click(modifiers=['Alt'])
+ page.get_by_role('tab',name='My Turn').click(modifiers=['Alt'])
+ page.get_by_label('Action economy tracker').get_by_role('button',name='Start tracking').click(modifiers=['Alt'])
  assert page.evaluate('Action.combat(character).active') is True
  assert page.evaluate('Action.combat(character).economy.mode')=='manual'
- page.get_by_label('My Turn quick tracker').locator('[data-action=mark-turn-action][data-arg=action]').click(modifiers=['Alt'])
+ page.get_by_label('Action economy tracker').locator('[data-action=mark-turn-action][data-arg=action]').click(modifiers=['Alt'])
  assert page.evaluate('Action.combat(character).economy.spent.action')==1
  # A settled die can cover this attack control. Alt-click reaches the UI.
+ page.get_by_role('tab',name='Actions').click(modifiers=['Alt'])
  page.locator('.attack-list [data-action=attack]').first.click(modifiers=['Alt'])
  assert page.evaluate('pendingRoll.expression')=='1d20+6'
  page.evaluate('cancelPreparedRoll()')
  assert page.evaluate('Action.combat(character).economy.spent.action')==1
- page.get_by_label('My Turn quick tracker').get_by_role('button',name='Next turn').click(modifiers=['Alt'])
+ page.get_by_role('tab',name='My Turn').click(modifiers=['Alt'])
+ page.get_by_label('Action economy tracker').get_by_role('button',name='Next turn').click(modifiers=['Alt'])
  assert page.evaluate('Action.combat(character).economy.spent.action')==0
 
+ page.get_by_role('tab',name='Actions').click(modifiers=['Alt'])
  page.get_by_label('Effect recipient').get_by_role('button',name='Other').click(modifiers=['Alt'])
  page.get_by_role('tab',name='Spells').click(modifiers=['Alt'])
  spell=page.locator('.spell-entry').filter(has_text='Aid Touch')

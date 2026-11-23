@@ -412,6 +412,7 @@ function identityRibbon(){
  return `<header class="identity-ribbon">
  <div class="sheet-portrait avatar-glyph" aria-hidden="true">✦</div>
  <div class="identity-copy"><small class="sheet-eyebrow">${character.demo_id?'DEMO CHARACTER · SAMPLE VALUES':'CHARACTER SHEET'}</small><h1 class="page-title">${esc(character.name)}</h1><div class="identity-sub">${esc(character.class_level)} · ${esc(character.species)} · ${esc(character.background)}</div></div>
+ <div class="header-rest" aria-label="Rest recovery">${button('Short rest','rest','short','button mini subtle')}${button('Long rest','rest','long','button mini subtle')}</div>
  <div class="status-chips" aria-label="Character statistics">
  ${stat('AC',Action.effectiveAC(character),Action.effectiveAC(character)===num(character.ac)?'Armor class':'Base '+character.ac+' + active buffs')}${stat('INIT',sgn(character.initiative),character.initiative_note||'Initiative')}${stat('PROF',sgn(character.proficiency),'Proficiency bonus')}${stat('MOVE',move,'Walk / fly / climb in feet')}
  </div>
@@ -647,16 +648,6 @@ function demoPractice(){
  <div class="demo-practice-copy"><strong>Practice with Mara · D&amp;D 2014 Fighter</strong><span>${esc(instruction)}</span><small>Uses real character actions and dice. No tutorial progress is saved; you can edit, export or delete this demo in Characters.</small></div>
  ${control?`<div class="demo-practice-action" data-pointer-priority="control">${control}</div>`:''}</aside>`;
 }
-// A compact personal checklist; it cannot adjudicate opponents or consume an attack on a dice-only roll.
-function personalTurnSummary(){
- if(view==='encounter')return ''; // the full tracker owns this workspace; no duplicate controls
- const state=Action.combat(character),limits=Action.poolLimits(character),spent=state.economy.spent;
- return `<section class="personal-turn-summary" aria-label="My Turn quick tracker">
- <div class="personal-turn-heading"><strong>My Turn</strong><small>${state.active?'Turn '+state.turn+' · player-managed':'Optional personal tracker · dice always available'}</small></div>
- ${state.active?`<div class="turn-tracker">${[['action','Action'],['bonus','Bonus'],['reaction','Reaction']].map(([key,label])=>`<button type="button" class="turn-chip ${spent[key]>=limits[key]?'spent':''}" data-action="mark-turn-action" data-arg="${key}" title="Mark one ${label.toLowerCase()} as used; rolls never spend actions automatically">${label} ${Math.max(0,limits[key]-spent[key])}/${limits[key]}</button>`).join('')}</div>`:''}
- <div class="controls-row">${button(state.active?'Next turn':'Start tracking',state.active?'advance-turn':'toggle-encounter','','button mini subtle')}${button('Turn settings','open-my-turn','','button mini subtle')}</div>
- </section>`;
-}
 function overview(){
  const hp=character.hp;
  const res=Object.entries(character.resources||{}).map(([key,v])=>resourcePips(key,v)).join('');
@@ -666,15 +657,21 @@ function overview(){
   <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
  return identityRibbon()+characterSetup()+buffBar()+
  `<section class="vitals-panel" aria-label="Hit points">
- <div class="vital-heading"><strong>♥ Vitality</strong><span class="hp-total">${hp.current}<span> / ${hp.max} HP</span></span><span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span></div>
- ${heartMeter(hp)}
- <div class="vital-controls"><label class="amount-label" for="hp-amount">HP</label><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
- ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}
- <span class="vital-separator"></span>${button('Short rest','rest','short','button subtle')}${button('Long rest','rest','long','button subtle')}
- <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
- ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}
- </div></details></div></section>
- ${personalTurnSummary()}
+ <div class="vitals-line">
+  <strong class="vital-label">♥ Vitality</strong>
+  <span class="hp-total">${hp.current}<span> / ${hp.max}</span></span>
+  <span class="vital-gap" aria-hidden="true"></span>
+  <div class="vital-controls"><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
+   ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}</div>
+  <span class="vital-gap" aria-hidden="true"></span>
+  ${heartMeter(hp)}
+  <span class="vital-gap" aria-hidden="true"></span>
+  <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
+  <span class="vital-gap" aria-hidden="true"></span>
+  <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
+   ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}
+  </div></details>
+ </div></section>
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
  <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
  <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
@@ -1783,7 +1780,7 @@ function initDiceCanvas(){
   try{stage.releasePointerCapture(held.id);}catch(_){}
   const speed=handThrowVelocity(held,performance.now());
   const vx=speed.x,vy=speed.y;
-  const settings={...throwSettings,sling:held.slingAnchor?{
+  const settings={...throwSettings,handThrow:true,sling:held.slingAnchor?{
    anchorX:held.slingAnchor.x,anchorY:held.slingAnchor.y,fromX:held.x,fromY:held.y}:null};
   if(held.mode==='existing')held.selected.forEach(d=>DP.release(d,vx,vy,settings));
   else {

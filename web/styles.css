@@ -180,29 +180,27 @@ button,select,input,textarea {min-width:0}
 #page .overview-column {gap:8px}
 
 
-#page .vitals-panel {border:1px solid #716656;border-radius:7px;background:#202b35e8;padding:9px 11px 7px;margin-bottom:8px;position:relative}
-#page .vital-heading {display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
-#page .vital-heading>strong {font:16px Georgia,serif;color:#f3ce90}
-#page .hp-total {color:#ffc9aa;font:22px/1 Georgia,serif;white-space:nowrap}
-#page .hp-total span {color:#c4c8c9;font:13px Georgia,serif}
-#page .temp-hp {margin-left:auto;color:#aac8d8;font-size:11px}
-#page .hearts {display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:4px 5px 6px;background:#141e2680;border-radius:5px;border:1px solid #3c4851;min-height:31px}
-#page .heart {display:block;flex:0 0 18px;width:18px;height:20px;background:none;border:0;padding:0;transition:transform .13s;position:relative}
-#page .heart svg {display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px 1px #000a)}
-#page .heart-empty {fill:#263039;stroke:#8a6f68;stroke-width:1.2px}
-#page .heart-full {fill:#e77a6b;stroke:#f9c49c;stroke-width:.75px;clip-path:inset(0 calc(100% - var(--heart-fill)) 0 0)}
-#page .heart:hover,#page .heart:focus-visible {transform:translateY(-3px);filter:brightness(1.3)}
-#page .vital-controls {display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px}
-#page .vital-controls .input {width:56px;padding:4px 5px;min-height:28px}
-#page .vital-controls .button {min-height:28px;padding:4px 7px;font-size:11px}
-#page .amount-label {font-size:10px;color:#abbac3;text-transform:uppercase;letter-spacing:.06em}
-#page .vital-separator {height:19px;width:1px;background:#53616a;margin:0 4px}
-#page .vital-edit {position:relative;margin-left:auto}
-#page .vital-edit summary {list-style:none;cursor:pointer;border:1px solid #52626c;border-radius:4px;padding:5px 7px;font-size:11px;color:#d0c7b8;white-space:nowrap}
-#page .vital-edit summary::-webkit-details-marker {display:none}
-#page .vital-edit[open] {flex-basis:100%;margin:3px 0 0}
-#page .vital-edit[open] summary {width:max-content}
-#page .vital-edit .form-grid {margin:7px 0}
+#page .vitals-panel{border:1px solid #716656;border-radius:7px;background:#202b35ed;padding:6px 10px;margin-bottom:7px;position:relative}
+#page .vitals-line{display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
+#page .vital-label{font:15px Georgia,serif;color:#f3ce90;flex:none}
+#page .hp-total{color:#ffc9aa;font:20px/1 Georgia,serif;white-space:nowrap;flex:none}
+#page .hp-total span{color:#c4c8c9;font:13px Georgia,serif}
+#page .vital-gap{flex:0 0 7px}
+#page .vital-controls{display:flex;align-items:center;gap:5px;flex:none}
+#page .vital-controls .input{width:56px;padding:3px 5px;min-height:26px}
+#page .vital-controls .button{min-height:26px;padding:3px 7px;font-size:11px}
+#page .hearts{display:flex;align-items:center;gap:2px;flex:1 1 180px;min-width:45px;min-height:28px;padding:3px 5px;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:thin;background:#141e2680;border-radius:5px;border:1px solid #3c4851}
+#page .heart{display:block;flex:0 0 17px;width:17px;height:19px;background:none;border:0;padding:0;transition:transform .13s;position:relative}
+#page .heart svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px 1px #000a)}
+#page .heart-empty{fill:#263039;stroke:#8a6f68;stroke-width:1.2px}
+#page .heart-full{fill:#e77a6b;stroke:#f9c49c;stroke-width:.75px;clip-path:inset(0 calc(100% - var(--heart-fill)) 0 0)}
+#page .heart:hover,#page .heart:focus-visible{transform:translateY(-3px);filter:brightness(1.3)}
+#page .temp-hp{color:#aac8d8;font-size:11px;flex:none}
+#page .vital-edit{position:static;flex:none;margin-left:auto}
+#page .vital-edit summary{list-style:none;cursor:pointer;border:1px solid #52626c;border-radius:4px;padding:5px 7px;font-size:11px;color:#d0c7b8;white-space:nowrap}
+#page .vital-edit summary::-webkit-details-marker{display:none}
+#page .vital-edit .form-grid{position:absolute;right:0;top:calc(100% + 4px);width:min(425px,calc(100vw - 45px));margin:0;padding:10px;border:1px solid #ae8855;border-radius:7px;background:#19242efb;box-shadow:0 15px 45px #000d;z-index:14}
+@media(max-width:720px){#page .vitals-line{flex-wrap:wrap}#page .hearts{flex:1 1 100px}#page .vital-gap{flex-basis:2px}}
 #page .condition-rail{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;max-width:100%}
 #page .condition-icons{display:flex;align-items:center;flex-wrap:wrap;gap:5px;max-width:100%}
 #page .condition-icon {display:inline-grid;place-items:center;position:relative;flex:0 0 27px;width:27px;height:27px;padding:4px;border:1px solid #44515c;background:#2c3842;border-radius:5px;color:#a2b0bd}
@@ -270,6 +268,8 @@ button,select,input,textarea {min-width:0}
 #page .identity-copy .sheet-eyebrow{font-size:9px;margin-bottom:0}
 #page .identity-copy .page-title{font-size:23px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #page .identity-sub{font-size:11px;color:#c0c9cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page .header-rest{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+#page .header-rest .button{white-space:nowrap;padding:5px 7px;min-height:30px}
 #page .status-chips{display:flex;flex-wrap:wrap;align-items:center;gap:5px;justify-content:flex-end;min-width:0}
 #page .status-chips .kpi{display:inline-flex;flex:0 0 auto;align-items:baseline;gap:7px;border:1px solid #536372;background:#29343ecb;padding:5px 9px;border-radius:6px;min-height:30px}
 #page .status-chips .kpi small{font-size:10px;white-space:nowrap;color:#bac6ca}
@@ -281,16 +281,6 @@ button,select,input,textarea {min-width:0}
 #page .identity-fields{position:absolute;top:calc(100% + 5px);right:0;width:min(425px,calc(100vw - 45px));padding:12px;border:1px solid #ae8855;border-radius:7px;background:#19242efb;box-shadow:0 15px 45px #000d;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;z-index:13}
 #page .identity-fields .field{min-width:0}
 #page .identity-fields .input{width:100%}
-/* Health and status use almost no permanent explanatory text. */
-#page .vitals-panel{border:1px solid #716656;border-radius:7px;background:#202b35ed;padding:7px 10px;margin-bottom:7px}
-#page .vital-heading{margin-bottom:4px}
-#page .vital-heading>strong{font-size:15px}
-#page .hp-total{font-size:20px}
-#page .hearts{min-height:28px;padding:3px 5px 4px;gap:2px}
-#page .heart{flex-basis:17px;width:17px;height:19px}
-#page .vital-controls{margin-top:4px;gap:4px}
-#page .vital-controls .button{min-height:25px;padding:3px 7px}
-#page .vital-controls .input{min-height:25px}
 #page .condition-icon{width:25px;height:25px;flex-basis:25px}
 /* Three distinct columns; panels never stretch to a neighbor's height. */
 #page .ability-card{padding:5px 6px;min-width:0;background:#303d46;border:1px solid #5b6973;border-radius:5px}
@@ -403,7 +393,6 @@ button,select,input,textarea {min-width:0}
 #page .identity-ribbon .identity-copy{flex:1 1 240px}
 #page .identity-ribbon .status-chips{flex:0 1 auto}
 #page .identity-ribbon .edit-mode-button{margin-left:5px}
-#page .vitals-panel{margin-bottom:7px}
 #page .hud-four{display:grid;grid-template-columns:minmax(170px,1.07fr) minmax(190px,1.18fr) minmax(190px,1.04fr) minmax(330px,2.22fr);align-items:start;gap:7px}
 #page .hud-zone{min-width:0;display:flex;flex-direction:column;gap:7px}
 #page .hud-zone>.panel{min-width:0;width:100%}
@@ -782,11 +771,6 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 /* Player-first controls: ordinary sheet rolls do not require encounter setup. */
 #page > .panel[data-panel="Conditions"]{width:100%;margin:0 0 7px;flex:0 0 auto}
 #page > .panel[data-panel="Conditions"] .panel-content{padding:5px 10px}
-#page .personal-turn-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;margin-bottom:8px;border:1px solid #5b6670;background:#202b35;border-radius:7px;flex:0 0 auto}
-#page .personal-turn-summary .personal-turn-heading{display:flex;flex-direction:column;gap:2px;min-width:120px}
-#page .personal-turn-summary .personal-turn-heading small{font-size:11px;opacity:.8}
-#page .personal-turn-summary .turn-tracker{margin:0;flex:1 1 220px}
-#page .personal-turn-summary .controls-row{margin-left:auto}
 #page .recipient-context{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 9px;border:1px solid #536371;border-radius:6px;background:#1e2b37}
 #page .recipient-context strong{font-size:12px;margin-right:4px}
 #page .recipient-context small{font-size:11px;line-height:1.35;flex:1 1 220px;opacity:.85}
