@@ -112,6 +112,11 @@ const fastMouseThrow=DP.makeDie(6,230,170);
 DP.launch(fastMouseThrow,4800,0,0,{angleDeg:0,spin:0,height:.8});
 assert.ok(fastMouseThrow.v[0]>4700,
  'a physical hand toss must not be limited by the old 900px/s cap');
+const releasedHand=DP.makeDie(6,250,175);
+DP.grab(releasedHand,250,175,.6);
+DP.release(releasedHand,4600,0,{angleDeg:0,spin:0});
+assert.ok(releasedHand.v[0]>4500,
+ 'physical spring release must preserve a fast hand toss without the old speed cap');
 const airborneSpin=DP.makeDie(6,270,150);
 DP.launch(airborneSpin,350,0,0,{height:1,angleDeg:0,spin:1});
 const releaseSpin=airborneSpin.w[1];
