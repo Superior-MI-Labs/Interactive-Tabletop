@@ -114,9 +114,14 @@ assert.ok(fastMouseThrow.v[0]>4700,
  'a physical hand toss must not be limited by the old 900px/s cap');
 const releasedHand=DP.makeDie(6,250,175);
 DP.grab(releasedHand,250,175,.6);
-DP.release(releasedHand,4600,0,{angleDeg:0,spin:0});
-assert.ok(releasedHand.v[0]>4500,
- 'physical spring release must preserve a fast hand toss without the old speed cap');
+DP.release(releasedHand,4600,0,{angleDeg:0,spin:0,handThrow:true});
+ assert.ok(releasedHand.v[0]>1450&&releasedHand.v[0]<1600,
+  'fast real hand releases should remain responsive but controlled');
+ const gentleHand=DP.makeDie(6,250,175);
+ DP.grab(gentleHand,250,175,.6);
+ DP.release(gentleHand,300,0,{handThrow:true});
+ assert.ok(gentleHand.v[0]>290&&gentleHand.v[0]<300,
+  'gentle hand motion should closely preserve measured pointer speed');
 const airborneSpin=DP.makeDie(6,270,150);
 DP.launch(airborneSpin,350,0,0,{height:1,angleDeg:0,spin:1});
 const releaseSpin=airborneSpin.w[1];
@@ -225,9 +230,12 @@ assert.ok(groundedOutside.x<100,
 const fastHand=DP.makeDie(6,140,140);
 DP.grab(fastHand,140,140,.7);
 DP.moveGrip(fastHand,430,140,.7);
-for(let i=0;i<20;i++)DP.stepWorld([fastHand],1/120,550,450);
-assert.ok(Math.abs(fastHand.x-430)<70,
- 'default hand should track a 290px movement within 20 physics frames');
+for(let i=0;i<6;i++)DP.stepWorld([fastHand],1/120,550,450);
+ assert.ok(Math.abs(fastHand.x-430)>25,
+  'compliant spring must not rigidly snap to the pointer in six frames');
+ for(let i=0;i<14;i++)DP.stepWorld([fastHand],1/120,550,450);
+ assert.ok(Math.abs(fastHand.x-430)<140,
+  'compliant grip should still converge toward a moving hand');
 for(let i=0;i<160;i++)DP.stepWorld([fastHand],1/120,550,450);
 assert.ok(Math.abs(fastHand.x-430)<12&&Math.abs(fastHand.v[0])<25,
  'hand spring must settle at cursor without lingering oscillation: offset='+
