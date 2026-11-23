@@ -11,10 +11,12 @@ FILES=['VERSION','INSTALL.sh','README.md','CHANGELOG.md','ARCHITECTURE.md','RULE
 folders=['web','vendor']
 # Ship the exact source tests CI discovers; never hand-maintain test filenames.
 test_paths=sorted((ROOT/'tests').glob('test_*.js'))+sorted((ROOT/'tests').glob('test_*.py'))
+# Generate the physics runtime before collecting paths for the desktop ZIP.
+# A clean deploy checkout does not contain the generated dice-physics.js yet.
+subprocess.run([sys.executable,str(ROOT/'tools/build_physics.py')],check=True)
 paths=[ROOT/f for f in FILES]
 for folder in folders:paths.extend(p for p in (ROOT/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and not p.name.endswith('.pyc'))
 paths.extend(test_paths)
-subprocess.run([sys.executable,str(ROOT/'tools/build_physics.py')],check=True)
 DEST.parent.mkdir(parents=True,exist_ok=True)
 with ZipFile(DEST,'w',ZIP_DEFLATED,compresslevel=9) as z:
     for p in sorted(paths):
