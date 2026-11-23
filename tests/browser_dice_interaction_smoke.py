@@ -62,6 +62,10 @@ with sync_playwright() as pw:
  page.keyboard.down('Control')
  page.mouse.wheel(0,-100)
  assert page.evaluate('throwSettings.angleDeg')==initial['angleDeg']+5,'Ctrl+wheel must change angle exactly 5 degrees'
+ page.mouse.wheel(0,-3000)
+ assert page.evaluate('throwSettings.angleDeg')==45,'Ctrl+wheel must cap positive angle at 45 degrees'
+ page.mouse.wheel(0,3000)
+ assert page.evaluate('throwSettings.angleDeg')==-45,'Ctrl+wheel must cap negative angle at -45 degrees'
  assert page.evaluate('pointer?.slingAnchor!==null'),'Ctrl while holding must engage slingshot'
  page.keyboard.up('Control')
  assert page.evaluate('pointer?.slingAnchor===null'),'Releasing Ctrl must disengage slingshot without firing'
@@ -117,11 +121,16 @@ with sync_playwright() as pw:
  cx=ability['x']+ability['width']/2;cy=ability['y']+ability['height']/2
  page.mouse.move(cx,cy);page.mouse.down()
  assert page.evaluate('punchCharge!==null && pendingRoll===null'),'Shift+click must override ability controls'
+ stage_box=page.locator('#dice-stage').bounding_box()
+ page.mouse.move(cx+45,cy+27)
+ assert abs(page.evaluate('punchCharge.x')-(cx+45-stage_box['x']))<2, 'Charging pulse must follow cursor X'
+ assert abs(page.evaluate('punchCharge.y')-(cy+27-stage_box['y']))<2, 'Charging pulse must follow cursor Y'
  page.wait_for_timeout(550)
  assert page.evaluate('punchCharge!==null && pendingRoll===null'),'Holding charge must not fire or click'
  page.mouse.up();page.keyboard.up('Shift')
  assert page.evaluate('punchEffect.power===1'),'Half-second hold must reach full power'
  assert page.evaluate('punchEffect.radius===DP.punchRadius(1)'),'Pulse and preview share the physical radius'
+ assert abs(page.evaluate('punchEffect.x')-(cx+45-stage_box['x']))<2, 'Pulse must originate at release cursor'
  assert page.evaluate('pendingRoll===null && pointer===null'),'A charged button click must never prepare a roll'
  # Settled modifier-adjusted total is prominent in the collapsed Dice header.
  # This reuses the same roll-group calculator, not a second UI formula.

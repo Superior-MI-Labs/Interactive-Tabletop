@@ -2,13 +2,17 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.57.0`  
-**Candidate application release:** `v0.58.0` — damped physical grip, capped sling, corrected directional spin and charged punch, pending qualification.  
-**Release commit:** v0.57.0 `7ab940e` — qualification and Pages deployment passed in run `45132524491` (2026-11-23 UTC).  
+**Last verified application release:** `v0.58.0`  
+**Candidate application release:** `v0.59.0` — fast spring, 480 px/2800 px/s sling, ±45° angle, mirrored wrap, pointer-following curved punch, pending qualification.  
+**Release commit:** v0.58.0 `2611e28` — qualification and Pages deployment passed in run `45140592769` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.57.0 is deployed. v0.58.0 candidate tunes grip damping, fixes signed forward rolling, caps Ctrl sling distance/power and makes Shift-click a charged-on-release force punch with absolute pointer priority over buttons. Rules and roll ownership remain unchanged.
+**Current status:** v0.58.0 is deployed. v0.59.0 candidate increases grip tracking and damping, triples sling pull length, doubles peak sling speed, clamps angle to ±45°, uses mirrored edge wrap, and curves cursor-following punch falloff with doubled force. No new physics or gameplay systems.
+
+### v0.59 candidate — one world, faster grip, no walls
+
+The only authored physics owner stays `web/dice-physics.source.js`. Use center-attached high-response spring and shared hand anchor for normal grabs/slingshot; cap the Ctrl sling pull at 480px and max launch velocity at 2800px/s, while preserving 0–1 tension and 5° Ctrl-wheel increments now constrained to ±45°. Released dynamic dice crossing any tray edge must reenter on the opposite mirrored side (bottom-left→top-right, bottom-right→top-left), preserving 3D velocity, angular momentum and orientation; no wall collider or alternative renderer. Shift-click charged punch follows pointer while held, applies only on release, uses one eighth-power curved distance falloff and full force 4.5. Preserve one roll owner, cancel semantics and no premature resources; qualify all Node/Python/Chromium and production packaging gates before merge.
 
 ### v0.58 candidate — interaction tuning without another system
 

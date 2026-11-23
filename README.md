@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.58.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.59.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.58.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.59.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -40,6 +40,14 @@ When editing a character, open **Spells → Configure standard spell slots** to 
 **v0.47 manual spellbook safety:** Spells added with **+ Spell** are separate player-authored records, even if a later PDF contains a spell with the same name. PDF reimport preserves those records, and the sheet identifies them as **Manual entry**. In Edit mode, **Remove manual spell** asks for confirmation; it cannot remove PDF-owned spells. Deleting a spell does not end effects already in progress. Export a JSON backup before a significant reimport or deletion.
 
 **v0.46 spellcasting:** In Edit sheet, each spell can specify its casting ability (STR/DEX/CON/INT/WIS/CHA) or a bounded fixed modifier override. Qualified 2014 self-healing uses that explicit configuration. Legacy unambiguous source labels still work, but mixed class sources require an ability selection. Configuration survives unambiguous PDF reimports; no automatic class progression or new spell effects are introduced.
+
+## v0.59 — Fast physical grab, mirrored-edge wrap and stronger effects
+
+- A central, near-critically damped Rapier spring grips each die with much less cursor lag or post-movement wobble. The existing moving hand anchor can follow about five times faster; grabbing still uses real physics and contact.
+- **Ctrl slingshot:** the same physical hand tether now has a **480 px** maximum pull, with 0–100% power scaling up to **2,800 px/s**. Releasing Ctrl returns normal grabbing. Release angle (5° steps, now **-45° to +45°**), signed forward/backspin and selected lift continue to affect both normal and slingshot releases.
+- **Mirrored-edge reentry:** rather than colliding with tray walls or disappearing, released dice crossing an edge reappear on the opposite mirrored side, retaining their 3D orientation, speed and angular momentum. Exiting bottom-left reenters top-right; exiting bottom-right reenters top-left. Held and unthrown preview dice do not wrap.
+- **Shift-click charged force punch:** the targeting ring follows the cursor while charging. Maximum impulse is **twice v0.58**, with a single `1-(distance/radius)^8` falloff to keep the center forceful but fade steeply across the final outer edge. The pulse still begins at 35%, charges over 0.5 seconds, and fires only on left-button release, including over UI buttons.
+- Rapier remains the sole physics owner; Canvas only displays state and indicators. Character-owned roll results, cancels and action/resource costs keep their existing contract.
 
 ## v0.58 — Capped slingshot, stable hand grip and charged punch
 
@@ -171,14 +179,14 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.58.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.59.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.58.0.zip" SkyBlueEyes-Tabletop-v0.58.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.59.0.zip" SkyBlueEyes-Tabletop-v0.59.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.
