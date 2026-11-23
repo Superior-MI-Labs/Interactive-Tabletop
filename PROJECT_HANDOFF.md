@@ -2,13 +2,17 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.58.0`  
-**Candidate application release:** `v0.59.0` — fast spring, 480 px/2800 px/s sling, ±45° angle, mirrored wrap, pointer-following curved punch, pending qualification.  
-**Release commit:** v0.58.0 `2611e28` — qualification and Pages deployment passed in run `45140592769` (2026-11-23 UTC).  
+**Last verified application release:** `v0.59.0`  
+**Candidate application release:** `v0.60.0` — physical walls and over-wall portal, corrected screen-Y spin, softened 15–100% charged punch, pending qualification.  
+**Release commit:** v0.59.0 `fcf8fa6` — qualification and Pages deployment passed in run `45145156196` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.58.0 is deployed. v0.59.0 candidate increases grip tracking and damping, triples sling pull length, doubles peak sling speed, clamps angle to ±45°, uses mirrored edge wrap, and curves cursor-following punch falloff with doubled force. No new physics or gameplay systems.
+**Current status:** v0.59.0 is deployed. v0.60.0 candidate restores finite 40px high physical walls while preserving mirror wrap only for dice that vault above them; corrects up/down screen spin; and reduces charged punch force, starting charge and minimum radius. No new physics or gameplay system.
+
+### v0.60 candidate — wall contacts and aerial portal, one punch curve
+
+Restore Rapier tray walls at a 40px top, low restitution and viewport-linked positions. Preserve mirrored exit/entry and exact velocity/quaternion/angvel only for released dice whose lowest point has cleared the wall top; ordinary low dice must physically bounce and stay in the tray. Fix the visible up/down throw spin sign through the existing initial angular-velocity path, without changing X-direction throws. Shift-click charge begins at 15% (not 35%), reaches full in 500ms, and radius scales directly with level (28.125–187.5 px). Quick impulse is 1.18125 (75% of old quick), full impulse 2.25 (50% of old full). Within the hit radius, use one quadratic taper starting at 75% radius with floor 15% of the charged impulse; beyond radius, no effect. Keep the same single Rapier world, rigid-body positions, roll groups, resource commitments and GUI. Run Node/Python/Chromium qualification and confirm main Pages deployment before claiming release.
 
 ### v0.59 candidate — one world, faster grip, no walls
 
