@@ -54,14 +54,15 @@ for(let i=0;i<70;i++){held.x+=2.5;DP.stepWorld([held,resting],1/120,540,470);}
 const drift=Math.hypot(resting.x-origin.x,resting.y-origin.y);
 assert.ok(drift<1,'Cursor-follow preview disturbed a settled d20 by '+drift.toFixed(2)+' px');
 // Grabbing that same die enables convex contact and momentum transfer.
-held.x=origin.x-85;held.ready=false;held.held=true;DP.park(held);
+held.x=origin.x-85;held.ready=false;DP.grab(held,held.x,held.y,0);
 let transferred=false;
 for(let i=0;i<70;i++){
- held.x+=2.5;DP.stepWorld([held,resting],1/120,540,470);
+ DP.moveGrip(held,origin.x-85+(i+1)*2.5,origin.y,0);
+ DP.stepWorld([held,resting],1/120,540,470);
  if(Math.hypot(resting.x-origin.x,resting.y-origin.y)>4)transferred=true;
 }
 assert.ok(transferred,'Dragged die did not push a resting d20');
-held.held=false;DP.launch(held,160,0,80);
+DP.release(held,160,0,{angleDeg:0,spin:0});
 for(let i=0;i<1200;i++)DP.stepWorld([held,resting],1/120,540,470);
 assert.ok(held.sleeping&&resting.sleeping,'Both interacting dice should settle');
 // A tetrahedral d4 reads its upper vertex; tiny resting motion keeps that value.
@@ -78,8 +79,31 @@ for(let i=0;i<tetra.v.length;i++){
 }
 // Angular velocity changes sign with flick direction, before any collision.
 const right=DP.makeDie(6,180,170),left=DP.makeDie(6,180,170);
-DP.launch(right,500,0,0);DP.launch(left,-500,0,0);
-assert.ok(right.w[1]>0&&left.w[1]<0,'flick direction does not control spin');
+DP.launch(right,500,0,0,{angleDeg:0,spin:1});
+DP.launch(left,-500,0,0,{angleDeg:0,spin:1});
+assert.ok(right.w[1]<0&&left.w[1]>0,'forward spin must follow the throw direction');
+const back=DP.makeDie(6,180,170);
+DP.launch(back,500,0,0,{angleDeg:0,spin:-1});
+assert.ok(back.w[1]>0,'negative spin must reverse relative to travel');
+const neutral=DP.makeDie(6,180,170);
+DP.launch(neutral,500,0,0,{angleDeg:0,spin:0});
+assert.ok(Math.hypot(...neutral.w)<.001,'zero spin must not add arbitrary rotation');
+const up=DP.makeDie(8,200,160),down=DP.makeDie(8,200,160);
+DP.launch(up,240,0,0,{angleDeg:45,height:1});
+DP.launch(down,240,0,0,{angleDeg:-45,height:0});
+assert.ok(up.v[2]>0&&down.v[2]<0,'positive and negative throw angles change vertical velocity');
+assert.ok(up.z>down.z+100,'height 1 must start substantially above height 0');
+const sling=DP.makeDie(6,110,160);
+DP.grab(sling,sling.x,sling.y,.5);
+DP.release(sling,0,0,{angleDeg:0,spin:0,sling:{anchorX:220,anchorY:160,fromX:130,fromY:160}});
+assert.ok(sling.v[0]>300&&Math.abs(sling.v[1])<1,'slingshot must launch toward its anchor');
+const punched=DP.makeDie(6,250,250,28);
+DP.launch(punched,0,0,0,{angleDeg:0,height:0});
+for(let i=0;i<260;i++)DP.stepWorld([punched],1/120,540,470);
+const n=DP.punch([punched],200,250,125);
+assert.equal(n,1,'force punch must affect nearby dynamic dice');
+DP.stepWorld([punched],1/120,540,470);
+assert.ok(punched.v[0]>0,'radial impulse must move die away from click');
 console.log('dice physics tests passed');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

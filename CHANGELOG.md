@@ -1,4 +1,13 @@
-## v0.56.0 — Rapier 3D rigid-body dice (candidate)
+## v0.57.0 — Physical spring grip and expressive throws (candidate)
+
+- Replaced cursor-teleported held dice with dynamic Rapier convex bodies attached to off-center spring joints and invisible kinematic hand anchors. Grabbing, shaking, lifting and floor dragging now apply physical forces.
+- Plain wheel adjusts lift (0–1); Ctrl+wheel adjusts launch angle by 5° per notch (-85° to +85°); Shift+wheel adjusts direction-relative forward/backspin (-1 to +1). A small in-tray indicator displays all three.
+- Ctrl while grabbing temporarily engages a slingshot: pull back and release the mouse to fire; release Ctrl first to disengage. Shift-click delivers a radial physical impulse.
+- Visible dice receive pointer priority above controls; Alt-click deliberately passes through to the underlying UI. Escape/right-click restores grabbed dice without committing an unstarted roll.
+- Reduced wall restitution, adjusted material damping and improved solver stability. No new renderer, gameplay pipeline, or physics dependency.
+- Extended physical and browser tests for spring grips, angle, spin, height, slingshot, punch and control precedence.
+
+## v0.56.0 — Rapier 3D rigid-body dice
 
 - Replaced the handwritten approximate contact solver with a shared 120-Hz Rapier world, real convex polyhedron colliders, tray walls and floor, calculated rotational inertia, friction and restitution.
 - Thrown dice collide with resting and rolling dice, transferring real contact impulses. Held dice are kinematic so physically dragging one into another also pushes the other die; sleeping dice wake from collisions. Prepared dice following the cursor remain non-colliding previews until grabbed or launched.

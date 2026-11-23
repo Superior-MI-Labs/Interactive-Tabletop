@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.56.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.57.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.56.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.57.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -40,6 +40,12 @@ When editing a character, open **Spells → Configure standard spell slots** to 
 **v0.47 manual spellbook safety:** Spells added with **+ Spell** are separate player-authored records, even if a later PDF contains a spell with the same name. PDF reimport preserves those records, and the sheet identifies them as **Manual entry**. In Edit mode, **Remove manual spell** asks for confirmation; it cannot remove PDF-owned spells. Deleting a spell does not end effects already in progress. Export a JSON backup before a significant reimport or deletion.
 
 **v0.46 spellcasting:** In Edit sheet, each spell can specify its casting ability (STR/DEX/CON/INT/WIS/CHA) or a bounded fixed modifier override. Qualified 2014 self-healing uses that explicit configuration. Legacy unambiguous source labels still work, but mixed class sources require an ability selection. Configuration survives unambiguous PDF reimports; no automatic class progression or new spell effects are introduced.
+
+## v0.57 — Physical hand and directional throws
+
+The player can grab a die even when it overlaps a sheet button; **Alt-click** passes through to that button. A Rapier spring joins held dice to invisible moving grip anchors, so shaking, lifting, and dragging along the table create physical inertia and rotation. The **plain mouse wheel** while holding adjusts height from 0 (table contact) to 1 (five die radii). **Ctrl + wheel** adjusts vertical release angle in **exactly 5° steps**, from -85° to +85°. **Shift + wheel** adjusts forward/backspin from -1 to +1 relative to release direction; zero adds no new spin.
+
+Hold **Ctrl** during a grab to set a slingshot anchor. Pull back and release the mouse to fire toward it, or release Ctrl first to return to normal holding. **Shift + left-click** applies a radial impulse to nearby dice. Right-click or Escape cancels a grab; releasing the left button drops or throws. Settings are transient session state and do not modify a character or create a second simulation.
 
 ## v0.56 — Physical rigid-body dice
 
@@ -157,14 +163,14 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.56.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.57.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.56.0.zip" SkyBlueEyes-Tabletop-v0.56.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.57.0.zip" SkyBlueEyes-Tabletop-v0.57.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.

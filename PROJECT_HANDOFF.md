@@ -2,13 +2,13 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.55.0`  
-**Candidate application release:** `v0.56.0` — Rapier 3D rigid-body dice, awaiting CI qualification and Pages deployment.  
-**Release commit:** v0.55.0 `fa534f1` — qualification and Pages deployment passed in run `45118833498` (2026-11-23 UTC).  
+**Last verified application release:** `v0.56.0`  
+**Candidate application release:** `v0.57.0` — physical spring grip and expressive mouse interactions, awaiting qualification.  
+**Release commit:** v0.56.0 `f0d8d19` — qualification and Pages deployment passed on retry in run `45123723171` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.55.0 is deployed. The v0.56.0 candidate replaces only transient dice physics with one Rapier world. Vault, tracked gameplay rules, roll groups and UI remain unchanged.
+**Current status:** v0.56.0 is deployed. v0.57.0 candidate adds a spring-like physical hand, 0–1 wheel lift, Ctrl+wheel 5° angle, Shift+wheel forward/backspin, Ctrl slingshot, Shift-click radial punch, and dice-first pointer priority. Rules and roll ownership are unchanged.
 
 ### v0.54 priority and non-goals
 
@@ -21,6 +21,10 @@ The existing `web/dice-physics.js` owns simulated motion; `web/app.js` owns inpu
 ### v0.56 candidate: real rigid-body impacts and draggable collision
 
 web/dice-physics.source.js is the authored simulation owner; tools/build_physics.py embeds pinned Rapier into untracked web/dice-physics.js after npm ci. One Rapier world is shared by every die, including completed resting dice. Held dice switch to kinematic bodies that can impart momentum to sleeping dynamic dice. The UI still owns visual faces and character-scoped roll group settlement. No alternate simulation or selected-result path is allowed. Verify Node, Python, Chromium, offline bundle packaging and actual Pages deployment before announcing release.
+
+### v0.57 candidate: one physical hand, one Rapier world
+
+A held die must remain dynamic and attached to a spring joint and kinematic anchor in `web/dice-physics.source.js`, never teleported. In `web/app.js`, wheel height adjusts 0–1, Ctrl+wheel exactly 5° per notch, Shift+wheel ±1 directional spin, Ctrl toggles a slingshot (release Ctrl cancels), Shift-click physically punches a radius. Visible dice win control clicks, Alt clicks through. Existing `startDiceGroup` owns all roll commits once on release. Validate contact, angle/spin sign, wall rebound, simultaneous rolls, restored grabs, browser clicks, and all qualification gates before merge.
 
 ## 1. Why this file exists / how to resume
 

@@ -63,8 +63,10 @@ with sync_playwright() as pw:
  assert page.locator('[data-action="bonus-attack"]').count()==1
  bonus=page.locator('[data-action="bonus-attack"]')
  assert '2' in bonus.inner_text()
- bonus.click()
+ # A finished die can overlap this button; Alt deliberately reaches the UI.
+ bonus.click(modifiers=['Alt'])
  assert page.evaluate("Action.availableAttackGrants(character,'unarmed')")==2
+ assert page.evaluate('pendingRoll !== null'),'Alt-click must prepare the bonus roll'
  page.evaluate('beginThrow()')
  assert page.evaluate("Action.availableAttackGrants(character,'unarmed')")==1
  assert page.evaluate('character.effects.combat.economy.spent.action')==1

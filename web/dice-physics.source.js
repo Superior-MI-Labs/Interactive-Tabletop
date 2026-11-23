@@ -107,17 +107,23 @@ function createDicePhysics(RAPIER) {
   }
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
 
- const PIXEL=.01;
+ const PIXEL=.01,STEP=1/120,MAX_SPEED=900;
+ const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+ const planeDir=(x,y)=>{const l=Math.hypot(x,y);return l>1e-6?[x/l,y/l]:[0,0];};
  let world=null,initialized=null,walls=[],extent=[0,0];
- const bodies=new Map();
- const vec=d=>({x:d.x*PIXEL,y:d.y*PIXEL,z:d.z*PIXEL});
- const rot=q=>({w:q[0],x:q[1],y:q[2],z:q[3]});
+ const bodies=new Map(),grips=new Map();
+ const pos=d=>({x:d.x*PIXEL,y:d.y*PIXEL,z:d.z*PIXEL});
+ const quat=q=>({w:q[0],x:q[1],y:q[2],z:q[3]});
  function init(){
   if(initialized)return initialized;
   initialized=Promise.resolve().then(()=>RAPIER.init()).then(()=>{
-   world=new RAPIER.World({x:0,y:0,z:-9.81});world.timestep=1/120;
-   world.createCollider(RAPIER.ColliderDesc.cuboid(100,100,.25).setTranslation(0,0,-.25).setFriction(.8).setRestitution(.2));
-   const wall=(x,y)=>world.createCollider(RAPIER.ColliderDesc.cuboid(x,y,1.6).setFriction(.7).setRestitution(.3));
+   world=new RAPIER.World({x:0,y:0,z:-9.81});world.timestep=STEP;
+   world.createCollider(RAPIER.ColliderDesc.cuboid(100,100,.25)
+    .setTranslation(0,0,-.25).setFriction(.9).setRestitution(.04)
+    .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min));
+   const wall=(x,y)=>world.createCollider(RAPIER.ColliderDesc.cuboid(x,y,1.6)
+    .setFriction(.82).setRestitution(.04)
+    .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min));
    walls=[wall(.1,100),wall(.1,100),wall(100,.1),wall(100,.1)];
   });
   return initialized;
@@ -130,66 +136,147 @@ function createDicePhysics(RAPIER) {
   walls[2].setTranslation({x:w/2,y:-.1,z:1.5});
   walls[3].setTranslation({x:w/2,y:h+.1,z:1.5});
  }
- function body(d){
-  if(!world)throw Error('Rapier has not initialized.');
-  if(bodies.has(d))return bodies.get(d);
-  const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(d.x*PIXEL,d.y*PIXEL,d.z*PIXEL)
-   .setRotation(rot(d.q)).setLinearDamping(.35).setAngularDamping(1.2).setCcdEnabled(true);
-  const b=world.createRigidBody(desc);
-  const points=new Float32Array(mesh(d.sides).v.flatMap(v=>v.map(n=>n*d.r*PIXEL)));
-  const collider=RAPIER.ColliderDesc.convexHull(points);
-  if(!collider)throw Error('Convex geometry invalid: d'+d.sides);
-  world.createCollider(collider.setFriction(.78).setRestitution(.27).setMass(.18),b);
-  bodies.set(d,b);
-  setColliding(d,b);
-  if(d.held||d.ready)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
-  else if(d.sleeping)b.sleep();
-  return b;
- }
- // A cursor-follow preview is not a physical throw. Held and launched dice
- // have enabled convex colliders; an ungrabbed prepared die is a ghost.
  function setColliding(d,b){
   const c=b.collider(0),enabled=!d.ready||d.held;
   if(c.isEnabled()!==enabled)c.setEnabled(enabled);
  }
+ function body(d){
+  if(!world)throw Error('Rapier has not initialized');
+  if(bodies.has(d))return bodies.get(d);
+  const desc=RAPIER.RigidBodyDesc.dynamic()
+   .setTranslation(d.x*PIXEL,d.y*PIXEL,d.z*PIXEL).setRotation(quat(d.q))
+   .setLinearDamping(.42).setAngularDamping(1.35)
+   .setCcdEnabled(true).setAdditionalSolverIterations(2);
+  const b=world.createRigidBody(desc);
+  const points=new Float32Array(mesh(d.sides).v.flatMap(v=>v.map(n=>n*d.r*PIXEL)));
+  const collider=RAPIER.ColliderDesc.convexHull(points);
+  if(!collider)throw Error('Invalid die polyhedron: d'+d.sides);
+  world.createCollider(collider.setFriction(.83).setRestitution(.12)
+   .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min).setMass(.18),b);
+  bodies.set(d,b);setColliding(d,b);
+  if(d.ready&&!d.held)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
+  else if(d.sleeping)b.sleep();
+  return b;
+ }
+ function sync(d,b){
+  const p=b.translation(),q=b.rotation(),v=b.linvel(),w=b.angvel();
+  d.x=p.x/PIXEL;d.y=p.y/PIXEL;d.z=p.z/PIXEL;
+  d.q=[q.w,q.x,q.y,q.z];
+  d.v=[v.x/PIXEL,v.y/PIXEL,v.z/PIXEL];d.w=[w.x,w.y,w.z];
+  d.sleeping=d.held?false:b.isSleeping();d.rolling=!d.held&&!d.sleeping;
+ }
+ function endGrip(d){
+  const g=grips.get(d);if(!g)return;
+  world.removeImpulseJoint(g.joint,true);
+  world.removeRigidBody(g.anchor);
+  grips.delete(d);
+ }
+ // Explicit reposition for previews/recovery. A live held die is never teleported.
  function park(d){
-  const b=body(d),held=d.held||d.ready;
+  endGrip(d);
+  const b=body(d),preview=d.ready&&!d.held;
   setColliding(d,b);
-  b.setBodyType(held?RAPIER.RigidBodyType.KinematicPositionBased:RAPIER.RigidBodyType.Dynamic,true);
-  b.setTranslation(vec(d),true);b.setRotation(rot(d.q),true);
-  if(held){b.setNextKinematicTranslation(vec(d));return;}
+  b.setBodyType(preview?RAPIER.RigidBodyType.KinematicPositionBased:RAPIER.RigidBodyType.Dynamic,true);
+  b.setTranslation(pos(d),true);b.setRotation(quat(d.q),true);
+  if(preview){b.setNextKinematicTranslation(pos(d));return;}
   b.setLinvel({x:d.v[0]*PIXEL,y:d.v[1]*PIXEL,z:d.v[2]*PIXEL},true);
   b.setAngvel({x:d.w[0],y:d.w[1],z:d.w[2]},true);
   if(d.sleeping)b.sleep();
  }
- function launch(d,vx,vy,shake=0){
-  d.z=height(d)+55;d.v=[vx,vy,270+random()*150];
-  const roll=.6/d.r,variation=Math.min(7,2+Math.max(0,shake)*.014);
-  d.w=[-vy*roll+(random()-.5)*variation,vx*roll+(random()-.5)*variation,(random()-.5)*variation];
-  d.held=false;d.ready=false;d.sleeping=false;d.rolling=true;d.restTime=0;
-  park(d);
+ function grab(d,x=d.x,y=d.y,lift=.35){
+  if(grips.has(d))return;
+  // Previews follow the cursor before being physically grabbed.
+  park(d);d.held=true;d.sleeping=false;
+  const b=body(d);
+  setColliding(d,b);
+  b.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
+  b.wakeUp();
+  // Off-center attachment lets genuine mouse accelerations rotate the die.
+  const local={x:d.r*PIXEL*.24,y:0,z:d.r*PIXEL*.16};
+  const off=rotate(d.q,[local.x/PIXEL,local.y/PIXEL,local.z/PIXEL]);
+  const anchor=world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased()
+   .setTranslation((d.x+off[0])*PIXEL,(d.y+off[1])*PIXEL,(d.z+off[2])*PIXEL));
+  const joint=world.createImpulseJoint(
+   RAPIER.JointData.spring(0,64,7.2,{x:0,y:0,z:0},local),anchor,b,true);
+  grips.set(d,{anchor,joint,offset:off,target:anchor.translation()});
+  moveGrip(d,x,y,lift);
+ }
+ function moveGrip(d,x,y,lift=.35){
+  const g=grips.get(d);if(!g)return;
+  // Height 0 keeps the die on the table; height 1 lifts five die radii.
+  const z=height(d)+clamp(lift,0,1)*d.r*5;
+  g.target={x:(x+g.offset[0])*PIXEL,y:(y+g.offset[1])*PIXEL,
+   z:Math.max(d.r*.2,z+g.offset[2])*PIXEL};
+ }
+ function releaseVelocity(b,vx,vy,settings={}){
+  const angle=clamp(Number(settings.angleDeg)||0,-85,85)*Math.PI/180;
+  const speed=Math.min(MAX_SPEED,Math.hypot(vx,vy)),dir=planeDir(vx,vy);
+  b.setLinvel({x:dir[0]*speed*Math.cos(angle)*PIXEL,
+   y:dir[1]*speed*Math.cos(angle)*PIXEL,z:speed*Math.sin(angle)*PIXEL},true);
+  const spin=clamp(Number(settings.spin)||0,-1,1);
+  if(spin&&speed>1){
+   const w=b.angvel(),turn=spin*18;
+   // Positive spin rolls forward in the horizontal throw direction.
+   b.setAngvel({x:w.x+dir[1]*turn,y:w.y-dir[0]*turn,z:w.z},true);
+  }
+ }
+ function release(d,vx=0,vy=0,settings={}){
+  const b=body(d);
+  endGrip(d);d.held=false;d.ready=false;d.sleeping=false;d.rolling=true;
+  setColliding(d,b);
+  if(settings.sling){
+   const s=settings.sling,dx=s.anchorX-s.fromX,dy=s.anchorY-s.fromY;
+   const l=Math.hypot(dx,dy);
+   const power=l>8?Math.min(MAX_SPEED,l*4.3):0;
+   vx=l?dx/l*power:0;vy=l?dy/l*power:0;
+  }
+  releaseVelocity(b,vx,vy,settings);
+  sync(d,b);
+ }
+ function launch(d,vx=0,vy=0,shake=0,settings={}){
+  endGrip(d);
+  d.ready=false;d.held=false;d.sleeping=false;d.rolling=true;
+  const lift=Number.isFinite(settings.height)?settings.height:.35;
+  d.z=height(d)+d.r*5*clamp(lift,0,1);
+  d.v=[0,0,0];d.w=[0,0,0];
+  park(d);releaseVelocity(body(d),vx,vy,{angleDeg:settings.angleDeg??15,spin:settings.spin??0});
+  sync(d,body(d));
+ }
+ function punch(dice,x,y,radius=125){
+  let hits=0;
+  for(const d of dice){
+   if(d.ready||d.held)continue;
+   const dx=d.x-x,dy=d.y-y,l=Math.hypot(dx,dy);
+   if(l>=radius)continue;
+   const dir=l>1?planeDir(dx,dy):[1,0],power=.75*(1-l/radius);
+   const b=body(d),p=b.translation();
+   b.applyImpulseAtPoint({x:dir[0]*power,y:dir[1]*power,z:power*.12},
+    {x:p.x,y:p.y,z:p.z+d.r*PIXEL*.22},true);
+   hits++;
+  }
+  return hits;
  }
  function stepWorld(dice,dt,width,heightLimit){
-  if(!world)throw Error('Rapier has not initialized.');
+  if(!world)throw Error('Rapier has not initialized');
   setBounds(width,heightLimit);
   const present=new Set(dice);
-  for(const [d,b] of bodies)if(!present.has(d)){world.removeRigidBody(b);bodies.delete(d);}
+  for(const [d,b] of bodies)if(!present.has(d)){
+   endGrip(d);world.removeRigidBody(b);bodies.delete(d);
+  }
   for(const d of dice){
-   const b=body(d);
+   const b=body(d),preview=d.ready&&!d.held;
    setColliding(d,b);
-   if(d.held||d.ready){
-    if(b.bodyType()!==RAPIER.RigidBodyType.KinematicPositionBased)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
-    b.setNextKinematicTranslation(vec(d));
-   }else if(b.bodyType()!==RAPIER.RigidBodyType.Dynamic)park(d);
+   if(preview){
+    if(b.bodyType()!==RAPIER.RigidBodyType.KinematicPositionBased)
+     b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
+    b.setNextKinematicTranslation(pos(d));
+   }else if(b.bodyType()!==RAPIER.RigidBodyType.Dynamic)
+    b.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
   }
+  for(const g of grips.values())g.anchor.setNextKinematicTranslation(g.target);
   world.step();
-  for(const d of dice){
-   if(d.held||d.ready)continue;
-   const b=bodies.get(d),p=b.translation(),q=b.rotation(),v=b.linvel(),w=b.angvel();
-   d.x=p.x/PIXEL;d.y=p.y/PIXEL;d.z=p.z/PIXEL;
-   d.q=[q.w,q.x,q.y,q.z];d.v=[v.x/PIXEL,v.y/PIXEL,v.z/PIXEL];d.w=[w.x,w.y,w.z];
-   d.sleeping=b.isSleeping();d.rolling=!d.sleeping;
-  }
+  for(const d of dice)if(!d.ready||d.held)sync(d,bodies.get(d));
  }
- return {init,mesh,rotate,advance,orientation,faceValue,makeDie,launch,stepWorld,park,height,hitTest,random};
+ return {init,mesh,rotate,advance,orientation,faceValue,makeDie,launch,release,
+  grab,moveGrip,park,punch,stepWorld,height,hitTest,random};
 }

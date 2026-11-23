@@ -55,48 +55,49 @@ with sync_playwright() as pw:
  assert page.evaluate('lastResult.total')>=7
  assert page.evaluate('pendingDamage.length')==0
  assert page.evaluate('Action.combat(character).economy.spent.action')==0
- page.locator('.attack-list [data-action=damage]').first.click()
+ page.locator('.attack-list [data-action=damage]').first.click(modifiers=['Alt'])
  assert page.evaluate('pendingRoll.expression')=='1d8+3'
  page.evaluate('cancelPreparedRoll()')
- page.locator('.attack-list [data-action=critical-damage]').first.click()
+ page.locator('.attack-list [data-action=critical-damage]').first.click(modifiers=['Alt'])
  assert page.evaluate('pendingRoll.expression')=='2d8+3'
  page.evaluate('cancelPreparedRoll()')
 
- page.locator('#page > details[data-panel="Conditions"] [data-action=condition][data-arg=Poisoned]').click()
+ page.locator('#page > details[data-panel="Conditions"] [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
  assert page.evaluate("character.conditions.includes('Poisoned')")
  assert page.evaluate("Action.activeEffects(character).length")==0
- page.locator('#page > details[data-panel="Conditions"] [data-action=condition][data-arg=Poisoned]').click()
+ page.locator('#page > details[data-panel="Conditions"] [data-action=condition][data-arg=Poisoned]').click(modifiers=['Alt'])
  assert not page.evaluate("character.conditions.includes('Poisoned')")
 
- page.get_by_label('My Turn quick tracker').get_by_role('button',name='Start tracking').click()
+ page.get_by_label('My Turn quick tracker').get_by_role('button',name='Start tracking').click(modifiers=['Alt'])
  assert page.evaluate('Action.combat(character).active') is True
  assert page.evaluate('Action.combat(character).economy.mode')=='manual'
- page.get_by_label('My Turn quick tracker').locator('[data-action=mark-turn-action][data-arg=action]').click()
+ page.get_by_label('My Turn quick tracker').locator('[data-action=mark-turn-action][data-arg=action]').click(modifiers=['Alt'])
  assert page.evaluate('Action.combat(character).economy.spent.action')==1
- page.locator('.attack-list [data-action=attack]').first.click()
+ # A settled die can cover this attack control. Alt-click reaches the UI.
+ page.locator('.attack-list [data-action=attack]').first.click(modifiers=['Alt'])
  assert page.evaluate('pendingRoll.expression')=='1d20+6'
  page.evaluate('cancelPreparedRoll()')
  assert page.evaluate('Action.combat(character).economy.spent.action')==1
- page.get_by_label('My Turn quick tracker').get_by_role('button',name='Next turn').click()
+ page.get_by_label('My Turn quick tracker').get_by_role('button',name='Next turn').click(modifiers=['Alt'])
  assert page.evaluate('Action.combat(character).economy.spent.action')==0
 
- page.get_by_label('Effect recipient').get_by_role('button',name='Other').click()
- page.get_by_role('tab',name='Spells').click()
+ page.get_by_label('Effect recipient').get_by_role('button',name='Other').click(modifiers=['Alt'])
+ page.get_by_role('tab',name='Spells').click(modifiers=['Alt'])
  spell=page.locator('.spell-entry').filter(has_text='Aid Touch')
- spell.locator('summary').click()
- spell.get_by_role('button',name='Cast spell').click()
+ spell.locator('summary').click(modifiers=['Alt'])
+ spell.get_by_role('button',name='Cast spell').click(modifiers=['Alt'])
  assert 'Other: share the result' in page.locator('#dialog-layer').inner_text()
- page.locator('#dlg-yes').click()
+ page.locator('#dlg-yes').click(modifiers=['Alt'])
  assert page.evaluate('pendingRoll.expression')=='1d6+2'
  settle(page)
  assert page.evaluate('pendingHealing') is None
  assert page.evaluate('character.hp.current')==12
 
- page.get_by_label('Effect recipient').get_by_role('button',name='Self').click()
+ page.get_by_label('Effect recipient').get_by_role('button',name='Self').click(modifiers=['Alt'])
  spell=page.locator('.spell-entry').filter(has_text='Aid Touch')
- if spell.locator('details').get_attribute('open') is None:spell.locator('summary').click()
- spell.get_by_role('button',name='Cast spell').click()
- page.locator('#dlg-yes').click()
+ if spell.locator('details').get_attribute('open') is None:spell.locator('summary').click(modifiers=['Alt'])
+ spell.get_by_role('button',name='Cast spell').click(modifiers=['Alt'])
+ page.locator('#dlg-yes').click(modifiers=['Alt'])
  settle(page)
  assert page.evaluate('pendingHealing?.amount') is not None
  assert page.evaluate('character.hp.current')==12
