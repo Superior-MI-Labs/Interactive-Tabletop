@@ -108,14 +108,29 @@ assert.ok(back.w[1]<0,'negative spin must create backspin against the direction 
 const neutral=DP.makeDie(6,180,170);
 DP.launch(neutral,500,0,0,{angleDeg:0,spin:0});
 assert.ok(Math.hypot(...neutral.w)<.001,'zero spin must not add arbitrary rotation');
+const fastMouseThrow=DP.makeDie(6,230,170);
+DP.launch(fastMouseThrow,4800,0,0,{angleDeg:0,spin:0,height:.8});
+assert.ok(fastMouseThrow.v[0]>4700,
+ 'a physical hand toss must not be limited by the old 900px/s cap');
+const releasedHand=DP.makeDie(6,250,175);
+DP.grab(releasedHand,250,175,.6);
+DP.release(releasedHand,4600,0,{angleDeg:0,spin:0});
+assert.ok(releasedHand.v[0]>4500,
+ 'physical spring release must preserve a fast hand toss without the old speed cap');
+const airborneSpin=DP.makeDie(6,270,150);
+DP.launch(airborneSpin,350,0,0,{height:1,angleDeg:0,spin:1});
+const releaseSpin=airborneSpin.w[1];
+for(let i=0;i<8;i++)DP.stepWorld([airborneSpin],1/120,550,450);
+assert.ok(airborneSpin.w[1]>0&&airborneSpin.w[1]<releaseSpin,
+ 'spin is an initial boost, not a continuously forced rotation');
 const screenUp=DP.makeDie(6,190,180),screenDown=DP.makeDie(6,230,180);
 DP.launch(screenUp,0,-300,0,{angleDeg:25,spin:1});
 DP.launch(screenDown,0,300,0,{angleDeg:-25,spin:1});
-assert.ok(screenUp.w[0]<0&&screenDown.w[0]>0,
- 'positive spin for screen up/down throws must have the corrected pitch sign');
+assert.ok(screenUp.w[0]>0&&screenDown.w[0]<0,
+ 'restore the original screen-up/down spin sign on release');
 const screenBack=DP.makeDie(6,270,180);
 DP.launch(screenBack,0,-300,0,{angleDeg:25,spin:-1});
-assert.ok(screenBack.w[0]>0,'screen-up backspin must reverse the new forward pitch');
+assert.ok(screenBack.w[0]<0,'screen-up backspin must reverse the restored pitch');
 const up=DP.makeDie(8,200,160),down=DP.makeDie(8,200,160);
 DP.launch(up,240,0,0,{angleDeg:45,height:1});
 DP.launch(down,240,0,0,{angleDeg:-45,height:0});
