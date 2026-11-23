@@ -158,6 +158,16 @@ with sync_playwright() as pw:
  compact.click(modifiers=['Alt'])
  assert page.locator('#dice-widget').get_attribute('open') is None
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
+ # Switching characters while charging must abandon the pulse without firing.
+ ability=page.locator('.ability-roll').first.bounding_box()
+ page.keyboard.down('Shift')
+ page.mouse.move(ability['x']+ability['width']/2,ability['y']+ability['height']/2)
+ page.mouse.down()
+ assert page.evaluate('punchCharge!==null')
+ page.evaluate('abandonCharacterDice(activeId)')
+ assert page.evaluate('punchCharge===null&&punchEffect===null'),'Switch must discard charging impulse'
+ page.mouse.up();page.keyboard.up('Shift')
+ assert page.evaluate('pendingRoll===null&&pointer===null'),'Old gesture cannot affect new character'
  assert not errors,errors
  print('PASS browser: physical grip, Alt click-through, wheel controls, sling, charged Shift-click over buttons, concurrent rolls, cancel, modifiers')
  browser.close()

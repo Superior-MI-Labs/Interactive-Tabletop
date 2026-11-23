@@ -1702,6 +1702,11 @@ function abandonCharacterDice(characterId){
    d.v=[0,0,0];d.w=[0,0,0];d.z=DP.height(d);DP.park(d);
   });
  }
+ // A charged impulse cannot survive an interrupted character interaction.
+ if(punchCharge){
+  try{$('#dice-stage')?.releasePointerCapture(punchCharge.id);}catch(_){}
+  punchCharge=null;punchEffect=null;
+ }
  pointer=null;following=false;
  document.body.classList.remove('dice-dragging');
  $('#dice-stage')?.classList.remove('dice-following');
