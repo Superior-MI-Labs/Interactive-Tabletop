@@ -41,17 +41,24 @@ assert.ok(a.sleeping&&b.sleeping,'Collision group did not settle');
 assert.ok(Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>15,'Dice should not occupy the same location');
 // Held dice must interact physically with stationary dynamic dice: drag into
 // a resting d20 and assert that the real contact solver moves it.
-const held=DP.makeDie(6,170,240,32),resting=DP.makeDie(20,255,240,32);
-// Moving a prepared, ungrabbed preview must not knock over another die.
-held.ready=true;held.held=false;DP.park(held);resting.sleeping=true;DP.park(resting);
+const resting=DP.makeDie(20,255,240,32);
+// Let the body find its own physical rest before measuring external impulses.
+DP.launch(resting,0,0,0);
+for(let i=0;i<1200&&!resting.sleeping;i++)DP.stepWorld([resting],1/120,540,470);
+assert.ok(resting.sleeping,'Target d20 did not reach physical rest');
+const origin={x:resting.x,y:resting.y};
+const held=DP.makeDie(6,origin.x-85,origin.y,32);
+// A cursor-follow preview must be non-colliding even when visually overlapping.
+held.ready=true;held.held=false;DP.park(held);
 for(let i=0;i<70;i++){held.x+=2.5;DP.stepWorld([held,resting],1/120,540,470);}
-assert.ok(Math.hypot(resting.x-255,resting.y-240)<1,'Cursor-follow preview incorrectly pushed a resting die');
-// Grabbing that same die activates its convex collider, allowing real impacts.
-held.x=170;held.ready=false;held.held=true;DP.park(held);
+const drift=Math.hypot(resting.x-origin.x,resting.y-origin.y);
+assert.ok(drift<1,'Cursor-follow preview disturbed a settled d20 by '+drift.toFixed(2)+' px');
+// Grabbing that same die enables convex contact and momentum transfer.
+held.x=origin.x-85;held.ready=false;held.held=true;DP.park(held);
 let transferred=false;
 for(let i=0;i<70;i++){
  held.x+=2.5;DP.stepWorld([held,resting],1/120,540,470);
- if(Math.hypot(resting.x-255,resting.y-240)>4)transferred=true;
+ if(Math.hypot(resting.x-origin.x,resting.y-origin.y)>4)transferred=true;
 }
 assert.ok(transferred,'Dragged die did not push a resting d20');
 held.held=false;DP.launch(held,160,0,80);
