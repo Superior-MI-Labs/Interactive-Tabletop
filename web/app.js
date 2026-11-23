@@ -1896,18 +1896,45 @@ function initDiceCanvas(){
    const progress=Math.max(0,(now-punchEffect.time)/320);
    if(progress>=1)punchEffect=null;
    else{
-    ctx.save();ctx.beginPath();ctx.arc(punchEffect.x,punchEffect.y,125*progress,0,Math.PI*2);
+    ctx.save();ctx.beginPath();ctx.arc(punchEffect.x,punchEffect.y,punchEffect.radius*progress,0,Math.PI*2);
     ctx.strokeStyle='rgba(119,201,247,'+((1-progress)*.8)+')';
     ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
    }
   }
+  if(punchCharge){
+   const power=punchLevel(punchCharge,now),radius=DP.punchRadius(power);
+   const px=punchCharge.x,py=punchCharge.y;
+   ctx.save();ctx.strokeStyle='#80c7ef';ctx.fillStyle='rgba(119,201,247,.09)';
+   ctx.setLineDash([7,5]);ctx.lineWidth=2;
+   ctx.beginPath();ctx.arc(px,py,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+   ctx.setLineDash([]);ctx.fillStyle='rgba(12,22,35,.91)';
+   ctx.fillRect(px-53,py-29,106,23);
+   ctx.fillStyle='#e4ebf5';ctx.textAlign='center';ctx.font='12px system-ui';
+   ctx.fillText('PUNCH '+Math.round(power*100)+'%',px,py-13);
+   ctx.fillStyle='#46566c';ctx.fillRect(px-53,py-5,106,6);
+   ctx.fillStyle='#80c7ef';ctx.fillRect(px-53,py-5,106*power,6);
+   ctx.restore();
+  }
   if(!pointer?.down)return;
   const p=pointer;
-  if(p.slingAnchor){
-   ctx.save();ctx.setLineDash([7,5]);ctx.lineWidth=2.5;ctx.strokeStyle='#f2bb6b';
-   ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.slingAnchor.x,p.slingAnchor.y);
-   ctx.stroke();ctx.restore();
+  const hand=p.slingAnchor
+   ?DP.slingVector(p.slingAnchor.x,p.slingAnchor.y,p.x,p.y)
+   :{x:p.x,y:p.y,power:0};
+  ctx.save();ctx.setLineDash([7,5]);ctx.lineWidth=2;
+  ctx.strokeStyle=p.slingAnchor?'#f2bb6b':'rgba(128,199,239,.8)';
+  ctx.beginPath();
+  for(const d of p.selected){
+   // The tether ends on the physical die, not the cursor.
+   ctx.moveTo(p.slingAnchor?.x??p.x,p.slingAnchor?.y??p.y);
+   ctx.lineTo(d.x,d.y-d.z*.45);
   }
+  ctx.stroke();ctx.setLineDash([]);
+  if(p.slingAnchor){
+   ctx.beginPath();ctx.arc(p.slingAnchor.x,p.slingAnchor.y,10,0,Math.PI*2);ctx.stroke();
+   ctx.font='12px system-ui';ctx.fillStyle='#f2bb6b';ctx.textAlign='left';
+   ctx.fillText('SLING '+Math.round(hand.power*100)+'%',hand.x+12,hand.y-12);
+  }
+  ctx.restore();
   const x=clamp(p.x+22,8,Math.max(8,W-206)),y=clamp(p.y-95,8,Math.max(8,H-65));
   ctx.save();ctx.fillStyle='rgba(12,22,35,.91)';ctx.strokeStyle='rgba(208,223,236,.55)';
   ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x,y,197,64,7);ctx.fill();ctx.stroke();
