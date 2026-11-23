@@ -2,13 +2,17 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.56.0`  
-**Candidate application release:** `v0.57.0` — physical spring grip and expressive mouse interactions, awaiting qualification.  
-**Release commit:** v0.56.0 `f0d8d19` — qualification and Pages deployment passed on retry in run `45123723171` (2026-11-23 UTC).  
+**Last verified application release:** `v0.57.0`  
+**Candidate application release:** `v0.58.0` — damped physical grip, capped sling, corrected directional spin and charged punch, pending qualification.  
+**Release commit:** v0.57.0 `7ab940e` — qualification and Pages deployment passed in run `45132524491` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.56.0 is deployed. v0.57.0 candidate adds a spring-like physical hand, 0–1 wheel lift, Ctrl+wheel 5° angle, Shift+wheel forward/backspin, Ctrl slingshot, Shift-click radial punch, and dice-first pointer priority. Rules and roll ownership are unchanged.
+**Current status:** v0.57.0 is deployed. v0.58.0 candidate tunes grip damping, fixes signed forward rolling, caps Ctrl sling distance/power and makes Shift-click a charged-on-release force punch with absolute pointer priority over buttons. Rules and roll ownership remain unchanged.
+
+### v0.58 candidate — interaction tuning without another system
+
+Rapier already owns the dynamic die and spring hand. Retain that single joint and kinematic anchor: reduce eccentric offset, increase damping, limit anchor step speed. Ctrl pins a sling origin while the existing hand follows the cursor with a 160px tether cap; releasing Ctrl restores ordinary following; releasing mouse with Ctrl held fires with 0–1 power up to 1400px/s. Draw dotted lines from the grip/sling origin to simulated die centers. Positive spin is `up × throwDirection`; negative opposes it. Capture Shift-click on the tabletop ancestor **even when the target is a button**; charge 0.35→1 over 500ms, preview expanding radius/meter, and apply physical impulse only on pointerup. Right-click/Escape/pointercancel must not fire a pulse or spend game resources. Continue normal Ctrl+wheel 5° angle and wheel height. Run all Python/Node/Chromium gates, confirm Pages and desktop assets before claiming release.
 
 ### v0.54 priority and non-goals
 

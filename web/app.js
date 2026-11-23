@@ -21,7 +21,7 @@ const DP=globalThis.DicePhysics;
 let history=[],pendingRoll=null,dice=[],activeRolls=[],activeRoll=null,pointer=null,frame=0,lastFrame=0,accumulator=0,canvas=null,ctx=null;
 let lastDimensions={w:0,h:0},nextDieId=0;
 let throwSettings={height:.35,angleDeg:15,spin:0};
-let punchEffect=null;
+let punchEffect=null,punchCharge=null;
 let queuedEffect=null,pendingHealing=null;
 let pendingDamage=[],selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
 let recipientChoice='self'; // transient self/other intent; never an encounter target or additional vault state
@@ -1702,6 +1702,11 @@ function abandonCharacterDice(characterId){
    d.v=[0,0,0];d.w=[0,0,0];d.z=DP.height(d);DP.park(d);
   });
  }
+ // A charged impulse cannot survive an interrupted character interaction.
+ if(punchCharge){
+  try{$('#dice-stage')?.releasePointerCapture(punchCharge.id);}catch(_){}
+  punchCharge=null;punchEffect=null;
+ }
  pointer=null;following=false;
  document.body.classList.remove('dice-dragging');
  $('#dice-stage')?.classList.remove('dice-following');
@@ -1711,18 +1716,21 @@ function initDiceCanvas(){
  const stage=$('#dice-stage');
  const relative=e=>{const r=stage.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};};
  // Canvas stays visually above the sheet without blocking all controls.
- // Capture events on the tabletop ancestor, and intercept ONLY a visible die hit.
- // This also works when a die lies above a button, input or scrollable panel.
+ // A visible die owns ordinary clicks. Shift+click owns the entire stage,
+ // including its buttons, and triggers its pulse on release.
  const findDie=(x,y)=>[...dice].reverse().find(d=>DP.hitTest(d,x,y,lastDimensions.w,lastDimensions.h,Math.max(10,d.r*.23)));
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
- const control='button,input,select,textarea,summary,label,a[href],[role="button"],[role="tab"],[contenteditable],[data-pointer-priority="control"]';
+ const punchLevel=(gesture,now)=>.35+.65*clamp((now-gesture.start)/500,0,1);
  const moveGrips=()=>{
   if(!pointer?.down)return;
+  const hand=pointer.slingAnchor
+   ?DP.slingVector(pointer.slingAnchor.x,pointer.slingAnchor.y,pointer.x,pointer.y)
+   :{x:pointer.x,y:pointer.y};
   pointer.selected.forEach((d,i)=>{
    const off=pointer.offsets[i],prior=pointer.prior[i];
-   const liftY=(DP.height(d)+throwSettings.height*d.r*5-prior.z)*.45;
-   DP.moveGrip(d,clamp(pointer.x+off.x,d.r,lastDimensions.w-d.r),
-    clamp(pointer.y+off.y+liftY,d.r,lastDimensions.h-d.r),throwSettings.height);
+   const liftY=(pointer.supports[i]+throwSettings.height*d.r*5-prior.z)*.45;
+   DP.moveGrip(d,clamp(hand.x+off.x,d.r,lastDimensions.w-d.r),
+    clamp(hand.y+off.y+liftY,d.r,lastDimensions.h-d.r),throwSettings.height);
   });
  };
  const cancelGrab=()=>{
@@ -1733,9 +1741,14 @@ function initDiceCanvas(){
   return true;
  };
  const cancelGesture=()=>{
-  const grabbed=cancelGrab(),prepared=Boolean(pendingRoll);
+  const charging=Boolean(punchCharge);
+  if(punchCharge){
+   try{stage.releasePointerCapture(punchCharge.id);}catch(_){}
+   punchCharge=null;
+  }
+  const grabbed=cancelGrab(),prepared=!charging&&Boolean(pendingRoll);
   if(prepared)cancelPreparedRoll();
-  return grabbed||prepared;
+  return charging||grabbed||prepared;
  };
  let suppressContextUntil=0;
  const releaseGrab=()=>{
@@ -1759,30 +1772,31 @@ function initDiceCanvas(){
   if(!lastDiceGesture)return;
   const recent=performance.now()-lastDiceGesture.time<600;
   const r=stage.getBoundingClientRect();
-  const near=Math.hypot(e.clientX-r.left-lastDiceGesture.x,e.clientY-r.top-lastDiceGesture.y)<250;
+  const near=lastDiceGesture.force||Math.hypot(e.clientX-r.left-lastDiceGesture.x,e.clientY-r.top-lastDiceGesture.y)<250;
   if(recent&&near){e.preventDefault();e.stopPropagation();}
   lastDiceGesture=null;
  },true);
  stage.addEventListener('contextmenu',e=>{
-  if(pointer?.down||pendingRoll||performance.now()<suppressContextUntil){e.preventDefault();e.stopPropagation();cancelGesture();}
+  if(pointer?.down||punchCharge||pendingRoll||performance.now()<suppressContextUntil){e.preventDefault();e.stopPropagation();cancelGesture();}
  });
  document.addEventListener('mousedown',e=>{
-  if(e.button!==2||!pointer?.down)return;
+  if(e.button!==2||(!pointer?.down&&!punchCharge))return;
   suppressContextUntil=performance.now()+350;
   e.preventDefault();e.stopPropagation();cancelGesture();
  },true);
  stage.addEventListener('pointerdown',e=>{
-  if(pointer?.down||e.button!==0)return;
+  if(pointer?.down||punchCharge||e.button!==0)return;
   const {x,y}=relative(e);pointerPosition={x,y};
-  const hit=findDie(x,y),ui=e.target.closest?.(control);
-  if(e.shiftKey&&!e.altKey&&(hit||!ui)){
+  // Capture before a covered button can receive an ordinary click.
+  if(e.shiftKey){
    e.preventDefault();e.stopPropagation();
-   const hits=DP.punch(dice,x,y);
-   punchEffect={x,y,time:performance.now()};
-   lastDiceGesture={time:performance.now(),x,y};
-   $('#tray-help').textContent='Force punch · '+hits+' dice affected';
+   stage.setPointerCapture(e.pointerId);
+   punchCharge={id:e.pointerId,x,y,start:performance.now()};
+   lastDiceGesture={time:performance.now(),x,y,force:true};
+   $('#tray-help').textContent='Force punch charging · release mouse to pulse';
    return;
   }
+  const hit=findDie(x,y);
   // Die hit-testing precedes UI button priority; Alt clicks through a die.
   if(e.altKey)return;
   const followingGroup=following&&pendingRoll?dice.filter(d=>d.ready):[];
@@ -1798,15 +1812,17 @@ function initDiceCanvas(){
   const prior=selected.map(d=>({ready:d.ready,sleeping:d.sleeping,rolling:d.rolling,
    v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
   const offsets=selected.map(d=>({x:d.x-x,y:d.y-y}));
+  const supports=selected.map(d=>DP.height(d));
   selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
   pointer={id:e.pointerId,x,y,dx:0,dy:0,down:true,lastTime:performance.now(),selected,mode,
-   offsets,prior,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
+   offsets,prior,supports,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
   moveGrips();
   document.body.classList.add('dice-dragging');
   $('#tray-help').textContent='Grab · wheel lift · Ctrl+wheel 5° angle · Shift+wheel spin · Ctrl slingshot · right-click cancel';
  },true);
  stage.addEventListener('pointermove',e=>{
   const {x,y}=relative(e);pointerPosition={x,y};
+  if(punchCharge){e.preventDefault();return;}
   if(!pointer?.down){
    hoverDieId=findDie(x,y)?.id??null;
    stage.classList.toggle('die-hover',hoverDieId!==null);
@@ -1846,20 +1862,37 @@ function initDiceCanvas(){
   moveGrips();
  },{capture:true,passive:false});
  stage.addEventListener('pointerup',e=>{
+  if(punchCharge?.id===e.pointerId){
+   e.preventDefault();e.stopPropagation();
+   const gesture=punchCharge;punchCharge=null;
+   try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+   const power=punchLevel(gesture,performance.now());
+   const hits=DP.punch(dice,gesture.x,gesture.y,power);
+   punchEffect={x:gesture.x,y:gesture.y,radius:DP.punchRadius(power),power,time:performance.now()};
+   lastDiceGesture={time:performance.now(),x:gesture.x,y:gesture.y,force:true};
+   $('#tray-help').textContent='Force punch · '+Math.round(power*100)+'% · '+hits+' dice affected';
+   return;
+  }
   if(pointer?.down&&pointer.id===e.pointerId){pointer.x=relative(e).x;pointer.y=relative(e).y;releaseGrab();}
  });
  stage.addEventListener('pointercancel',e=>{
+  if(punchCharge?.id===e.pointerId){punchCharge=null;return;}
   if(pointer?.down&&pointer.id===e.pointerId)cancelGrab();
  });
  document.addEventListener('keydown',e=>{
-  if(e.key==='Control'&&pointer?.down&&!pointer.slingAnchor)
+  if(e.key==='Control'&&pointer?.down&&!pointer.slingAnchor){
    pointer.slingAnchor={x:pointer.x,y:pointer.y};
-  if(e.key==='Escape'&&(pointer?.down||pendingRoll)&&cancelGesture()){
+   moveGrips();
+  }
+  if(e.key==='Escape'&&(pointer?.down||punchCharge||pendingRoll)&&cancelGesture()){
    e.preventDefault();toast('Dice interaction canceled; no uncommitted costs spent.');
   }
  });
  document.addEventListener('keyup',e=>{
-  if(e.key==='Control'&&pointer?.down)pointer.slingAnchor=null;
+  if(e.key==='Control'&&pointer?.down){
+   pointer.slingAnchor=null;
+   moveGrips();
+  }
  });
  stage.addEventListener('pointerleave',()=>{
   if(!pointer?.down){pointerPosition=null;hoverDieId=null;stage.classList.remove('die-hover');}
@@ -1869,18 +1902,45 @@ function initDiceCanvas(){
    const progress=Math.max(0,(now-punchEffect.time)/320);
    if(progress>=1)punchEffect=null;
    else{
-    ctx.save();ctx.beginPath();ctx.arc(punchEffect.x,punchEffect.y,125*progress,0,Math.PI*2);
+    ctx.save();ctx.beginPath();ctx.arc(punchEffect.x,punchEffect.y,punchEffect.radius*progress,0,Math.PI*2);
     ctx.strokeStyle='rgba(119,201,247,'+((1-progress)*.8)+')';
     ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
    }
   }
+  if(punchCharge){
+   const power=punchLevel(punchCharge,now),radius=DP.punchRadius(power);
+   const px=punchCharge.x,py=punchCharge.y;
+   ctx.save();ctx.strokeStyle='#80c7ef';ctx.fillStyle='rgba(119,201,247,.09)';
+   ctx.setLineDash([7,5]);ctx.lineWidth=2;
+   ctx.beginPath();ctx.arc(px,py,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+   ctx.setLineDash([]);ctx.fillStyle='rgba(12,22,35,.91)';
+   ctx.fillRect(px-53,py-29,106,23);
+   ctx.fillStyle='#e4ebf5';ctx.textAlign='center';ctx.font='12px system-ui';
+   ctx.fillText('PUNCH '+Math.round(power*100)+'%',px,py-13);
+   ctx.fillStyle='#46566c';ctx.fillRect(px-53,py-5,106,6);
+   ctx.fillStyle='#80c7ef';ctx.fillRect(px-53,py-5,106*power,6);
+   ctx.restore();
+  }
   if(!pointer?.down)return;
   const p=pointer;
-  if(p.slingAnchor){
-   ctx.save();ctx.setLineDash([7,5]);ctx.lineWidth=2.5;ctx.strokeStyle='#f2bb6b';
-   ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.slingAnchor.x,p.slingAnchor.y);
-   ctx.stroke();ctx.restore();
+  const hand=p.slingAnchor
+   ?DP.slingVector(p.slingAnchor.x,p.slingAnchor.y,p.x,p.y)
+   :{x:p.x,y:p.y,power:0};
+  ctx.save();ctx.setLineDash([7,5]);ctx.lineWidth=2;
+  ctx.strokeStyle=p.slingAnchor?'#f2bb6b':'rgba(128,199,239,.8)';
+  ctx.beginPath();
+  for(const d of p.selected){
+   // The tether ends on the physical die, not the cursor.
+   ctx.moveTo(p.slingAnchor?.x??p.x,p.slingAnchor?.y??p.y);
+   ctx.lineTo(d.x,d.y-d.z*.45);
   }
+  ctx.stroke();ctx.setLineDash([]);
+  if(p.slingAnchor){
+   ctx.beginPath();ctx.arc(p.slingAnchor.x,p.slingAnchor.y,10,0,Math.PI*2);ctx.stroke();
+   ctx.font='12px system-ui';ctx.fillStyle='#f2bb6b';ctx.textAlign='left';
+   ctx.fillText('SLING '+Math.round(hand.power*100)+'%',hand.x+12,hand.y-12);
+  }
+  ctx.restore();
   const x=clamp(p.x+22,8,Math.max(8,W-206)),y=clamp(p.y-95,8,Math.max(8,H-65));
   ctx.save();ctx.fillStyle='rgba(12,22,35,.91)';ctx.strokeStyle='rgba(208,223,236,.55)';
   ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x,y,197,64,7);ctx.fill();ctx.stroke();

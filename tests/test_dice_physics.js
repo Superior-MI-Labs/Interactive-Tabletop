@@ -65,6 +65,24 @@ assert.ok(transferred,'Dragged die did not push a resting d20');
 DP.release(held,160,0,{angleDeg:0,spin:0});
 for(let i=0;i<1200;i++)DP.stepWorld([held,resting],1/120,540,470);
 assert.ok(held.sleeping&&resting.sleeping,'Both interacting dice should settle');
+// A fast mouse shake must converge to the real hand target, without a lasting
+// orbital spin around the pointer. Releasing/canceling restores normal damping.
+const shake=DP.makeDie(6,260,200);
+DP.grab(shake,260,200,.8);
+for(let i=0;i<30;i++){
+ DP.moveGrip(shake,i%2?455:65,i%3?290:100,.8);
+ DP.stepWorld([shake],1/120,550,450);
+}
+for(let i=0;i<300;i++){
+ DP.moveGrip(shake,260,200,.8);
+ DP.stepWorld([shake],1/120,550,450);
+}
+assert.ok(Math.hypot(shake.x-260,shake.y-200)<16,'Held die keeps orbiting instead of approaching hand target');
+assert.ok(Math.hypot(...shake.w)<4,'Shake angular momentum fails to damp while holding: '+Math.hypot(...shake.w).toFixed(2)+' rad/s');
+shake.held=false;shake.ready=false;shake.sleeping=true;shake.v=[0,0,0];shake.w=[0,0,0];
+DP.park(shake); // Must detach the joint and restore default rotational damping.
+DP.launch(shake,240,0,0,{angleDeg:0,spin:1});
+assert.ok(shake.w[1]>0,'Canceling the grip must not reverse or suppress the next throw');
 // A tetrahedral d4 reads its upper vertex; tiny resting motion keeps that value.
 const tetra=DP.mesh(4);
 for(let i=0;i<tetra.v.length;i++){
@@ -81,10 +99,12 @@ for(let i=0;i<tetra.v.length;i++){
 const right=DP.makeDie(6,180,170),left=DP.makeDie(6,180,170);
 DP.launch(right,500,0,0,{angleDeg:0,spin:1});
 DP.launch(left,-500,0,0,{angleDeg:0,spin:1});
-assert.ok(right.w[1]<0&&left.w[1]>0,'forward spin must follow the throw direction');
+assert.ok(right.w[1]>0&&left.w[1]<0,'positive spin must roll forward relative to travel');
+assert.ok(right.v[0]-right.w[1]*right.r<right.v[0],
+ 'forward spin must oppose ground-contact slip (up cross travel)');
 const back=DP.makeDie(6,180,170);
 DP.launch(back,500,0,0,{angleDeg:0,spin:-1});
-assert.ok(back.w[1]>0,'negative spin must reverse relative to travel');
+assert.ok(back.w[1]<0,'negative spin must create backspin against the direction of travel');
 const neutral=DP.makeDie(6,180,170);
 DP.launch(neutral,500,0,0,{angleDeg:0,spin:0});
 assert.ok(Math.hypot(...neutral.w)<.001,'zero spin must not add arbitrary rotation');
@@ -96,14 +116,31 @@ assert.ok(up.z>down.z+100,'height 1 must start substantially above height 0');
 const sling=DP.makeDie(6,110,160);
 DP.grab(sling,sling.x,sling.y,.5);
 DP.release(sling,0,0,{angleDeg:0,spin:0,sling:{anchorX:220,anchorY:160,fromX:130,fromY:160}});
-assert.ok(sling.v[0]>300&&Math.abs(sling.v[1])<1,'slingshot must launch toward its anchor');
+assert.ok(sling.v[0]>650&&Math.abs(sling.v[1])<1,'slingshot must launch more strongly toward its anchor');
+const halfPull=DP.slingVector(100,100,180,100);
+const cappedPull=DP.slingVector(100,100,600,100);
+assert.equal(halfPull.power,.5,'80 px is half the 160 px slingshot pull');
+assert.equal(cappedPull.power,1,'slingshot power caps at 1.0');
+assert.equal(cappedPull.x,260,'the physical hand target stops at the 160 px tether length');
+const maxSling=DP.makeDie(6,130,230);
+DP.grab(maxSling,130,230,.5);
+DP.release(maxSling,0,0,{angleDeg:0,spin:0,sling:{anchorX:300,anchorY:230,fromX:-300,fromY:230}});
+assert.ok(maxSling.v[0]>1250&&maxSling.v[0]<1450,'full slingshot power must exceed the ordinary throw speed');
 const punched=DP.makeDie(6,250,250,28);
 DP.launch(punched,0,0,0,{angleDeg:0,height:0});
 for(let i=0;i<260;i++)DP.stepWorld([punched],1/120,540,470);
-const n=DP.punch([punched],200,250,125);
+const n=DP.punch([punched],200,250,.35);
 assert.equal(n,1,'force punch must affect nearby dynamic dice');
 DP.stepWorld([punched],1/120,540,470);
 assert.ok(punched.v[0]>0,'radial impulse must move die away from click');
+assert.ok(DP.punchRadius(1)>DP.punchRadius(.35)*1.4,'charged radius grows visibly');
+const weak=DP.makeDie(6,240,240),strong=DP.makeDie(6,400,360);
+DP.launch(weak,0,0,0,{height:1,angleDeg:0,spin:0});
+DP.launch(strong,0,0,0,{height:1,angleDeg:0,spin:0});
+DP.punch([weak],190,240,.35);
+DP.punch([strong],350,360,1);
+DP.stepWorld([weak,strong],1/120,550,450);
+assert.ok(strong.v[0]>weak.v[0]*2.5,'full charge should create substantially greater impulse than 35%');
 console.log('dice physics tests passed');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});
