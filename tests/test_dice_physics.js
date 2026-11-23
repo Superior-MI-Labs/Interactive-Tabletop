@@ -42,7 +42,12 @@ assert.ok(Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>15,'Dice should not occupy the sam
 // Held dice must interact physically with stationary dynamic dice: drag into
 // a resting d20 and assert that the real contact solver moves it.
 const held=DP.makeDie(6,170,240,32),resting=DP.makeDie(20,255,240,32);
-held.held=true;DP.park(held);resting.sleeping=true;DP.park(resting);
+// Moving a prepared, ungrabbed preview must not knock over another die.
+held.ready=true;held.held=false;DP.park(held);resting.sleeping=true;DP.park(resting);
+for(let i=0;i<70;i++){held.x+=2.5;DP.stepWorld([held,resting],1/120,540,470);}
+assert.ok(Math.hypot(resting.x-255,resting.y-240)<1,'Cursor-follow preview incorrectly pushed a resting die');
+// Grabbing that same die activates its convex collider, allowing real impacts.
+held.x=170;held.ready=false;held.held=true;DP.park(held);
 let transferred=false;
 for(let i=0;i<70;i++){
  held.x+=2.5;DP.stepWorld([held,resting],1/120,540,470);
