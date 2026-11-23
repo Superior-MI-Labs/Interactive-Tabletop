@@ -1720,7 +1720,7 @@ function initDiceCanvas(){
  // including its buttons, and triggers its pulse on release.
  const findDie=(x,y)=>[...dice].reverse().find(d=>DP.hitTest(d,x,y,lastDimensions.w,lastDimensions.h,Math.max(10,d.r*.23)));
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
- const punchLevel=(gesture,now)=>.35+.65*clamp((now-gesture.start)/500,0,1);
+ const punchLevel=(gesture,now)=>DP.MIN_PUNCH_CHARGE+(1-DP.MIN_PUNCH_CHARGE)*clamp((now-gesture.start)/500,0,1);
  const moveGrips=()=>{
   if(!pointer?.down)return;
   const hand=pointer.slingAnchor
