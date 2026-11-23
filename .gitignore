@@ -8,3 +8,8 @@ _private_fields_*.json
 .DS_Store
 # Site is generated during Pages deployment, not an independent UI source.
 docs/
+
+# Generated from pinned Rapier and the authored physics source.
+node_modules/
+web/dice-physics.js
+web/vendor/

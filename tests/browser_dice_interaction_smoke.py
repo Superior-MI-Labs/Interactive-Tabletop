@@ -34,6 +34,7 @@ with sync_playwright() as pw:
  point=page.evaluate('''()=>{const d=dice[0],stage=document.querySelector('#dice-stage').getBoundingClientRect();
   const button=document.querySelector('.ability-roll').getBoundingClientRect();
   d.x=button.left+button.width/2-stage.left; d.y=button.top+button.height/2-stage.top+d.z*.45;
+  DP.park(d); // Keep the physical body aligned with the test's synthetic positioning.
   return {x:stage.left+d.x,y:stage.top+d.y-d.z*.45};}''')
  assert page.evaluate('''()=>{const d=dice[0],r=document.querySelector('#dice-stage').getBoundingClientRect();return DP.hitTest(d,d.x,d.y-d.z*.45,r.width,r.height)}''')
  # Default pointer ownership belongs to the visible ability button, even
@@ -78,7 +79,7 @@ with sync_playwright() as pw:
  assert page.evaluate('activeRolls.length')==2
  # Catch a rolling d20; original group should remain active while it is held.
  p2=page.evaluate('''()=>{const d=dice.find(x=>x.sides===20);const r=document.querySelector('#dice-stage').getBoundingClientRect();
- d.v=[0,0,0];d.w=[0,0,0];return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
+ d.v=[0,0,0];d.w=[0,0,0];DP.park(d);return {x:r.left+d.x,y:r.top+d.y-d.z*.45}}''')
  page.mouse.move(p2['x'],p2['y']);page.mouse.down()
  assert page.evaluate('pointer?.mode')=='existing'
  page.mouse.move(p2['x']+35,p2['y']+15,steps=3);page.mouse.up()

@@ -1,6 +1,9 @@
 """Recreate generated GitHub Pages docs/ from the canonical web/ assets."""
 from pathlib import Path
 import shutil
+import subprocess
+import sys
+subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'tools/build_physics.py')],check=True)
 root=Path(__file__).resolve().parents[1]
 web=root/'web';docs=root/'docs'
 version=(root/'VERSION').read_text().strip()

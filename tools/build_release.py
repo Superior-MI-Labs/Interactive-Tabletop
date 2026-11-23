@@ -1,6 +1,8 @@
 """Deterministic desktop ZIP, excluding web publication and private QA artifacts."""
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
+import subprocess
+import sys
 ROOT=Path(__file__).resolve().parents[1]
 VERSION=(ROOT/'VERSION').read_text().strip()
 NAME=f'SkyBlueEyes-Tabletop-v{VERSION}'
@@ -12,6 +14,7 @@ test_paths=sorted((ROOT/'tests').glob('test_*.js'))+sorted((ROOT/'tests').glob('
 paths=[ROOT/f for f in FILES]
 for folder in folders:paths.extend(p for p in (ROOT/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and not p.name.endswith('.pyc'))
 paths.extend(test_paths)
+subprocess.run([sys.executable,str(ROOT/'tools/build_physics.py')],check=True)
 DEST.parent.mkdir(parents=True,exist_ok=True)
 with ZipFile(DEST,'w',ZIP_DEFLATED,compresslevel=9) as z:
     for p in sorted(paths):

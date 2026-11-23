@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.55.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.56.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.55.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.56.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -40,6 +40,12 @@ When editing a character, open **Spells → Configure standard spell slots** to 
 **v0.47 manual spellbook safety:** Spells added with **+ Spell** are separate player-authored records, even if a later PDF contains a spell with the same name. PDF reimport preserves those records, and the sheet identifies them as **Manual entry**. In Edit mode, **Remove manual spell** asks for confirmation; it cannot remove PDF-owned spells. Deleting a spell does not end effects already in progress. Export a JSON backup before a significant reimport or deletion.
 
 **v0.46 spellcasting:** In Edit sheet, each spell can specify its casting ability (STR/DEX/CON/INT/WIS/CHA) or a bounded fixed modifier override. Qualified 2014 self-healing uses that explicit configuration. Legacy unambiguous source labels still work, but mixed class sources require an ability selection. Configuration survives unambiguous PDF reimports; no automatic class progression or new spell effects are introduced.
+
+## v0.56 — Physical rigid-body dice
+
+Dice now use one Rapier 3D simulation world, including convex contacts, gravity, bounce and momentum transfer between rolling, resting and held dice. You can physically knock another die across the tray. The visible die and settled number come from its simulated position and quaternion, with the existing Canvas renderer and gameplay pipeline unchanged. The physics package is embedded during the build; desktop and installed browser versions do not fetch the engine from a CDN.
+
+Source checkout setup: run `npm ci` then `python3 tools/build_physics.py` before starting the Python host or site. `bash tools/qualify.sh` builds the same runtime, and CI release jobs run the same generation. Never edit `web/dice-physics.js`; modify `web/dice-physics.source.js`. Rapier 0.21.0 is Apache-2.0; its license ships under `web/vendor/rapier.LICENSE`.
 
 ## v0.54 — Player-first character sheet and dice
 
@@ -151,14 +157,14 @@ See [RULESET_AUTOMATION_CONTRACT.md](RULESET_AUTOMATION_CONTRACT.md) for the dat
 
 ## Download for Linux / Windows
 
-[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.55.0.zip)
+[**Download desktop alpha ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.56.0.zip)
 
 This is a **Python 3.10+ and browser-based desktop launcher**, *not* a packaged `.exe` or AppImage. Linux is the tested development environment; Windows batch launchers are supplied but a real Windows machine has not been qualified.
 
 On Linux Mint, after placing the ZIP in `~/Downloads`:
 
 ```bash
-unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.55.0.zip" SkyBlueEyes-Tabletop-v0.55.0/INSTALL.sh | bash
+unzip -p "$HOME/Downloads/SkyBlueEyes-Tabletop-v0.56.0.zip" SkyBlueEyes-Tabletop-v0.56.0/INSTALL.sh | bash
 ```
 
 Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP-WINDOWS.bat` (Python 3.10+ required). The desktop app stores its character vault at `~/.skyblueeyes-tabletop/vault.json` (the equivalent user home on Windows). An existing `character.json` remains untouched as a migration backup. Back up before upgrading.

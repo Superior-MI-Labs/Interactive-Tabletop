@@ -1339,7 +1339,7 @@ function prepareDice(specs,modifier,label,expression,follow=false){
    const spacing=diceSpacing();
    d.x=Math.max(d.r,Math.min(W-d.r,anchor.x+(col-(cols-1)/2)*spacing));
    d.y=Math.max(d.r,Math.min(H-d.r,anchor.y+row*spacing));
-   d.z=DP.height(d);d.v=[0,0,0];d.w=[0,0,0];
+   d.z=DP.height(d);d.v=[0,0,0];d.w=[0,0,0];DP.park(d);
  });
  pendingRoll={count:chosen.length,sides:null,modifier,label,expression,diceIds:chosen.map(d=>d.id)};
  following=follow;
@@ -1670,7 +1670,7 @@ async function boot(){
 function cancelPreparedRoll(){
  if(!pendingRoll)return false;
  const ids=new Set(pendingRoll.diceIds||[]);
- for(const die of dice)if(ids.has(die.id)){die.ready=false;die.held=false;die.sleeping=true;die.z=DP.height(die);}
+ for(const die of dice)if(ids.has(die.id)){die.ready=false;die.held=false;die.sleeping=true;die.z=DP.height(die);DP.park(die);}
  pendingRoll=null;queuedEffect=null;following=false;
  $('#dice-stage')?.classList.remove('dice-following');
  if(character?.demo_id===window.TabletopDemo?.ID)render();
@@ -1687,7 +1687,7 @@ function abandonCharacterDice(characterId){
  if(abandoned.length){
   const ids=new Set(abandoned.flatMap(group=>group.diceIds));
   for(const die of dice)if(ids.has(die.id)){
-   die.rolling=false;die.held=false;die.sleeping=true;die.ready=false;
+   die.rolling=false;die.held=false;die.sleeping=true;die.ready=false;DP.park(die);
   }
   activeRolls=activeRolls.filter(group=>group.characterId!==characterId);
   activeRoll=activeRolls.at(-1)||null;
@@ -1710,7 +1710,7 @@ function initDiceCanvas(){
   try{stage.releasePointerCapture(held.id);}catch(_){}
   held.selected.forEach((d,i)=>{d.held=false;const before=held.prior[i];
    if(before){Object.assign(d,{x:before.x,y:before.y,q:before.q,v:before.v,w:before.w,z:before.z,
-    rolling:before.rolling,sleeping:before.sleeping,restTime:before.restTime});}
+    rolling:before.rolling,sleeping:before.sleeping,restTime:before.restTime});DP.park(d);}
   });
   return true;
  };
@@ -1776,7 +1776,7 @@ function initDiceCanvas(){
    const mode=followingGroup.length?'prepared':active?'existing':hit.ready&&pendingRoll?'prepared':'manual';
    const selected=mode==='prepared'?followingGroup.length?followingGroup:dice.filter(d=>d.ready):[hit];
    const prior=selected.map(d=>({sleeping:d.sleeping,rolling:d.rolling,v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
-   selected.forEach(d=>{d.held=true;d.sleeping=true;});
+   selected.forEach(d=>{d.held=true;d.sleeping=true;DP.park(d);});
    pointer={id:e.pointerId,x,y,dx:0,dy:0,shake:0,down:true,lastTime:performance.now(),selected,mode,
     offsets:selected.map(d=>({x:d.x-x,y:d.y-y})),prior};
    document.body.classList.add('dice-dragging');
@@ -1822,8 +1822,9 @@ function initDiceCanvas(){
    held.selected.forEach((d,i)=>{
      d.held=false;const before=held.prior[i];
      if(held.mode==='existing'&&before){
-       d.sleeping=before.sleeping;d.rolling=before.rolling;d.v=before.v;d.w=before.w;d.restTime=before.restTime;d.z=Math.max(DP.height(d),before.z);
+       Object.assign(d,before);
      }else{d.sleeping=true;d.z=DP.height(d);}
+      DP.park(d);
    });
  });
  document.addEventListener('keydown',e=>{
@@ -1842,8 +1843,7 @@ function initDiceCanvas(){
   const dt=Math.max(0,Math.min((now-(lastFrame||now))/1000,.06));lastFrame=now;
   accumulator=Math.min(.08,accumulator+dt);
   while(accumulator>=1/120){
-    for(const d of dice)DP.step(d,1/120,r.width,r.height);
-    DP.collide(dice);
+    DP.stepWorld(dice,1/120,r.width,r.height);
     accumulator-=1/120;
   }
   finishRollIfSettled();
@@ -2180,6 +2180,9 @@ if (!DP) {
   $('#page').innerHTML='<div class="overlay-notice" role="alert">The dice engine did not load. Close older app instances, restart with the supplied launcher, and reload this page. If the problem continues, check the terminal for a missing <code>dice-physics.js</code> request.</div>';
   toast('Startup failed: dice engine missing');
 } else {
-  initDiceCanvas();
-  boot();
+  DP.init().then(()=>{initDiceCanvas();boot();}).catch(error=>{
+   $('#save-state').textContent='Startup failed';
+   $('#page').innerHTML='<div class="overlay-notice" role="alert">Rigid-body physics could not initialize. Reload or reinstall the desktop release.</div>';
+   toast('Physics startup failed: '+error.message);
+  });
 }

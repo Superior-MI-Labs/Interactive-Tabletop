@@ -1,14 +1,6 @@
-/* Self-contained convex dice motion. Visual die orientation and reported face share
- * one physical state. Fixed-step integration, impulse contacts, rolling friction,
- * and energy-based sleep; no clock deadline or predetermined roll values.
- * Not an industrial-grade rigid body solver: polyhedral inertia is approximated.
- */
-(function (root, factory) {
-  const api = factory();
-  if (typeof module === 'object' && module.exports) module.exports = api;
-  root.DicePhysics = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  'use strict';
+/* Single authored physics engine. tools/build_physics.py embeds pinned Rapier. */
+function createDicePhysics(RAPIER) {
+ 'use strict';
   const add=(a,b)=>a.map((v,i)=>v+b[i]);
   const sub=(a,b)=>a.map((v,i)=>v-b[i]);
   const scale=(v,s)=>v.map(x=>x*s);
@@ -114,77 +106,90 @@
     return d;
   }
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
-  function launch(d,vx,vy,spin){
-    d.z=height(d)+55;
-    d.v=[vx,vy,270+random()*150];
-    // Flick speed imparts rolling angular velocity; shake only varies the release.
-    const roll=.6/d.r,variation=Math.min(7,2+Math.max(0,spin)*.014);
-    d.w=[-vy*roll+(random()-.5)*variation,vx*roll+(random()-.5)*variation,(random()-.5)*variation];
-    d.sleeping=false;d.restTime=0;d.rolling=true;d.held=false;
+
+ const PIXEL=.01;
+ let world=null,initialized=null,walls=[],extent=[0,0];
+ const bodies=new Map();
+ const vec=d=>({x:d.x*PIXEL,y:d.y*PIXEL,z:d.z*PIXEL});
+ const rot=q=>({w:q[0],x:q[1],y:q[2],z:q[3]});
+ function init(){
+  if(initialized)return initialized;
+  initialized=Promise.resolve().then(()=>RAPIER.init()).then(()=>{
+   world=new RAPIER.World({x:0,y:0,z:-9.81});world.timestep=1/120;
+   world.createCollider(RAPIER.ColliderDesc.cuboid(100,100,.25).setTranslation(0,0,-.25).setFriction(.8).setRestitution(.2));
+   const wall=(x,y)=>world.createCollider(RAPIER.ColliderDesc.cuboid(x,y,1.6).setFriction(.7).setRestitution(.3));
+   walls=[wall(.1,100),wall(.1,100),wall(100,.1),wall(100,.1)];
+  });
+  return initialized;
+ }
+ function setBounds(width,height){
+  if(!width||!height||extent[0]===width&&extent[1]===height)return;
+  extent=[width,height];const w=width*PIXEL,h=height*PIXEL;
+  walls[0].setTranslation({x:-.1,y:h/2,z:1.5});
+  walls[1].setTranslation({x:w+.1,y:h/2,z:1.5});
+  walls[2].setTranslation({x:w/2,y:-.1,z:1.5});
+  walls[3].setTranslation({x:w/2,y:h+.1,z:1.5});
+ }
+ function body(d){
+  if(!world)throw Error('Rapier has not initialized.');
+  if(bodies.has(d))return bodies.get(d);
+  const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(d.x*PIXEL,d.y*PIXEL,d.z*PIXEL)
+   .setRotation(rot(d.q)).setLinearDamping(.35).setAngularDamping(1.2).setCcdEnabled(true);
+  const b=world.createRigidBody(desc);
+  const points=new Float32Array(mesh(d.sides).v.flatMap(v=>v.map(n=>n*d.r*PIXEL)));
+  const collider=RAPIER.ColliderDesc.convexHull(points);
+  if(!collider)throw Error('Convex geometry invalid: d'+d.sides);
+  world.createCollider(collider.setFriction(.78).setRestitution(.27).setMass(.18),b);
+  bodies.set(d,b);
+  setColliding(d,b);
+  if(d.held||d.ready)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
+  else if(d.sleeping)b.sleep();
+  return b;
+ }
+ // A cursor-follow preview is not a physical throw. Held and launched dice
+ // have enabled convex colliders; an ungrabbed prepared die is a ghost.
+ function setColliding(d,b){
+  const c=b.collider(0),enabled=!d.ready||d.held;
+  if(c.isEnabled()!==enabled)c.setEnabled(enabled);
+ }
+ function park(d){
+  const b=body(d),held=d.held||d.ready;
+  setColliding(d,b);
+  b.setBodyType(held?RAPIER.RigidBodyType.KinematicPositionBased:RAPIER.RigidBodyType.Dynamic,true);
+  b.setTranslation(vec(d),true);b.setRotation(rot(d.q),true);
+  if(held){b.setNextKinematicTranslation(vec(d));return;}
+  b.setLinvel({x:d.v[0]*PIXEL,y:d.v[1]*PIXEL,z:d.v[2]*PIXEL},true);
+  b.setAngvel({x:d.w[0],y:d.w[1],z:d.w[2]},true);
+  if(d.sleeping)b.sleep();
+ }
+ function launch(d,vx,vy,shake=0){
+  d.z=height(d)+55;d.v=[vx,vy,270+random()*150];
+  const roll=.6/d.r,variation=Math.min(7,2+Math.max(0,shake)*.014);
+  d.w=[-vy*roll+(random()-.5)*variation,vx*roll+(random()-.5)*variation,(random()-.5)*variation];
+  d.held=false;d.ready=false;d.sleeping=false;d.rolling=true;d.restTime=0;
+  park(d);
+ }
+ function stepWorld(dice,dt,width,heightLimit){
+  if(!world)throw Error('Rapier has not initialized.');
+  setBounds(width,heightLimit);
+  const present=new Set(dice);
+  for(const [d,b] of bodies)if(!present.has(d)){world.removeRigidBody(b);bodies.delete(d);}
+  for(const d of dice){
+   const b=body(d);
+   setColliding(d,b);
+   if(d.held||d.ready){
+    if(b.bodyType()!==RAPIER.RigidBodyType.KinematicPositionBased)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
+    b.setNextKinematicTranslation(vec(d));
+   }else if(b.bodyType()!==RAPIER.RigidBodyType.Dynamic)park(d);
   }
-  const G=1040;
-  function step(d,dt,width,heightLimit){
-    if(d.sleeping||d.held)return;
-    dt=Math.min(dt,1/60);
-    d.v[2]-=G*dt;
-    d.x+=d.v[0]*dt;d.y+=d.v[1]*dt;d.z+=d.v[2]*dt;
-    d.q=advance(d.q,d.w,dt);
-    const damp=Math.exp(-.30*dt);d.v=scale(d.v,damp);d.w=scale(d.w,Math.exp(-.65*dt));
-    // Sphere-bounded tray walls. Each collision redirects momentum.
-    for(let axis=0;axis<2;axis++){
-      const key=axis===0?'x':'y',max=axis===0?width:heightLimit;
-      const v=d[key];
-      if(v<d.r||v>max-d.r){d[key]=Math.max(d.r,Math.min(max-d.r,v));d.v[axis]*=-.46;}
-    }
-    const floor=height(d),gap=d.z-floor;
-    if(gap<=.03){
-      d.z=floor;
-      // Contact point is the lowest polyhedron vertex in world space.
-      const verts=mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r)));
-      const contact=verts.reduce((a,b)=>b[2]<a[2]?b:a);
-      const pointV=add(d.v,cross(d.w,contact));
-      const vn=pointV[2];
-      if(vn<0){
-        const n=[0,0,1],lever=cross(contact,n);
-        const inverseInertia=2.5/(d.r*d.r);
-        const denom=1+inverseInertia*dot(lever,lever);
-        const bounce=vn<-65?.30:0;
-        const j=-(1+bounce)*vn/denom;
-        const impulse=scale(n,j);
-        d.v=add(d.v,impulse);d.w=add(d.w,scale(cross(contact,impulse),inverseInertia));
-        // Floor tangential friction applies an angular impulse, letting polyhedra roll.
-        const tangent=[pointV[0],pointV[1],0];const tmag=norm(tangent);
-        if(tmag>0.01){const t=scale(tangent,1/tmag),lt=cross(contact,t);
-          const jt=Math.min(.62*j,tmag/(1+inverseInertia*dot(lt,lt)));
-          const f=scale(t,-jt);d.v=add(d.v,f);d.w=add(d.w,scale(cross(contact,f),inverseInertia));
-        }
-      }
-      // Contact damping models a felt-lined tray and eventually permits genuine rest.
-      d.v[0]*=Math.exp(-3.4*dt);d.v[1]*=Math.exp(-3.4*dt);
-      d.w=scale(d.w,Math.exp(-4.5*dt));
-      if(Math.abs(d.v[2])<6)d.v[2]=0;
-      // A stable rest needs a supporting face, not just low velocity on an edge.
-      const faceSupported=mesh(d.sides).faces.some(f=>rotate(d.q,f.normal)[2]<-.985);
-      if(faceSupported&&norm(d.v)<25&&norm(d.w)<.85)d.restTime+=dt;else d.restTime=0;
-      if(d.restTime>.65){d.sleeping=true;d.rolling=false;d.v=[0,0,0];d.w=[0,0,0];d.z=height(d);}
-    }else d.restTime=0;
+  world.step();
+  for(const d of dice){
+   if(d.held||d.ready)continue;
+   const b=bodies.get(d),p=b.translation(),q=b.rotation(),v=b.linvel(),w=b.angvel();
+   d.x=p.x/PIXEL;d.y=p.y/PIXEL;d.z=p.z/PIXEL;
+   d.q=[q.w,q.x,q.y,q.z];d.v=[v.x/PIXEL,v.y/PIXEL,v.z/PIXEL];d.w=[w.x,w.y,w.z];
+   d.sleeping=b.isSleeping();d.rolling=!d.sleeping;
   }
-  function collide(dice){
-    // Broad-sphere collision between moving dice. Cheap and stable at table scale.
-    for(let i=0;i<dice.length;i++)for(let j=i+1;j<dice.length;j++){
-      const a=dice[i],b=dice[j];if(a.held||b.held||(a.sleeping&&b.sleeping))continue;
-      const delta=[b.x-a.x,b.y-a.y,b.z-a.z],dist=norm(delta)||1,penetration=a.r+b.r-dist;
-      if(penetration<=0)continue;
-      const n=scale(delta,1/dist),movA=a.sleeping?0:1,movB=b.sleeping?0:1;
-      if(!movA){a.sleeping=false;a.rolling=true;a.restTime=0;}
-      if(!movB){b.sleeping=false;b.rolling=true;b.restTime=0;}
-      a.x-=n[0]*penetration*.5;b.x+=n[0]*penetration*.5;
-      a.y-=n[1]*penetration*.5;b.y+=n[1]*penetration*.5;
-      a.z-=n[2]*penetration*.5;b.z+=n[2]*penetration*.5;
-      const rel=dot(sub(b.v,a.v),n);
-      if(rel<0){const imp=scale(n,-rel*.67);a.v=sub(a.v,imp);b.v=add(b.v,imp);
-        a.w=add(a.w,scale(cross(n,a.v),-.0008));b.w=add(b.w,scale(cross(n,b.v),.0008));}
-    }
-  }
-  return {mesh,rotate,advance,orientation,faceValue,makeDie,launch,step,collide,height,hitTest,random};
-});
+ }
+ return {init,mesh,rotate,advance,orientation,faceValue,makeDie,launch,stepWorld,park,height,hitTest,random};
+}
