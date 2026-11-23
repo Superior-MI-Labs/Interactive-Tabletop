@@ -130,11 +130,14 @@ with sync_playwright() as p:
  assert page.evaluate('character.effects.pending_concentration.length')==0
  assert page.evaluate("!character.conditions.includes('Invisible') && character.conditions.includes('Poisoned')")
  assert page.evaluate('character.hp.current')==35
- # Conditions sit beside HP, not in Resources or the Effects picker.
- # All 15 controls are live views over the same character and source-grant owners.
- conditions=page.locator('#page > details[data-panel="Conditions"]')
+ # One combined Conditions + Effects strip, with the original 15 manual
+ # buttons and single character/source-grant owner.
+ assert page.locator('details[data-panel="Conditions"]').count()==0
+ conditions=page.locator('.buff-bar .condition-rail')
  assert conditions.count()==1
- assert page.locator('.buff-bar .condition-status').count()==0
+ assert conditions.locator('.buff-caption').inner_text()=='CONDITIONS'
+ assert page.locator('.buff-bar > .buff-caption').inner_text()=='EFFECTS'
+ assert page.locator('.buff-bar > .buff-separator').count()==1
  assert page.locator('.condition-picker').count()==0
  assert conditions.locator('.condition-toggle').count()==15
  assert page.evaluate("ReferenceCatalog.list('condition').length")==15
@@ -164,7 +167,7 @@ with sync_playwright() as p:
  assert not page.evaluate("character.conditions.includes('Blinded')")
  # Source-specific conditions retain their provenance in the same engine.
  page.evaluate("""()=>{Action.grantCondition(character,'self','Frightened',{sourceId:'qa:fright',expiration:'manual'});render();}""")
- conditions=page.locator('#page > details[data-panel="Conditions"]')
+ conditions=page.locator('.buff-bar .condition-rail')
  frightened=conditions.locator('.condition-toggle[data-arg="Frightened"]')
  frightened.focus()
  assert '1 tracked source' in tooltip.inner_text()
@@ -187,4 +190,4 @@ with sync_playwright() as p:
  page.wait_for_timeout(100)
  assert page.evaluate('document.documentElement.scrollWidth')<=400,'Mobile horizontal document overflow'
  b.close()
- print('PASS browser 2014 effects, concentration, one hover card, restored Conditions panel, 15 icons, source grants, edition guard, XSS and mobile')
+ print('PASS browser effects and inline Conditions, 15 icons, source grants, concentration, hover, edition guard, XSS and mobile')
