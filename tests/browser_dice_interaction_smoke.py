@@ -37,12 +37,13 @@ with sync_playwright() as pw:
   DP.park(d); // Keep the physical body aligned with the test's synthetic positioning.
   return {x:stage.left+d.x,y:stage.top+d.y-d.z*.45};}''')
  assert page.evaluate('''()=>{const d=dice[0],r=document.querySelector('#dice-stage').getBoundingClientRect();return DP.hitTest(d,d.x,d.y-d.z*.45,r.width,r.height)}''')
- # Default pointer ownership belongs to the visible ability button, even
- # when a physical die visually overlaps its coordinates.
+ # The visible die owns an ordinary click; Alt-click explicitly reaches the
+ # underlying sheet button without grabbing the die.
+ page.keyboard.down('Alt')
  page.mouse.move(point['x'],point['y']);page.mouse.down()
- assert page.evaluate('pointer===null'), 'Resting die cannot steal a HUD control pointerdown'
- page.mouse.up()
- assert page.evaluate('pendingRoll?.expression')=='1d20+3','Actual ability button must respond'
+ assert page.evaluate('pointer===null'), 'Alt-click must bypass dice'
+ page.mouse.up();page.keyboard.up('Alt')
+ assert page.evaluate('pendingRoll?.expression')=='1d20+3','Alt-click must activate the underlying sheet button'
  # A prepared die following the cursor must also leave real controls usable.
  widget=page.locator('#dice-widget > summary')
  widget.click()
@@ -52,11 +53,24 @@ with sync_playwright() as pw:
  widget.click()
  page.evaluate('cancelPreparedRoll()')
  assert page.evaluate('pendingRoll===null')
- # Alt+drag is a deliberate way to retrieve a die parked over a control.
- page.keyboard.down('Alt');page.mouse.move(point['x'],point['y']);page.mouse.down()
- assert page.evaluate('pointer?.selected[0].sides')==12,'Alt must explicitly select the parked die'
+ # Normal left-click grabs the same die even if it overlaps a button.
+ page.mouse.move(point['x'],point['y']);page.mouse.down()
+ assert page.evaluate('pointer?.selected[0].sides')==12,'Click must grab the visible d12 over its button'
+ initial=page.evaluate('({...throwSettings})')
+ page.mouse.wheel(0,-100)
+ assert abs(page.evaluate('throwSettings.height')-initial['height']-.05)<.001
+ page.keyboard.down('Control')
+ page.mouse.wheel(0,-100)
+ assert page.evaluate('throwSettings.angleDeg')==initial['angleDeg']+5,'Ctrl+wheel must change angle exactly 5 degrees'
+ assert page.evaluate('pointer?.slingAnchor!==null'),'Ctrl while holding must engage slingshot'
+ page.keyboard.up('Control')
+ assert page.evaluate('pointer?.slingAnchor===null'),'Releasing Ctrl must disengage slingshot without firing'
+ page.keyboard.down('Shift')
+ page.mouse.wheel(0,100)
+ page.keyboard.up('Shift')
+ assert abs(page.evaluate('throwSettings.spin')-(initial['spin']-.1))<.001,'Shift+wheel must adjust relative spin'
  page.mouse.move(point['x']+70,point['y']+40,steps=4)
- page.mouse.up();page.keyboard.up('Alt')
+ page.mouse.up()
  assert page.evaluate('activeRolls.length')==1
  assert page.evaluate('activeRolls[0].expression')=='1d12'
  assert page.evaluate('pendingRoll===null')
@@ -88,6 +102,14 @@ with sync_playwright() as pw:
  page.evaluate('''()=>{for(const d of dice){d.sleeping=true;d.held=false;d.rolling=false;}finishRollIfSettled()}''')
  assert page.evaluate('activeRolls.length')==0
  assert page.evaluate('history.length')==2
+ # A shift-click applies a radial impulse without creating another roll group.
+ n=page.evaluate('''()=>{const d=dice[0];const r=document.querySelector('#dice-stage').getBoundingClientRect();
+ return {x:r.left+d.x,y:r.top+d.y-d.z*.45};}''')
+ page.keyboard.down('Shift')
+ page.mouse.click(n['x'],n['y'])
+ page.keyboard.up('Shift')
+ assert page.evaluate('pointer===null'),'Force punch must not start a grab'
+ assert page.evaluate('activeRolls.length')==0,'Force punch must never create a roll group'
  # Settled modifier-adjusted total is prominent in the collapsed Dice header.
  # This reuses the same roll-group calculator, not a second UI formula.
  page.evaluate('''()=>{queueRoll('1d20+6','Longsword attack');beginThrow();
@@ -124,5 +146,5 @@ with sync_playwright() as pw:
  assert page.locator('#dice-widget').get_attribute('open') is None
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
  assert not errors,errors
- print('PASS browser: controls win over resting dice, Alt+drag retrieval, concurrent rolls, right-cancel, settled modifier totals, collapsed hover, zero errors')
+ print('PASS browser: dice-first grab, Alt click-through, wheel/angle/spin, sling toggle, concurrent rolls, cancel, modifiers, zero errors')
  browser.close()
