@@ -1694,6 +1694,14 @@ function abandonCharacterDice(characterId){
   activeRolls=activeRolls.filter(group=>group.characterId!==characterId);
   activeRoll=activeRolls.at(-1)||null;
  }
+ // Character switching cannot leave a spring anchor attached to the old die.
+ if(pointer?.down){
+  try{$('#dice-stage')?.releasePointerCapture(pointer.id);}catch(_){}
+  pointer.selected.forEach(d=>{
+   d.held=false;d.ready=false;d.rolling=false;d.sleeping=true;
+   d.v=[0,0,0];d.w=[0,0,0];d.z=DP.height(d);DP.park(d);
+  });
+ }
  pointer=null;following=false;
  document.body.classList.remove('dice-dragging');
  $('#dice-stage')?.classList.remove('dice-following');
