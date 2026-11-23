@@ -185,7 +185,8 @@ assert.ok(Math.abs(fastHand.x-430)<70,
  'default hand should track a 290px movement within 20 physics frames');
 for(let i=0;i<160;i++)DP.stepWorld([fastHand],1/120,550,450);
 assert.ok(Math.abs(fastHand.x-430)<12&&Math.abs(fastHand.v[0])<25,
- 'hand spring must settle at cursor without lingering oscillation');
+ 'hand spring must settle at cursor without lingering oscillation: offset='+
+ Math.abs(fastHand.x-430).toFixed(2)+' px, vx='+fastHand.v[0].toFixed(2)+' px/s');
 console.log('dice physics tests passed');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

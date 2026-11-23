@@ -184,7 +184,7 @@ function createDicePhysics(RAPIER) {
   const g=grips.get(d);if(!g)return;
   // Restore baseline rotational response on every exit: drop, cancel,
   // character switch, or ordinary release.
-  const b=bodies.get(d);if(b)b.setAngularDamping(1.35);
+  const b=bodies.get(d);if(b){b.setAngularDamping(1.35);b.setLinearDamping(.42);}
   world.removeImpulseJoint(g.joint,true);
   world.removeRigidBody(g.anchor);
   grips.delete(d);
@@ -215,7 +215,7 @@ function createDicePhysics(RAPIER) {
   const off=rotate(d.q,[local.x/PIXEL,local.y/PIXEL,local.z/PIXEL]);
   const anchor=world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased()
    .setTranslation((d.x+off[0])*PIXEL,(d.y+off[1])*PIXEL,(d.z+off[2])*PIXEL));
-  b.setAngularDamping(12);
+  b.setAngularDamping(12);b.setLinearDamping(8);
   // Stronger near-critical spring follows fast input without lasting bounce.
   const joint=world.createImpulseJoint(
    RAPIER.JointData.spring(0,1800,36,{x:0,y:0,z:0},local),anchor,b,true);
