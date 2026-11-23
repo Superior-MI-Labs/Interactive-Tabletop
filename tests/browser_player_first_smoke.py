@@ -73,7 +73,8 @@ with sync_playwright() as pw:
  assert page.evaluate('Action.combat(character).economy.mode')=='manual'
  page.get_by_label('My Turn quick tracker').locator('[data-action=mark-turn-action][data-arg=action]').click()
  assert page.evaluate('Action.combat(character).economy.spent.action')==1
- page.locator('.attack-list [data-action=attack]').first.click()
+ # A settled die can cover this attack control. Alt-click reaches the UI.
+ page.locator('.attack-list [data-action=attack]').first.click(modifiers=['Alt'])
  assert page.evaluate('pendingRoll.expression')=='1d20+6'
  page.evaluate('cancelPreparedRoll()')
  assert page.evaluate('Action.combat(character).economy.spent.action')==1
