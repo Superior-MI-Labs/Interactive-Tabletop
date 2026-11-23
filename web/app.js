@@ -1764,7 +1764,7 @@ function initDiceCanvas(){
   lastDiceGesture=null;
  },true);
  stage.addEventListener('contextmenu',e=>{
-  if(pointer?.down||performance.now()<suppressContextUntil){e.preventDefault();e.stopPropagation();cancelGesture();}
+  if(pointer?.down||pendingRoll||performance.now()<suppressContextUntil){e.preventDefault();e.stopPropagation();cancelGesture();}
  });
  document.addEventListener('mousedown',e=>{
   if(e.button!==2||!pointer?.down)return;
