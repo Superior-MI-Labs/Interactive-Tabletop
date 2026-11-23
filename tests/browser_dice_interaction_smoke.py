@@ -178,8 +178,8 @@ with sync_playwright() as pw:
  assert page.evaluate('punchCharge===null&&punchEffect===null'),'Switch must discard charging impulse'
  page.mouse.up();page.keyboard.up('Shift')
  assert page.evaluate('pendingRoll===null&&pointer===null'),'Old gesture cannot affect new character'
- # The physical mouse is the throwing hand: fast releases must not clip
- # to the former 850/900px/s caps or halve their measured speed.
+ # Hand motion stays directional but fast flicks smoothly compress,
+ # without a sudden hard cutoff or loss of gentle-throw precision.
  flick=page.evaluate('''()=>{
   const d=DP.makeDie(8,260,180,26);d.id=++nextDieId;dice.push(d);DP.park(d);
   const r=document.querySelector('#dice-stage').getBoundingClientRect();
@@ -195,9 +195,10 @@ with sync_playwright() as pw:
   h.samples=[{x:h.x-240,y:h.y,time:t-30},{x:h.x,y:h.y,time:t}];
  }''')
  page.mouse.up()
- assert page.evaluate('(id)=>dice.find(d=>d.id===id).v[0]',flick['id'])>3500,\
-  'Fast physical toss must retain measured pointer velocity beyond former speed caps'
+ actual=page.evaluate('(id)=>dice.find(d=>d.id===id).v[0]',flick['id'])
+ assert 1400<actual<1600,\
+  f'Fast physical toss should approach 1600px/s: {actual}'
  assert page.evaluate('activeRolls.length')==1,'Ordinary toss still uses one roll owner'
  assert not errors,errors
- print('PASS browser: uncapped hand throws, wheel controls, sling, charged punch, concurrent rolls, cancel and modifiers')
+ print('PASS browser: soft hand throws, wheel controls, sling, charged punch, concurrent rolls, cancel and modifiers')
  browser.close()
