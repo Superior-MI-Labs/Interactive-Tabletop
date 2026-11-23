@@ -116,16 +116,30 @@ assert.ok(up.z>down.z+100,'height 1 must start substantially above height 0');
 const sling=DP.makeDie(6,110,160);
 DP.grab(sling,sling.x,sling.y,.5);
 DP.release(sling,0,0,{angleDeg:0,spin:0,sling:{anchorX:220,anchorY:160,fromX:130,fromY:160}});
-assert.ok(sling.v[0]>650&&Math.abs(sling.v[1])<1,'slingshot must launch more strongly toward its anchor');
-const halfPull=DP.slingVector(100,100,180,100);
-const cappedPull=DP.slingVector(100,100,600,100);
-assert.equal(halfPull.power,.5,'80 px is half the 160 px slingshot pull');
+assert.ok(sling.v[0]>480&&sling.v[0]<560&&Math.abs(sling.v[1])<1,'90px slingshot pull maps proportionally onto 480px cap');
+const halfPull=DP.slingVector(100,100,340,100);
+const cappedPull=DP.slingVector(100,100,800,100);
+assert.equal(halfPull.power,.5,'240px is half the 480px slingshot pull');
 assert.equal(cappedPull.power,1,'slingshot power caps at 1.0');
-assert.equal(cappedPull.x,260,'the physical hand target stops at the 160 px tether length');
+assert.equal(cappedPull.x,580,'the physical hand target stops at the 480px tether length');
 const maxSling=DP.makeDie(6,130,230);
 DP.grab(maxSling,130,230,.5);
 DP.release(maxSling,0,0,{angleDeg:0,spin:0,sling:{anchorX:300,anchorY:230,fromX:-300,fromY:230}});
-assert.ok(maxSling.v[0]>1250&&maxSling.v[0]<1450,'full slingshot power must exceed the ordinary throw speed');
+assert.ok(maxSling.v[0]>2600&&maxSling.v[0]<2900,'full slingshot launches at twice the old 1400px/s cap');
+const angledSling=DP.makeDie(6,200,120);
+DP.grab(angledSling,200,120,.8);
+DP.release(angledSling,0,0,{angleDeg:30,spin:-1,
+ sling:{anchorX:250,anchorY:120,fromX:-350,fromY:120}});
+assert.ok(angledSling.v[2]>0&&angledSling.w[1]<0,
+ 'slingshot release must apply the same launch angle and backspin as normal throws');
+const clipped=DP.makeDie(8,215,175);
+DP.launch(clipped,400,0,0,{angleDeg:85,spin:0});
+assert.ok(Math.abs(clipped.v[2]-clipped.v[0])<.001,
+ 'launch angles above +45° must clamp to +45°');
+const clippedDown=DP.makeDie(8,215,175);
+DP.launch(clippedDown,400,0,0,{angleDeg:-85,spin:0});
+assert.ok(Math.abs(clippedDown.v[2]+clippedDown.v[0])<.001,
+ 'launch angles below -45° must clamp to -45°');
 const punched=DP.makeDie(6,250,250,28);
 DP.launch(punched,0,0,0,{angleDeg:0,height:0});
 for(let i=0;i<260;i++)DP.stepWorld([punched],1/120,540,470);
@@ -134,6 +148,11 @@ assert.equal(n,1,'force punch must affect nearby dynamic dice');
 DP.stepWorld([punched],1/120,540,470);
 assert.ok(punched.v[0]>0,'radial impulse must move die away from click');
 assert.ok(DP.punchRadius(1)>DP.punchRadius(.35)*1.4,'charged radius grows visibly');
+assert.equal(DP.punchFalloff(0,100),1,'central punch has no falloff');
+assert.equal(DP.punchFalloff(100,100),0,'pulse force reaches zero at its radius');
+assert.ok(DP.punchFalloff(95,100)>.32&&DP.punchFalloff(99,100)<.09,
+ 'eighth-power pulse sharply loses its remaining force over the outer 5%');
+assert.ok(DP.punchFalloff(80,100)>.8,'inner pulse preserves most of its force');
 const weak=DP.makeDie(6,240,240),strong=DP.makeDie(6,400,360);
 DP.launch(weak,0,0,0,{height:1,angleDeg:0,spin:0});
 DP.launch(strong,0,0,0,{height:1,angleDeg:0,spin:0});
@@ -141,6 +160,33 @@ DP.punch([weak],190,240,.35);
 DP.punch([strong],350,360,1);
 DP.stepWorld([weak,strong],1/120,550,450);
 assert.ok(strong.v[0]>weak.v[0]*2.5,'full charge should create substantially greater impulse than 35%');
+// The physical body crosses the boundary, not a fake visual proxy.
+// Bottom-left maps to top-right; bottom-right maps to top-left.
+for(const spec of [{x:-8,y:458,vx:-360,vy:260,side:'left'},
+ {x:558,y:458,vx:360,vy:260,side:'right'}]){
+ const traveler=DP.makeDie(8,spec.x,spec.y,24);
+ traveler.z=140;traveler.v=[spec.vx,spec.vy,45];traveler.w=[1,2,3];
+ traveler.sleeping=false;traveler.ready=false;
+ DP.park(traveler);DP.stepWorld([traveler],1/120,550,450);
+ assert.ok(traveler.y>0&&traveler.y<25,'bottom exit must return near the top');
+ assert.ok(spec.side==='left'?traveler.x>525:traveler.x<25,
+  'mirrored corner reentry must land on the opposing side');
+ assert.ok(Math.sign(traveler.v[0])===Math.sign(spec.vx)
+   &&Math.sign(traveler.v[1])===Math.sign(spec.vy),
+  'edge wrap must preserve the horizontal velocity direction');
+ assert.ok(Math.abs(traveler.w[1]-2)<.3,
+  'edge wrap must preserve angular velocity aside from normal damping');
+}
+const fastHand=DP.makeDie(6,140,140);
+DP.grab(fastHand,140,140,.7);
+DP.moveGrip(fastHand,430,140,.7);
+for(let i=0;i<20;i++)DP.stepWorld([fastHand],1/120,550,450);
+assert.ok(Math.abs(fastHand.x-430)<70,
+ 'default hand should track a 290px movement within 20 physics frames');
+for(let i=0;i<160;i++)DP.stepWorld([fastHand],1/120,550,450);
+assert.ok(Math.abs(fastHand.x-430)<12&&Math.abs(fastHand.v[0])<25,
+ 'hand spring must settle at cursor without lingering oscillation: offset='+
+ Math.abs(fastHand.x-430).toFixed(2)+' px, vx='+fastHand.v[0].toFixed(2)+' px/s');
 console.log('dice physics tests passed');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

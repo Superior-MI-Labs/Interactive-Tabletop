@@ -1,4 +1,13 @@
-## v0.58.0 — Grip damping, bounded slingshot and charged force punch (candidate)
+## v0.59.0 — Fast grip, stronger sling, mirrored reentry and curved force punch (candidate)
+
+- Increased the existing Ctrl-sling pull cap from 160 px to 480 px and peak slingshot launch velocity from 1,400 px/s to 2,800 px/s. Sling launch still shares the normal angle/spin/height release path.
+- Restricted launch angle to -45°/+45° in physics and the Ctrl-wheel control, still 5° per wheel notch.
+- Reworked the existing Rapier grip to attach at the die's center, use a stronger near-critical spring (1,800/36), add held angular damping, and raise hand-anchor tracking limit for faster default grabs without visible long-term wiggling.
+- Replaced horizontal tray wall colliders with mirrored reentry on any edge crossing. Rapier rigid bodies keep linear/angular velocity, orientation and gravity; held and prepared dice stay under cursor ownership.
+- Shift-click charge position now tracks the mouse throughout holding and fires at the release position. Maximum punch strength doubles to 4.5; a single eighth-power falloff damps sharply at the outer 5% of the radius.
+- Added regressions for ±45° angle clamps, release spin/angle on sling, triple sling cap/double speed, fast grip settling, reentry corners/velocity and punch curve/cursor targeting.
+
+## v0.58.0 — Grip damping, bounded slingshot and charged force punch
 
 - Corrected signed throw spin relative to travel: positive spin aligns with physically forward rolling (`up × direction`), negative spin creates backspin.
 - Moved the existing Rapier spring attachment almost to the die center, increased joint/rotation damping, and capped the kinematic hand-anchor displacement per step to prevent long spiraling after a fast mouse flick.

@@ -1822,7 +1822,12 @@ function initDiceCanvas(){
  },true);
  stage.addEventListener('pointermove',e=>{
   const {x,y}=relative(e);pointerPosition={x,y};
-  if(punchCharge){e.preventDefault();return;}
+  if(punchCharge){
+   // Preview and eventual impulse share the cursor's current tabletop point.
+   punchCharge.x=clamp(x,0,lastDimensions.w);
+   punchCharge.y=clamp(y,0,lastDimensions.h);
+   e.preventDefault();return;
+  }
   if(!pointer?.down){
    hoverDieId=findDie(x,y)?.id??null;
    stage.classList.toggle('die-hover',hoverDieId!==null);
@@ -1856,7 +1861,7 @@ function initDiceCanvas(){
   const steps=Math.trunc(pointer.wheelRemainder/100);
   pointer.wheelRemainder-=steps*100;
   if(!steps)return;
-  if(mode==='angle')throwSettings.angleDeg=clamp(throwSettings.angleDeg-steps*5,-85,85);
+  if(mode==='angle')throwSettings.angleDeg=clamp(throwSettings.angleDeg-steps*5,-45,45);
   else if(mode==='spin')throwSettings.spin=clamp(Math.round((throwSettings.spin-steps*.1)*10)/10,-1,1);
   else throwSettings.height=clamp(Math.round((throwSettings.height-steps*.05)*100)/100,0,1);
   moveGrips();
@@ -1865,6 +1870,9 @@ function initDiceCanvas(){
   if(punchCharge?.id===e.pointerId){
    e.preventDefault();e.stopPropagation();
    const gesture=punchCharge;punchCharge=null;
+   const point=relative(e);
+   gesture.x=clamp(point.x,0,lastDimensions.w);
+   gesture.y=clamp(point.y,0,lastDimensions.h);
    try{stage.releasePointerCapture(e.pointerId);}catch(_){}
    const power=punchLevel(gesture,performance.now());
    const hits=DP.punch(dice,gesture.x,gesture.y,power);

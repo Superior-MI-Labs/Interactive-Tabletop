@@ -108,7 +108,7 @@ function createDicePhysics(RAPIER) {
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
 
  const PIXEL=.01,STEP=1/120,MAX_SPEED=900;
- const MAX_SLING_PULL=160,MAX_SLING_SPEED=1400,MAX_HAND_STEP=.085;
+ const MAX_SLING_PULL=480,MAX_SLING_SPEED=2800,MAX_HAND_STEP=.45;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const planeDir=(x,y)=>{const l=Math.hypot(x,y);return l>1e-6?[x/l,y/l]:[0,0];};
  // Single hand target. Ctrl pins a sling origin and caps how far the
@@ -120,7 +120,13 @@ function createDicePhysics(RAPIER) {
   return {x:originX+dx*factor,y:originY+dy*factor,power};
  }
  const punchRadius=charge=>125*(.75+.75*clamp(charge,0,1));
- let world=null,initialized=null,walls=[],extent=[0,0];
+ // One continuous eighth-power falloff keeps the center strong and fades
+ // sharply over the outer few percent of the visible punch radius.
+ const punchFalloff=(distance,radius)=>Math.max(0,1-Math.pow(clamp(distance/radius,0,1),8));
+ // Opposite mirrored-edge mapping with an overshoot that points inward.
+ const mirrorCoordinate=(v,limit)=>v<0?clamp(limit+v,1,limit-1)
+  :v>limit?clamp(v-limit,1,limit-1):clamp(limit-v,1,limit-1);
+ let world=null,initialized=null;
  const bodies=new Map(),grips=new Map();
  const pos=d=>({x:d.x*PIXEL,y:d.y*PIXEL,z:d.z*PIXEL});
  const quat=q=>({w:q[0],x:q[1],y:q[2],z:q[3]});
@@ -131,20 +137,19 @@ function createDicePhysics(RAPIER) {
    world.createCollider(RAPIER.ColliderDesc.cuboid(100,100,.25)
     .setTranslation(0,0,-.25).setFriction(.9).setRestitution(.04)
     .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min));
-   const wall=(x,y)=>world.createCollider(RAPIER.ColliderDesc.cuboid(x,y,1.6)
-    .setFriction(.82).setRestitution(.04)
-    .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min));
-   walls=[wall(.1,100),wall(.1,100),wall(100,.1),wall(100,.1)];
+   // Dice leaving the tray reenter on the mirrored opposite side.
+   // The floor remains physical; the horizontal boundaries are not walls.
   });
   return initialized;
  }
- function setBounds(width,height){
-  if(!width||!height||extent[0]===width&&extent[1]===height)return;
-  extent=[width,height];const w=width*PIXEL,h=height*PIXEL;
-  walls[0].setTranslation({x:-.1,y:h/2,z:1.5});
-  walls[1].setTranslation({x:w+.1,y:h/2,z:1.5});
-  walls[2].setTranslation({x:w/2,y:-.1,z:1.5});
-  walls[3].setTranslation({x:w/2,y:h+.1,z:1.5});
+ function mirrorWrap(d,b,width,depth){
+  if(d.ready||d.held||width<=2||depth<=2)return;
+  const p=b.translation(),x=p.x/PIXEL,y=p.y/PIXEL;
+  if(x>=0&&x<=width&&y>=0&&y<=depth)return;
+  // Only the existing body's position changes: preserve its exact linear
+  // velocity, angular velocity, and orientation across the boundary.
+  b.setTranslation({x:mirrorCoordinate(x,width)*PIXEL,
+   y:mirrorCoordinate(y,depth)*PIXEL,z:p.z},true);
  }
  function setColliding(d,b){
   const c=b.collider(0),enabled=!d.ready||d.held;
@@ -156,7 +161,7 @@ function createDicePhysics(RAPIER) {
   const desc=RAPIER.RigidBodyDesc.dynamic()
    .setTranslation(d.x*PIXEL,d.y*PIXEL,d.z*PIXEL).setRotation(quat(d.q))
    .setLinearDamping(.42).setAngularDamping(1.35)
-   .setCcdEnabled(true).setAdditionalSolverIterations(2);
+   .setCcdEnabled(true).setAdditionalSolverIterations(4);
   const b=world.createRigidBody(desc);
   const points=new Float32Array(mesh(d.sides).v.flatMap(v=>v.map(n=>n*d.r*PIXEL)));
   const collider=RAPIER.ColliderDesc.convexHull(points);
@@ -179,7 +184,7 @@ function createDicePhysics(RAPIER) {
   const g=grips.get(d);if(!g)return;
   // Restore baseline rotational response on every exit: drop, cancel,
   // character switch, or ordinary release.
-  const b=bodies.get(d);if(b)b.setAngularDamping(1.35);
+  const b=bodies.get(d);if(b){b.setAngularDamping(1.35);b.setLinearDamping(.42);}
   world.removeImpulseJoint(g.joint,true);
   world.removeRigidBody(g.anchor);
   grips.delete(d);
@@ -204,15 +209,16 @@ function createDicePhysics(RAPIER) {
   setColliding(d,b);
   b.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
   b.wakeUp();
-  // Near-center grip plus strong damping prevents orbital spring spinning.
-  // A tiny offset retains a little real angular response to hand shaking.
-  const local={x:d.r*PIXEL*.045,y:0,z:d.r*PIXEL*.03};
+  // Central grip avoids eccentric spring torque that made dice orbit or
+  // wobble around the pointer long after the pointer stopped.
+  const local={x:0,y:0,z:0};
   const off=rotate(d.q,[local.x/PIXEL,local.y/PIXEL,local.z/PIXEL]);
   const anchor=world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased()
    .setTranslation((d.x+off[0])*PIXEL,(d.y+off[1])*PIXEL,(d.z+off[2])*PIXEL));
-  b.setAngularDamping(5);
+  b.setAngularDamping(12);b.setLinearDamping(8);
+  // Stronger near-critical spring follows fast input without lasting bounce.
   const joint=world.createImpulseJoint(
-   RAPIER.JointData.spring(0,220,17,{x:0,y:0,z:0},local),anchor,b,true);
+   RAPIER.JointData.spring(0,1800,36,{x:0,y:0,z:0},local),anchor,b,true);
   // Fixed support reference avoids an orientation→hand-position feedback loop.
   grips.set(d,{anchor,joint,offset:off,support:height(d),target:anchor.translation()});
   moveGrip(d,x,y,lift);
@@ -225,7 +231,7 @@ function createDicePhysics(RAPIER) {
    z:Math.max(d.r*.2,z+g.offset[2])*PIXEL};
  }
  function releaseVelocity(b,vx,vy,settings={}){
-  const angle=clamp(Number(settings.angleDeg)||0,-85,85)*Math.PI/180;
+  const angle=clamp(Number(settings.angleDeg)||0,-45,45)*Math.PI/180;
   const cap=settings.sling?MAX_SLING_SPEED:MAX_SPEED;
   const speed=Math.min(cap,Math.hypot(vx,vy)),dir=planeDir(vx,vy);
   b.setLinvel({x:dir[0]*speed*Math.cos(angle)*PIXEL,
@@ -270,7 +276,7 @@ function createDicePhysics(RAPIER) {
    if(d.ready||d.held)continue;
    const dx=d.x-x,dy=d.y-y,l=Math.hypot(dx,dy);
    if(l>=radius)continue;
-   const dir=l>1?planeDir(dx,dy):[1,0],power=2.25*level*(1-l/radius);
+   const dir=l>1?planeDir(dx,dy):[1,0],power=4.5*level*punchFalloff(l,radius);
    const b=body(d),p=b.translation();
    b.applyImpulseAtPoint({x:dir[0]*power,y:dir[1]*power,z:power*.12},
     {x:p.x,y:p.y,z:p.z+d.r*PIXEL*.22},true);
@@ -280,7 +286,6 @@ function createDicePhysics(RAPIER) {
  }
  function stepWorld(dice,dt,width,heightLimit){
   if(!world)throw Error('Rapier has not initialized');
-  setBounds(width,heightLimit);
   const present=new Set(dice);
   for(const [d,b] of bodies)if(!present.has(d)){
    endGrip(d);world.removeRigidBody(b);bodies.delete(d);
@@ -307,8 +312,12 @@ function createDicePhysics(RAPIER) {
     z:now.z+delta.z*amount});
   }
   world.step();
-  for(const d of dice)if(!d.ready||d.held)sync(d,bodies.get(d));
+  for(const d of dice){
+   const b=bodies.get(d);
+   mirrorWrap(d,b,width,heightLimit);
+   if(!d.ready||d.held)sync(d,b);
+  }
  }
  return {init,mesh,rotate,advance,orientation,faceValue,makeDie,launch,release,
-  grab,moveGrip,park,punch,punchRadius,slingVector,stepWorld,height,hitTest,random};
+  grab,moveGrip,park,punch,punchRadius,punchFalloff,slingVector,stepWorld,height,hitTest,random};
 }
