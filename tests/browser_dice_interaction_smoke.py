@@ -34,6 +34,7 @@ with sync_playwright() as pw:
  point=page.evaluate('''()=>{const d=dice[0],stage=document.querySelector('#dice-stage').getBoundingClientRect();
   const button=document.querySelector('.ability-roll').getBoundingClientRect();
   d.x=button.left+button.width/2-stage.left; d.y=button.top+button.height/2-stage.top+d.z*.45;
+  DP.park(d); // Keep the physical body aligned with the test's synthetic positioning.
   return {x:stage.left+d.x,y:stage.top+d.y-d.z*.45};}''')
  assert page.evaluate('''()=>{const d=dice[0],r=document.querySelector('#dice-stage').getBoundingClientRect();return DP.hitTest(d,d.x,d.y-d.z*.45,r.width,r.height)}''')
  # Default pointer ownership belongs to the visible ability button, even
