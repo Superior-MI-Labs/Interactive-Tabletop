@@ -78,7 +78,7 @@ for(let i=0;i<300;i++){
  DP.stepWorld([shake],1/120,550,450);
 }
 assert.ok(Math.hypot(shake.x-260,shake.y-200)<16,'Held die keeps orbiting instead of approaching hand target');
-assert.ok(Math.hypot(...shake.w)<4,'Shake angular momentum fails to damp while holding');
+assert.ok(Math.hypot(...shake.w)<4,'Shake angular momentum fails to damp while holding: '+Math.hypot(...shake.w).toFixed(2)+' rad/s');
 shake.held=false;shake.ready=false;shake.sleeping=true;shake.v=[0,0,0];shake.w=[0,0,0];
 DP.park(shake); // Must detach the joint and restore default rotational damping.
 DP.launch(shake,240,0,0,{angleDeg:0,spin:1});

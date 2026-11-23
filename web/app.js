@@ -1728,7 +1728,7 @@ function initDiceCanvas(){
    :{x:pointer.x,y:pointer.y};
   pointer.selected.forEach((d,i)=>{
    const off=pointer.offsets[i],prior=pointer.prior[i];
-   const liftY=(DP.height(d)+throwSettings.height*d.r*5-prior.z)*.45;
+   const liftY=(pointer.supports[i]+throwSettings.height*d.r*5-prior.z)*.45;
    DP.moveGrip(d,clamp(hand.x+off.x,d.r,lastDimensions.w-d.r),
     clamp(hand.y+off.y+liftY,d.r,lastDimensions.h-d.r),throwSettings.height);
   });
@@ -1812,9 +1812,10 @@ function initDiceCanvas(){
   const prior=selected.map(d=>({ready:d.ready,sleeping:d.sleeping,rolling:d.rolling,
    v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
   const offsets=selected.map(d=>({x:d.x-x,y:d.y-y}));
+  const supports=selected.map(d=>DP.height(d));
   selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
   pointer={id:e.pointerId,x,y,dx:0,dy:0,down:true,lastTime:performance.now(),selected,mode,
-   offsets,prior,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
+   offsets,prior,supports,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
   moveGrips();
   document.body.classList.add('dice-dragging');
   $('#tray-help').textContent='Grab · wheel lift · Ctrl+wheel 5° angle · Shift+wheel spin · Ctrl slingshot · right-click cancel';

@@ -213,13 +213,14 @@ function createDicePhysics(RAPIER) {
   b.setAngularDamping(5);
   const joint=world.createImpulseJoint(
    RAPIER.JointData.spring(0,220,17,{x:0,y:0,z:0},local),anchor,b,true);
-  grips.set(d,{anchor,joint,offset:off,target:anchor.translation()});
+  // Fixed support reference avoids an orientation→hand-position feedback loop.
+  grips.set(d,{anchor,joint,offset:off,support:height(d),target:anchor.translation()});
   moveGrip(d,x,y,lift);
  }
  function moveGrip(d,x,y,lift=.35){
   const g=grips.get(d);if(!g)return;
   // Height 0 keeps the die on the table; height 1 lifts five die radii.
-  const z=height(d)+clamp(lift,0,1)*d.r*5;
+  const z=g.support+clamp(lift,0,1)*d.r*5;
   g.target={x:(x+g.offset[0])*PIXEL,y:(y+g.offset[1])*PIXEL,
    z:Math.max(d.r*.2,z+g.offset[2])*PIXEL};
  }
