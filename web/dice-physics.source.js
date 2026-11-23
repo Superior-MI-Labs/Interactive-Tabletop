@@ -119,14 +119,26 @@ function createDicePhysics(RAPIER) {
   const factor=distance>MAX_SLING_PULL?MAX_SLING_PULL/distance:1;
   return {x:originX+dx*factor,y:originY+dy*factor,power};
  }
- const punchRadius=charge=>125*(.75+.75*clamp(charge,0,1));
- // One continuous eighth-power falloff keeps the center strong and fades
- // sharply over the outer few percent of the visible punch radius.
- const punchFalloff=(distance,radius)=>Math.max(0,1-Math.pow(clamp(distance/radius,0,1),8));
+ const MIN_PUNCH_CHARGE=.15,MAX_PUNCH_RADIUS=187.5;
+ // 75% of the previous minimum impulse; 50% of the maximum.
+ const MIN_PUNCH_IMPULSE=1.18125,MAX_PUNCH_IMPULSE=2.25;
+ const WALL_TOP_PX=40,WALL_HALF_THICKNESS=.08;
+ const punchRadius=charge=>MAX_PUNCH_RADIUS*clamp(charge,MIN_PUNCH_CHARGE,1);
+ const punchStrength=charge=>{
+  const t=(clamp(charge,MIN_PUNCH_CHARGE,1)-MIN_PUNCH_CHARGE)/(1-MIN_PUNCH_CHARGE);
+  return MIN_PUNCH_IMPULSE+(MAX_PUNCH_IMPULSE-MIN_PUNCH_IMPULSE)*t;
+ };
+ // Preserve full force in the inner 75%; the last quarter has a curved,
+ // progressively steeper falloff down to 15%, never zero inside radius.
+ const punchFalloff=(distance,radius)=>{
+  if(!(radius>0))return .15;
+  const edge=clamp((distance/radius-.75)/.25,0,1);
+  return 1-.85*edge*edge;
+ };
  // Opposite mirrored-edge mapping with an overshoot that points inward.
  const mirrorCoordinate=(v,limit)=>v<0?clamp(limit+v,1,limit-1)
   :v>limit?clamp(v-limit,1,limit-1):clamp(limit-v,1,limit-1);
- let world=null,initialized=null;
+ let world=null,initialized=null,walls=[],extent=[0,0];
  const bodies=new Map(),grips=new Map();
  const pos=d=>({x:d.x*PIXEL,y:d.y*PIXEL,z:d.z*PIXEL});
  const quat=q=>({w:q[0],x:q[1],y:q[2],z:q[3]});
@@ -137,17 +149,33 @@ function createDicePhysics(RAPIER) {
    world.createCollider(RAPIER.ColliderDesc.cuboid(100,100,.25)
     .setTranslation(0,0,-.25).setFriction(.9).setRestitution(.04)
     .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min));
-   // Dice leaving the tray reenter on the mirrored opposite side.
-   // The floor remains physical; the horizontal boundaries are not walls.
+   // Real wall contacts remain. Dice airborne above the wall may wrap.
+   const wall=(hx,hy)=>world.createCollider(
+    RAPIER.ColliderDesc.cuboid(hx,hy,WALL_TOP_PX*PIXEL/2)
+     .setFriction(.82).setRestitution(.04)
+     .setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Min));
+   walls=[wall(WALL_HALF_THICKNESS,100),wall(WALL_HALF_THICKNESS,100),
+    wall(100,WALL_HALF_THICKNESS),wall(100,WALL_HALF_THICKNESS)];
   });
   return initialized;
+ }
+ function setBounds(width,depth){
+  if(!(width>0&&depth>0)||extent[0]===width&&extent[1]===depth)return;
+  extent=[width,depth];
+  const w=width*PIXEL,h=depth*PIXEL,z=WALL_TOP_PX*PIXEL/2;
+  walls[0].setTranslation({x:-WALL_HALF_THICKNESS,y:h/2,z});
+  walls[1].setTranslation({x:w+WALL_HALF_THICKNESS,y:h/2,z});
+  walls[2].setTranslation({x:w/2,y:-WALL_HALF_THICKNESS,z});
+  walls[3].setTranslation({x:w/2,y:h+WALL_HALF_THICKNESS,z});
  }
  function mirrorWrap(d,b,width,depth){
   if(d.ready||d.held||width<=2||depth<=2)return;
   const p=b.translation(),x=p.x/PIXEL,y=p.y/PIXEL;
   if(x>=0&&x<=width&&y>=0&&y<=depth)return;
-  // Only the existing body's position changes: preserve its exact linear
-  // velocity, angular velocity, and orientation across the boundary.
+  // Only airborne dice whose lowest vertex clears the wall may wrap.
+  const q=b.rotation(),bottom=height({...d,q:[q.w,q.x,q.y,q.z]});
+  if(p.z/PIXEL-bottom<WALL_TOP_PX)return;
+  // Same Rapier rigid body, preserving velocity, rotation, and spin.
   b.setTranslation({x:mirrorCoordinate(x,width)*PIXEL,
    y:mirrorCoordinate(y,depth)*PIXEL,z:p.z},true);
  }
@@ -241,7 +269,9 @@ function createDicePhysics(RAPIER) {
    const w=b.angvel(),turn=spin*18;
    // Ground rolling: omega = up CROSS travel, so the contact point moves
    // backward relative to the die. Positive spin aids forward rolling.
-   b.setAngvel({x:w.x-dir[1]*turn,y:w.y+dir[0]*turn,z:w.z},true);
+   // Canvas vertical screen movement has the opposite visual pitch sense.
+   // Reverse Y-travel spin while retaining the left/right spin behavior.
+   b.setAngvel({x:w.x+dir[1]*turn,y:w.y+dir[0]*turn,z:w.z},true);
   }
  }
  function release(d,vx=0,vy=0,settings={}){
@@ -270,13 +300,13 @@ function createDicePhysics(RAPIER) {
   sync(d,body(d));
  }
  function punch(dice,x,y,charge=1){
-  const level=clamp(charge,0,1),radius=punchRadius(level);
+  const level=clamp(charge,MIN_PUNCH_CHARGE,1),radius=punchRadius(level);
   let hits=0;
   for(const d of dice){
    if(d.ready||d.held)continue;
    const dx=d.x-x,dy=d.y-y,l=Math.hypot(dx,dy);
-   if(l>=radius)continue;
-   const dir=l>1?planeDir(dx,dy):[1,0],power=4.5*level*punchFalloff(l,radius);
+   if(l>radius)continue;
+   const dir=l>1?planeDir(dx,dy):[1,0],power=punchStrength(level)*punchFalloff(l,radius);
    const b=body(d),p=b.translation();
    b.applyImpulseAtPoint({x:dir[0]*power,y:dir[1]*power,z:power*.12},
     {x:p.x,y:p.y,z:p.z+d.r*PIXEL*.22},true);
@@ -286,6 +316,7 @@ function createDicePhysics(RAPIER) {
  }
  function stepWorld(dice,dt,width,heightLimit){
   if(!world)throw Error('Rapier has not initialized');
+  setBounds(width,heightLimit);
   const present=new Set(dice);
   for(const [d,b] of bodies)if(!present.has(d)){
    endGrip(d);world.removeRigidBody(b);bodies.delete(d);
@@ -319,5 +350,6 @@ function createDicePhysics(RAPIER) {
   }
  }
  return {init,mesh,rotate,advance,orientation,faceValue,makeDie,launch,release,
-  grab,moveGrip,park,punch,punchRadius,punchFalloff,slingVector,stepWorld,height,hitTest,random};
+  grab,moveGrip,park,punch,punchRadius,punchStrength,punchFalloff,
+  MIN_PUNCH_CHARGE,WALL_TOP_PX,slingVector,stepWorld,height,hitTest,random};
 }
