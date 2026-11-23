@@ -1,3 +1,11 @@
+## v0.56.0 — Rapier 3D rigid-body dice (candidate)
+
+- Replaced the handwritten approximate contact solver with a shared 120-Hz Rapier world, real convex polyhedron colliders, tray walls and floor, calculated rotational inertia, friction and restitution.
+- Thrown dice collide with resting and rolling dice, transferring real contact impulses. Held dice are kinematic so physically dragging one into another also pushes the other die; sleeping dice wake from collisions.
+- Preserved the current Canvas rendering, faces, pointer hit testing, character-owned independent roll groups, cancellation and gameplay/resource commitments.
+- The pinned Rapier 0.21.0 WebAssembly compatibility runtime is embedded into one untracked, self-contained generated dice script for browser, offline desktop and Node. Source of truth: web/dice-physics.source.js and package-lock.json. No CDN or extra runtime state.
+- Added tests for impacts against resting dice and physical settling alongside the existing roll and geometry tests.
+
 ## v0.55.0 — Physical dice rotation and settlement consistency (candidate)
 
 - Removed pointer-driven quaternion rotation while held. Flick velocity now gives directional angular momentum and bounded shake varies its release.

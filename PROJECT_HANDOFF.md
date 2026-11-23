@@ -2,13 +2,13 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.54.0`  
-**Candidate application release:** `v0.55.0` — dice physics correction awaiting independent CI qualification and Pages deployment.  
-**Release commit:** v0.54.0 `374f3f0` — GitHub Actions qualification and Pages deployment both passed in run `42947922006` (2026-11-10 local / 2026-11-11 UTC). Previous verified release: v0.53.0 `5344fe6` (run `42935964032`).  
+**Last verified application release:** `v0.55.0`  
+**Candidate application release:** `v0.56.0` — Rapier 3D rigid-body dice, awaiting CI qualification and Pages deployment.  
+**Release commit:** v0.55.0 `fa534f1` — qualification and Pages deployment passed in run `45118833498` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current worktree:** v0.54.0 player-first release is qualified and deployed from `main` at `374f3f0` (Actions run `42947922006`, both `qualify` and `deploy` passed). Sheet Attack/Damage/Critical no longer require targets; Conditions are beside HP; My Turn is an optional manual tracker; Self/Other is transient recipient intent. Legacy creature-targeted resolution is behind the advanced disclosure. Next focus: player usability, not expanded encounter simulation.
+**Current status:** v0.55.0 is deployed. The v0.56.0 candidate replaces only transient dice physics with one Rapier world. Vault, tracked gameplay rules, roll groups and UI remain unchanged.
 
 ### v0.54 priority and non-goals
 
@@ -17,6 +17,10 @@ The application is a **player-owned sheet and physical dice tray for Discord/DM 
 ### v0.55 candidate: dice motion correction
 
 The existing `web/dice-physics.js` owns simulated motion; `web/app.js` owns inputs and painting. This candidate removes pointer-driven visual rotation, uses flick velocity for spin, eliminates arbitrary wall spin, requires supporting-face sleep, and reads the d4 at the upper vertex. `tests/test_dice_physics.js` exercises these invariants. Canvas projection, die-to-die sphere contacts and inertia remain approximate. Run full Node/Python/Chromium qualification and verify Pages before claiming deployment; no second dice engine or vault state.
+
+### v0.56 candidate: real rigid-body impacts and draggable collision
+
+web/dice-physics.source.js is the authored simulation owner; tools/build_physics.py embeds pinned Rapier into untracked web/dice-physics.js after npm ci. One Rapier world is shared by every die, including completed resting dice. Held dice switch to kinematic bodies that can impart momentum to sleeping dynamic dice. The UI still owns visual faces and character-scoped roll group settlement. No alternate simulation or selected-result path is allowed. Verify Node, Python, Chromium, offline bundle packaging and actual Pages deployment before announcing release.
 
 ## 1. Why this file exists / how to resume
 
