@@ -141,12 +141,20 @@ function createDicePhysics(RAPIER) {
   if(!collider)throw Error('Convex geometry invalid: d'+d.sides);
   world.createCollider(collider.setFriction(.78).setRestitution(.27).setMass(.18),b);
   bodies.set(d,b);
+  setColliding(d,b);
   if(d.held||d.ready)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
   else if(d.sleeping)b.sleep();
   return b;
  }
+ // A cursor-follow preview is not a physical throw. Held and launched dice
+ // have enabled convex colliders; an ungrabbed prepared die is a ghost.
+ function setColliding(d,b){
+  const c=b.collider(0),enabled=!d.ready||d.held;
+  if(c.isEnabled()!==enabled)c.setEnabled(enabled);
+ }
  function park(d){
   const b=body(d),held=d.held||d.ready;
+  setColliding(d,b);
   b.setBodyType(held?RAPIER.RigidBodyType.KinematicPositionBased:RAPIER.RigidBodyType.Dynamic,true);
   b.setTranslation(vec(d),true);b.setRotation(rot(d.q),true);
   if(held){b.setNextKinematicTranslation(vec(d));return;}
@@ -168,6 +176,7 @@ function createDicePhysics(RAPIER) {
   for(const [d,b] of bodies)if(!present.has(d)){world.removeRigidBody(b);bodies.delete(d);}
   for(const d of dice){
    const b=body(d);
+   setColliding(d,b);
    if(d.held||d.ready){
     if(b.bodyType()!==RAPIER.RigidBodyType.KinematicPositionBased)b.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased,true);
     b.setNextKinematicTranslation(vec(d));
