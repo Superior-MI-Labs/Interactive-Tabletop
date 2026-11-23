@@ -646,7 +646,6 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 #page .buff-empty{color:#acb8c1;font-size:11px;line-height:1.3}
 #page .status-info{border:0;background:transparent;color:#b8cfda;cursor:pointer;font-size:14px;padding:0 3px;min-width:19px;min-height:22px;border-radius:4px}
 #page .status-info:hover,#page .status-info:focus-visible{color:#ffdfa9;background:#49535d}
-#page .hud-resources .condition-icons{width:100%}
 
 /* Encounter is its own tabbed workspace, projected from existing character combat state. */
 #page .encounter-workspace{display:grid;gap:8px;min-width:0}
