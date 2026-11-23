@@ -2,13 +2,17 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.59.0`  
-**Candidate application release:** `v0.60.0` — physical walls and over-wall portal, corrected screen-Y spin, softened 15–100% charged punch, pending qualification.  
-**Release commit:** v0.59.0 `fcf8fa6` — qualification and Pages deployment passed in run `45145156196` (2026-11-23 UTC).  
+**Last verified application release:** `v0.60.0`  
+**Candidate application release:** `v0.61.0` — restore up/down spin, uncapped recent-hand release, Conditions consolidated into Effects; awaiting qualification.  
+**Release commit:** v0.60.0 `140aaa9` — qualification and Pages deployment passed in run `45150522360` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.59.0 is deployed. v0.60.0 candidate restores finite 40px high physical walls while preserving mirror wrap only for dice that vault above them; corrects up/down screen spin; and reduces charged punch force, starting charge and minimum radius. No new physics or gameplay system.
+**Current status:** v0.60.0 is deployed. v0.61.0 candidate restores earlier vertical spin sign, samples mouse velocity directly and removes the normal throw speed caps; Conditions controls move into the original Effects bar with the same gameplay/data owner.
+
+### v0.61 candidate — one hand, one release path, one status bar
+
+The existing spring hand remains Rapier-owned. During left drag, the UI records recent pointer coordinates and timestamps; on mouseup it emits measured linear speed with no 850/900 px/s caps, preserving the intentional 2,800 px/s Ctrl-slingshot cap. Slow/no movement drops the die. One-time spin at release restores the old up/down axis sign; no ground-contact spin correction scripts or second angular simulator. The existing conditionRail buttons (15, sourced from character and Action) are projected at the start of buffBar under CONDITIONS, then small divider, then unchanged Effects tokens. Remove standalone Conditions panel and stale CSS but preserve tooltips, condition provenance, rules engine and recorded results. Qualify Node/Python/Chromium and production Pages/desktop release gates before marking deployed.
 
 ### v0.60 candidate — wall contacts and aerial portal, one punch curve
 

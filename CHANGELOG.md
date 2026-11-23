@@ -1,4 +1,11 @@
-## v0.60.0 — Solid tray walls, over-wall wrap, screen-Y spin and softer punch (candidate)
+## v0.61.0 — Physical hand velocity and combined Conditions/Effects (candidate)
+
+- Restored the pre-v0.60 sign for up/down forward/backspin. Spin is an angular-velocity boost applied **once upon release**, with no special ongoing ground-contact or roll animation effects; Rapier alone owns post-release rotation and friction.
+- Removed the half-smoothed mouse velocity estimate, ±850 px/s UI clipping and ordinary-throw 900 px/s physics cap. A bounded recent pointer-position history measures hand velocity at mouseup, including the final pointer position; stopped movement becomes a drop. The 2,800 px/s Ctrl-slingshot limit is unchanged.
+- Moved the existing 15 condition icon buttons into the first row of the existing Effects bar, with a compact CONDITIONS label and divider before EFFECTS tokens. Removed the standalone Conditions panel without changing condition persistence, source grant logic, tooltip ownership or gameplay rules.
+- Updated physics and browser regressions for fast normal throws, original vertical spin sign, single release boost, inline Conditions presentation, accessibility, hover cards and mobile layout.
+
+## v0.60.0 — Solid tray walls, over-wall wrap, screen-Y spin and softer punch
 
 - Restored finite Rapier tray walls with a 40px physical wall top and low restitution. Only released dice that cross the tabletop boundary **above** the wall's top teleport to the opposing mirrored location. Their linear velocity, angular velocity and orientation are preserved.
 - Reversed the screen-Y throw spin contribution so throws toward the screen's top/bottom visually use the intended forward/backspin direction. Screen-left/right spin and normal/slingshot shared initial conditions remain intact.
