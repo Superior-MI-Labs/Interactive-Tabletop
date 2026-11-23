@@ -108,6 +108,14 @@ assert.ok(back.w[1]<0,'negative spin must create backspin against the direction 
 const neutral=DP.makeDie(6,180,170);
 DP.launch(neutral,500,0,0,{angleDeg:0,spin:0});
 assert.ok(Math.hypot(...neutral.w)<.001,'zero spin must not add arbitrary rotation');
+const screenUp=DP.makeDie(6,190,180),screenDown=DP.makeDie(6,230,180);
+DP.launch(screenUp,0,-300,0,{angleDeg:25,spin:1});
+DP.launch(screenDown,0,300,0,{angleDeg:-25,spin:1});
+assert.ok(screenUp.w[0]<0&&screenDown.w[0]>0,
+ 'positive spin for screen up/down throws must have the corrected pitch sign');
+const screenBack=DP.makeDie(6,270,180);
+DP.launch(screenBack,0,-300,0,{angleDeg:25,spin:-1});
+assert.ok(screenBack.w[0]>0,'screen-up backspin must reverse the new forward pitch');
 const up=DP.makeDie(8,200,160),down=DP.makeDie(8,200,160);
 DP.launch(up,240,0,0,{angleDeg:45,height:1});
 DP.launch(down,240,0,0,{angleDeg:-45,height:0});
@@ -143,25 +151,35 @@ assert.ok(Math.abs(clippedDown.v[2]+clippedDown.v[0])<.001,
 const punched=DP.makeDie(6,250,250,28);
 DP.launch(punched,0,0,0,{angleDeg:0,height:0});
 for(let i=0;i<260;i++)DP.stepWorld([punched],1/120,540,470);
-const n=DP.punch([punched],200,250,.35);
+const n=DP.punch([punched],200,250,1);
 assert.equal(n,1,'force punch must affect nearby dynamic dice');
 DP.stepWorld([punched],1/120,540,470);
 assert.ok(punched.v[0]>0,'radial impulse must move die away from click');
-assert.ok(DP.punchRadius(1)>DP.punchRadius(.35)*1.4,'charged radius grows visibly');
-assert.equal(DP.punchFalloff(0,100),1,'central punch has no falloff');
-assert.equal(DP.punchFalloff(100,100),0,'pulse force reaches zero at its radius');
-assert.ok(DP.punchFalloff(95,100)>.32&&DP.punchFalloff(99,100)<.09,
- 'eighth-power pulse sharply loses its remaining force over the outer 5%');
-assert.ok(DP.punchFalloff(80,100)>.8,'inner pulse preserves most of its force');
+assert.equal(DP.MIN_PUNCH_CHARGE,.15,'quick punch starts at 15% charge');
+assert.ok(Math.abs(DP.punchRadius(.15)-DP.punchRadius(1)*.15)<1e-8,
+ 'the physical radius must scale linearly with charge from 15% to 100%');
+assert.ok(Math.abs(DP.punchStrength(.15)-1.18125)<1e-8,
+ 'minimum charged impulse is 75% of previous quick click');
+assert.ok(Math.abs(DP.punchStrength(1)-2.25)<1e-8,
+ 'maximum charged impulse is half of previous full charge');
+assert.equal(DP.punchFalloff(0,100),1,'center retains full charged power');
+assert.equal(DP.punchFalloff(75,100),1,'inner 75% has no attenuation');
+assert.ok(DP.punchFalloff(90,100)>.65&&DP.punchFalloff(95,100)<.5,
+ 'the outer quarter contains the curved power reduction');
+assert.ok(DP.punchFalloff(99,100)>.15&&DP.punchFalloff(99,100)<.25,
+ 'power drops fastest near the outer edge');
+assert.ok(Math.abs(DP.punchFalloff(100,100)-.15)<1e-9,
+ 'edge hit must retain at least 15% of charged strength');
 const weak=DP.makeDie(6,240,240),strong=DP.makeDie(6,400,360);
 DP.launch(weak,0,0,0,{height:1,angleDeg:0,spin:0});
 DP.launch(strong,0,0,0,{height:1,angleDeg:0,spin:0});
-DP.punch([weak],190,240,.35);
-DP.punch([strong],350,360,1);
+assert.equal(DP.punch([weak],230,240,.15),1,'minimum radius must still affect close dice');
+assert.equal(DP.punch([strong],390,360,1),1,'full radius must affect close dice');
 DP.stepWorld([weak,strong],1/120,550,450);
-assert.ok(strong.v[0]>weak.v[0]*2.5,'full charge should create substantially greater impulse than 35%');
-// The physical body crosses the boundary, not a fake visual proxy.
-// Bottom-left maps to top-right; bottom-right maps to top-left.
+assert.ok(strong.v[0]>weak.v[0]*1.7,
+ 'full charge should exceed quick pulse using the softened force mapping');
+// Only dice genuinely airborne above the physical wall top may wrap.
+// Bottom-left vault maps to top-right; bottom-right vault to top-left.
 for(const spec of [{x:-8,y:458,vx:-360,vy:260,side:'left'},
  {x:558,y:458,vx:360,vy:260,side:'right'}]){
  const traveler=DP.makeDie(8,spec.x,spec.y,24);
@@ -177,6 +195,18 @@ for(const spec of [{x:-8,y:458,vx:-360,vy:260,side:'left'},
  assert.ok(Math.abs(traveler.w[1]-2)<.3,
   'edge wrap must preserve angular velocity aside from normal damping');
 }
+// A short, low throw collides with the real wall, not the wrap boundary.
+const wallDie=DP.makeDie(6,74,190,24);
+DP.launch(wallDie,-180,0,0,{angleDeg:0,spin:0,height:0});
+for(let i=0;i<160;i++)DP.stepWorld([wallDie],1/120,550,450);
+assert.ok(wallDie.x>0&&wallDie.x<220,
+ 'low throw must remain inside the tray after colliding with its wall');
+const groundedOutside=DP.makeDie(6,-8,245,24);
+groundedOutside.z=DP.height(groundedOutside);groundedOutside.v=[0,0,0];
+DP.park(groundedOutside);
+DP.stepWorld([groundedOutside],1/120,550,450);
+assert.ok(groundedOutside.x<100,
+ 'an object that has not cleared wall top must never teleport');
 const fastHand=DP.makeDie(6,140,140);
 DP.grab(fastHand,140,140,.7);
 DP.moveGrip(fastHand,430,140,.7);

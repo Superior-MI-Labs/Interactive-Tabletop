@@ -1,5 +1,11 @@
 # Interactive Tabletop architecture — v0.54.0
 
+## v0.60 — Physical walls, conditional vault, and one softened pulse curve
+
+Rapier remains authoritative. Four low-restitution finite wall colliders are restored in `web/dice-physics.source.js`, with their positions synchronized to tray dimensions and a 40px wall top. The existing `mirrorWrap` method still runs after the single Rapier step, but **only** for released bodies whose **lowest vertex** is above wall top when they cross the tray boundary. If a low die strikes the wall, it remains in the tray. Teleportation changes only body translation, not velocity, spin, quaternion, character state, or recorded outcomes. This preserves the surprise over-the-wall behavior without sacrificing ordinary rebounds.
+
+Screen vertical forward/backspin uses the opposite X-axis angular sign from v0.59; horizontal throw spin is unchanged. Both standard releases and Ctrl-slingshot releases use the same `releaseVelocity` function. The Shift-click UI charges from the **single exported physics constant** `MIN_PUNCH_CHARGE=0.15` and draws its radius using the same `punchRadius` used for hit detection. Maximum radius is 187.5px, minimum 28.125px. The `punchStrength` mapping linearly interpolates quick 1.18125 to full 2.25. The single `punchFalloff` function is `1 - 0.85 * clamp((distance/radius - 0.75)/0.25,0,1)^2`. Inside the radius this stays between 1.0 and 0.15, with a progressively steeper drop in the final 25%. Outside the radius there is no impulse. The click remains captured until release and never activates obscured UI controls.
+
 ## v0.59 — Mirrored tabletop and responsive hand contract
 
 The sole Rapier `World` and dynamic dice colliders remain authoritative for translations, rotations and collision impulses. **Do not add another physics engine or visual-only positions.** Default grab and slingshot share a center-attached high-response spring (stiffness 1800/damping 36) and moving kinematic anchor, with a 0.45m/step anchor-motion safety cap. The slingshot pull helper limits cursor displacement to 480 px, reports 0–1 normalized tension and supplies launch speed up to 2800 px/s. The same release initialization applies ±45° angle and signed forward/backspin to normal/sling throws.

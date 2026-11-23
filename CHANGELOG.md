@@ -1,4 +1,13 @@
-## v0.59.0 — Fast grip, stronger sling, mirrored reentry and curved force punch (candidate)
+## v0.60.0 — Solid tray walls, over-wall wrap, screen-Y spin and softer punch (candidate)
+
+- Restored finite Rapier tray walls with a 40px physical wall top and low restitution. Only released dice that cross the tabletop boundary **above** the wall's top teleport to the opposing mirrored location. Their linear velocity, angular velocity and orientation are preserved.
+- Reversed the screen-Y throw spin contribution so throws toward the screen's top/bottom visually use the intended forward/backspin direction. Screen-left/right spin and normal/slingshot shared initial conditions remain intact.
+- Reduced Shift-click minimum charge from 35% to 15%, preserving the 500ms charge time. The preview and collision radius now scale linearly with charge, from 15% to 100% of the maximum.
+- Reduced quick-click physical impulse to 75% of its prior value (1.18125) and full-charge impulse to 50% of its prior value (2.25). Both endpoints are interpolated through a single charge-to-strength function.
+- Replaced the previous eighth-power radial falloff with a unified quadratic outer-quarter taper: full influence until 75% of radius, then progressively stronger attenuation, floored at 15% of the chosen charge impulse inside the radius.
+- Extended physics and browser tests for low-wall collision, aerial corner wraps and momentum retention, screen-up/down spin signs, 15% quick charge and radius, reduced impulse endpoints and the 15%-minimum falloff contract.
+
+## v0.59.0 — Fast grip, stronger sling, mirrored reentry and curved force punch
 
 - Increased the existing Ctrl-sling pull cap from 160 px to 480 px and peak slingshot launch velocity from 1,400 px/s to 2,800 px/s. Sling launch still shares the normal angle/spin/height release path.
 - Restricted launch angle to -45°/+45° in physics and the Ctrl-wheel control, still 5° per wheel notch.
