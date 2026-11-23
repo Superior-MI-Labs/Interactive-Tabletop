@@ -194,7 +194,7 @@ with sync_playwright() as pw:
   h.samples=[{x:h.x-240,y:h.y,time:t-30},{x:h.x,y:h.y,time:t}];
  }''')
  page.mouse.up()
- assert page.evaluate('dice.find(d=>d.id==='+str(flick['id'])+').v[0]')>5500,\
+ assert page.evaluate('(id)=>dice.find(d=>d.id===id).v[0]',flick['id'])>5500,\
   'Fast physical toss must retain measured pointer velocity beyond former speed caps'
  assert page.evaluate('activeRolls.length')==1,'Ordinary toss still uses one roll owner'
  assert not errors,errors
