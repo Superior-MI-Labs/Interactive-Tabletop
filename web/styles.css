@@ -203,9 +203,8 @@ button,select,input,textarea {min-width:0}
 #page .vital-edit[open] {flex-basis:100%;margin:3px 0 0}
 #page .vital-edit[open] summary {width:max-content}
 #page .vital-edit .form-grid {margin:7px 0}
-#page .condition-rail {display:block;padding:4px 0 0}
-#page .condition-guidance{margin:0 0 7px;color:#bbcad3;font-size:11px;line-height:1.4}
-#page .condition-icons {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:3px 0 5px;max-width:100%}
+#page .condition-rail{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;max-width:100%}
+#page .condition-icons{display:flex;align-items:center;flex-wrap:wrap;gap:5px;max-width:100%}
 #page .condition-icon {display:inline-grid;place-items:center;position:relative;flex:0 0 27px;width:27px;height:27px;padding:4px;border:1px solid #44515c;background:#2c3842;border-radius:5px;color:#a2b0bd}
 #page .condition-icon svg {width:18px;height:18px}
 #page .condition-icon:hover,#page .condition-icon:focus-visible {background:#3a4550;color:#f3d6a5;border-color:#c4a171}
@@ -632,6 +631,7 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 #page .buff-bar{display:flex;gap:6px;align-items:center;min-height:37px;padding:6px 9px;flex-wrap:wrap;
  background:linear-gradient(90deg,#1b2731f2,#2b2d32e9);border:1px solid #6a5840;border-radius:7px;margin:6px 0 8px}
 #page .buff-caption{font-size:10px;letter-spacing:.14em;color:#e7c08c;font-weight:750;margin-right:4px}
+#page .buff-separator{width:1px;height:24px;margin:0 6px;flex:0 0 1px;background:#786b53}
 #page .buff-token{display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid #8b7659;border-radius:5px;background:#263948;
  font-size:11px;line-height:1.2;min-height:28px;max-width:100%}
 #page .buff-token strong{color:#e6dbc6;font-weight:650;white-space:nowrap}
