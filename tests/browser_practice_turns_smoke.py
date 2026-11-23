@@ -43,8 +43,11 @@ with sync_playwright() as pw:
  page.evaluate('cancelPreparedRoll()')
  page.evaluate('render()')
  assert page.evaluate('Action.combat(character).economy.spent.action')==0
- guide.get_by_role('button',name='3 · Prepare longsword attack').click()
- guide.get_by_role('button',name='Throw prepared dice').click()
+ # Prepared dice remain visible after cancellation and may cover practice controls.
+ # Alt-click deliberately reaches the controls beneath those dice.
+ guide.get_by_role('button',name='3 · Prepare longsword attack').click(modifiers=['Alt'])
+ assert page.evaluate('pendingRoll?.combatAttack===true'),'Retry must prepare the attack before throwing'
+ guide.get_by_role('button',name='Throw prepared dice').click(modifiers=['Alt'])
  page.wait_for_function('Action.combat(character).economy.spent.action===1')
  assert page.evaluate('Action.combat(character).economy.attacks.made')==1
  page.wait_for_function('document.querySelector(".demo-callout")?.textContent.includes("Extra Attack")')
