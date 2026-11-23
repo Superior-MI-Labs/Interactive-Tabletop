@@ -1902,7 +1902,7 @@ function initDiceCanvas(){
  };
  frame=requestAnimationFrame(draw);
 }
-function startDiceGroup(selected,p,vx,vy,shake,effect){
+function startDiceGroup(selected,p,vx,vy,shake,effect,settings=null){
  if(!selected.length)return false;
  // Prepared combat rolls belong to the character that created them.
  if((p.combatAttack||p.workflowId)&&p.characterId!==activeId){
@@ -1920,8 +1920,9 @@ function startDiceGroup(selected,p,vx,vy,shake,effect){
   catch(error){toast(error.message);return false;}
  }
  selected.forEach(d=>{
-  d.held=false;d.ready=false;d.rolling=true;
-  DP.launch(d,vx+(DP.random()-.5)*170,vy+(DP.random()-.5)*150,shake);
+  if(d.held)DP.release(d,vx,vy,settings||throwSettings);
+  else DP.launch(d,vx+(DP.random()-.5)*170,vy+(DP.random()-.5)*150,
+   shake,settings||throwSettings);
  });
  const group={diceIds:selected.map(d=>d.id),primaryCount:p.primaryCount??selected.length,bonuses:(p.bonuses||[]).map(b=>({...b})),rollKind:p.rollKind||'untyped',
   characterId:activeId,modifier:p.modifier,label:p.label,expression:p.expression,effect,d20Mode:p.d20Mode||'normal',
@@ -1930,7 +1931,7 @@ function startDiceGroup(selected,p,vx,vy,shake,effect){
  $('#tray-help').textContent='Rolling · grab another die at any time';
  return true;
 }
-function beginThrow(vx=120,vy=45,shake=80){
+function beginThrow(vx=120,vy=45,shake=80,settings=null){
  if(!pendingRoll)return;
  const p=pendingRoll,selected=(p.diceIds||[]).map(id=>dice.find(d=>d.id===id)).filter(d=>d&&d.ready);
  if(!selected.length)return;
@@ -1943,10 +1944,12 @@ function beginThrow(vx=120,vy=45,shake=80){
     throw Error('The staged ability was interrupted; prepare a new roll if it is still available.');
   }catch(error){cancelPreparedRoll();toast(error.message);return;}
  }
- if(startDiceGroup(selected,p,vx,vy,shake,effect)){
+ if(startDiceGroup(selected,p,vx,vy,shake,effect,settings)){
    queuedEffect=null;pendingRoll=null;following=false;$('#dice-stage').classList.remove('dice-following');
    if(character?.demo_id===window.TabletopDemo?.ID)render();
+   return true;
  }
+ return false;
 }
 function finishRollIfSettled(){
  if(!activeRolls.length)return;
