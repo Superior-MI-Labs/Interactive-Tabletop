@@ -1,3 +1,10 @@
+## v0.62.0 — Compact vitality and compliant mouse throws (candidate)
+
+- Use the existing Gameplay → My Turn tab as the only personal action-economy control surface; remove its duplicate strip above the sheet without changing the turn ledger.
+- Reflow Vitality into one desktop row with current/max HP, amount, damage/heal, a scrollable heart meter, temporary HP and Edit HP. Place Short/Long rest buttons in the character header before AC/INIT. Narrow layouts can wrap to keep controls usable.
+- Relax the one Rapier hand spring and its anchor-step limit. Natural mouse releases use a smooth 1600 px/s asymptotic response, preserving direction and gentle throws without a hard speed cutoff. Ctrl slingshot and automatic/programmatic launches retain their own speeds.
+- Extend existing Node and Chromium regressions to cover physical grip lag, hand throw response, the sole My Turn workspace, vitality controls, and header rest placement.
+
 ## v0.61.0 — Physical hand velocity and combined Conditions/Effects (candidate)
 
 - Restored the pre-v0.60 sign for up/down forward/backspin. Spin is an angular-velocity boost applied **once upon release**, with no special ongoing ground-contact or roll animation effects; Rapier alone owns post-release rotation and friction.
