@@ -19,9 +19,15 @@ class ReleaseContract(unittest.TestCase):
         self.assertIn('v'+version,(ROOT/'web/service-worker.js').read_text())
         self.assertIn('v'+version,(ROOT/'web/index.html').read_text())
     def test_generated_physics_is_collected_in_desktop_zip(self):
-        builder=(ROOT/'tools/build_release.py').read_text()
-        self.assertLess(builder.index("subprocess.run("),
-                        builder.index("paths=[ROOT/f for f in FILES]"),
+        builder=ROOT/'tools/build_release.py'
+        if not builder.is_file():
+            # Installer qualification runs inside a standalone release ZIP;
+            # that distribution omits build tools but must ship the runtime.
+            self.assertTrue((ROOT/'web/dice-physics.js').is_file())
+            return
+        script=builder.read_text()
+        self.assertLess(script.index("subprocess.run("),
+                        script.index("paths=[ROOT/f for f in FILES]"),
                         "Generate dice-physics.js before collecting archive paths")
 
     def test_script_references_and_order(self):
