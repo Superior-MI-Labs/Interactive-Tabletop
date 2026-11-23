@@ -139,10 +139,10 @@ with sync_playwright() as pw:
  assert 'Final total: 17' in tooltip.inner_text()
  page.mouse.move(15,15)
  assert tooltip.is_hidden()
- compact.click()
+ compact.click(modifiers=['Alt'])
  assert page.locator('#last-result strong').inner_text()=='17'
  assert page.locator('#dice-widget').get_attribute('open') is not None
- compact.click()
+ compact.click(modifiers=['Alt'])
  assert page.locator('#dice-widget').get_attribute('open') is None
  assert page.evaluate('document.body.classList.contains("dice-dragging")') is False
  assert not errors,errors
