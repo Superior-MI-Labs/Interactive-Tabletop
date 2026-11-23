@@ -107,7 +107,7 @@ function createDicePhysics(RAPIER) {
   }
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
 
- const PIXEL=.01,STEP=1/120,MAX_SPEED=900;
+ const PIXEL=.01,STEP=1/120;
  const MAX_SLING_PULL=480,MAX_SLING_SPEED=2800,MAX_HAND_STEP=.45;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const planeDir=(x,y)=>{const l=Math.hypot(x,y);return l>1e-6?[x/l,y/l]:[0,0];};
@@ -260,18 +260,20 @@ function createDicePhysics(RAPIER) {
  }
  function releaseVelocity(b,vx,vy,settings={}){
   const angle=clamp(Number(settings.angleDeg)||0,-45,45)*Math.PI/180;
-  const cap=settings.sling?MAX_SLING_SPEED:MAX_SPEED;
-  const speed=Math.min(cap,Math.hypot(vx,vy)),dir=planeDir(vx,vy);
+  // A physical hand toss must use the measured pointer speed unattenuated.
+  // Only the deliberately powered Ctrl sling has a fixed launch limit.
+  const rawSpeed=Math.hypot(vx,vy);
+  const speed=settings.sling?Math.min(MAX_SLING_SPEED,rawSpeed):rawSpeed;
+  const dir=planeDir(vx,vy);
   b.setLinvel({x:dir[0]*speed*Math.cos(angle)*PIXEL,
    y:dir[1]*speed*Math.cos(angle)*PIXEL,z:speed*Math.sin(angle)*PIXEL},true);
   const spin=clamp(Number(settings.spin)||0,-1,1);
   if(spin&&speed>1){
    const w=b.angvel(),turn=spin*18;
-   // Ground rolling: omega = up CROSS travel, so the contact point moves
-   // backward relative to the die. Positive spin aids forward rolling.
-   // Canvas vertical screen movement has the opposite visual pitch sense.
-   // Reverse Y-travel spin while retaining the left/right spin behavior.
-   b.setAngvel({x:w.x+dir[1]*turn,y:w.y+dir[0]*turn,z:w.z},true);
+   // One-time forward/backspin boost as the die leaves the hand.
+   // Rapier alone owns subsequent spin, impacts, friction and settling.
+   // Restore the earlier vertical sign (v0.59 inverted this incorrectly).
+   b.setAngvel({x:w.x-dir[1]*turn,y:w.y+dir[0]*turn,z:w.z},true);
   }
  }
  function release(d,vx=0,vy=0,settings={}){
