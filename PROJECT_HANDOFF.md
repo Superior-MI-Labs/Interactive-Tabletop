@@ -2,13 +2,17 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.60.0`  
-**Candidate application release:** `v0.61.0` — restore up/down spin, uncapped recent-hand release, Conditions consolidated into Effects; awaiting qualification.  
-**Release commit:** v0.60.0 `140aaa9` — qualification and Pages deployment passed in run `45150522360` (2026-11-23 UTC).  
+**Last verified application release:** `v0.61.0`  
+**Candidate application release:** `v0.62.0` — compact player HUD and softer natural hand throws; awaiting qualification.  
+**Release commit:** v0.61.0 `2e6453a` — qualification and Pages deployment passed in run `45155833863` (2026-11-23 UTC).  
 **Handoff reviewed:** 2026-11-23  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.60.0 is deployed. v0.61.0 candidate restores earlier vertical spin sign, samples mouse velocity directly and removes the normal throw speed caps; Conditions controls move into the original Effects bar with the same gameplay/data owner.
+**Current status:** v0.61.0 is deployed. v0.62.0 candidate consolidates player controls, moves recovery into the character ribbon, and tunes the existing Rapier hand without adding a second physics or gameplay owner.
+
+### v0.62 candidate — one player HUD and one physical hand
+
+Use the already-existing My Turn tab as the sole turn-control surface, and keep all HP updates on existing handlers. Condense Vitality to one desktop row; place recovery controls in the title ribbon immediately before AC/INIT. The existing time-stamped cursor history still measures throw direction/velocity; the one Rapier owner now applies smooth high-speed compression only for actual mouse throws, and a slightly softer damped spring while held. Ctrl slingshot, automated rolls, resource commitment, face results and post-release friction remain unchanged. Qualification must cover slow/fast throws, grip lag, UI tabs, HP and rest controls; verify publication separately after merge.
 
 ### v0.61 candidate — one hand, one release path, one status bar
 
