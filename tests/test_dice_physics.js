@@ -115,6 +115,7 @@ assert.ok(Math.abs(slowSpin.w[1]-2)<.01,'gentle spin scales with speed/radius');
 assert.ok(fastSpin.w[1]>slowSpin.w[1]*6,'fast spin scales with speed');
 for(const [vx,vy] of [[200,0],[-200,0],[0,200],[0,-200],[150,150]]){
  const die=DP.makeDie(6,180,170,26);
+ die.q=[1,0,0,0]; // Local top must equal world up; random orientation invalidates the directional test.
  DP.launch(die,vx,vy,0,{angleDeg:0,spin:1,height:1});
  const top=DP.rotate(die.q,[0,0,1]);
  const next=DP.rotate(DP.advance(die.q,die.w,.001),[0,0,1]);
