@@ -1,5 +1,11 @@
 # Interactive Tabletop architecture — v0.54.0
 
+## v0.63 — Unified directional spin and character-owned heart scale
+
+Rapier remains the sole source of angular velocity and contacts. Rendering and physics hit-testing now use matching down-positive screen Y projection. The shared throw-release function adds a one-time signed angular boost proportional to planar speed divided by die radius, capped at 18 rad/s, without a second rotation system or post-contact forces.
+
+The character JSON optionally owns `hp.heart_value` (positive integer, fallback 5). PDF reimport preserves this display-only preference. Wheel gestures over the HP number/hearts and direct heart clicks use one bounded HP setter and existing vault save; they do not simulate combat damage/healing, modify temporary HP, or trigger concentration.
+
 ## v0.62 — Taller physical tray rim
 
 The authored physics owner `web/dice-physics.source.js` raises the **single** wall-top constant from 40px to 52px. It already drives Rapier wall collider height, vertical placement, and the lowest-vertex clearance required for over-the-wall mirroring. No second collision or wall state is introduced. The existing `web/styles.css` border gains a slightly deeper inset shadow to signal the raised rim without changing pointer or dice hit-testing. A physics regression covers the new 40–52px clearance band as well as existing low impacts and high vaults.
