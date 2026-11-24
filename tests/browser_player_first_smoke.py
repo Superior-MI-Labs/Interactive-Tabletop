@@ -48,6 +48,24 @@ with sync_playwright() as pw:
  assert page.get_by_role('tab',name='My Turn').count()==1
  assert page.locator('.personal-turn-summary').count()==0
  assert page.locator('.vitals-line').count()==1
+ assert page.locator('.hearts .heart').count()==6,'legacy default five HP per heart'
+ page.locator('.hp-total').hover()
+ page.mouse.wheel(0,-100)
+ assert page.evaluate('character.hp.current')==13,'wheel up adds one'
+ page.mouse.wheel(0,100)
+ assert page.evaluate('character.hp.current')==12,'wheel down subtracts one'
+ page.mouse.wheel(0,3000)
+ assert page.evaluate('character.hp.current')==0,'bounded at zero'
+ page.mouse.wheel(0,-6000)
+ assert page.evaluate('character.hp.current')==30,'bounded at maximum'
+ page.locator('.vital-edit summary').click(modifiers=['Alt'])
+ page.locator('[data-input="hp.heart_value"]').fill('1')
+ page.locator('[data-input="hp.heart_value"]').press('Tab')
+ assert page.evaluate('character.hp.heart_value')==1
+ assert page.locator('.hearts .heart').count()==30,'one heart per HP'
+ assert page.evaluate('vaultData.characters[0].character.hp.heart_value')==1,'vault-owned setting'
+ page.locator('.hearts .heart').nth(11).click(modifiers=['Alt'])
+ assert page.evaluate('character.hp.current')==12,'heart click sets exact HP'
  assert page.locator('.vitals-panel [data-action=rest]').count()==0
  assert page.locator('.identity-ribbon .header-rest [data-action=rest]').count()==2
  assert page.locator('.identity-ribbon .header-rest').bounding_box()['x']<page.locator('.identity-ribbon .status-chips').bounding_box()['x']
