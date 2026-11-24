@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171b22">
-  <title>Interactive Tabletop v0.63.0</title>
+  <title>Interactive Tabletop v0.64.0</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./solar-crest.png">
@@ -30,12 +30,12 @@
         <input id="json-file" type="file" accept=".json,application/json" hidden>
         <button class="button subtle" id="export-json">Export JSON</button>
         <button class="button primary" id="quick-d20">Roll d20</button>
+        <button type="button" id="sheet-handle" class="button subtle" aria-controls="sheet-wrap" aria-expanded="true" title="Hide character sheet">Hide sheet</button>
       </div>
     </header>
     <div id="workspace">
       <section class="tabletop-dock" aria-label="Interactive sheet and dice on the tabletop">
         <div id="dice-stage" class="dice-stage" aria-label="Shared physical tabletop">
-          <button type="button" id="sheet-handle" class="sheet-handle" aria-controls="sheet-wrap" aria-expanded="true" title="Hide character sheet">‹‹ <span>Hide sheet</span></button>
           <div class="sheet-wrap" id="sheet-wrap">
 
             <main id="page" tabindex="-1"><div class="loading">Opening tabletop…</div></main>
@@ -56,7 +56,7 @@
               <div id="roll-effect" class="roll-effect" aria-live="polite"></div>
               <details class="table-history"><summary>Roll history <span id="history-count">0</span></summary>
                 <ul id="table-history" class="history"></ul><button class="button mini subtle" data-action="clear-history">Clear history</button></details>
-              <div class="tray-help" id="tray-help">Click dice to grab, even over buttons. Wheel: lift, Ctrl+wheel: 5° angle, Shift+wheel: spin. Ctrl: slingshot. Shift+hold and release: charged force punch (0.5s). Alt: click through.</div>
+              <div class="tray-help" id="tray-help">Click dice to grab, even over buttons. Wheel: lift, Ctrl+wheel: 5° angle, Shift+wheel: spin. Ctrl: slingshot. Shift+hold and release: charged force punch (0.5s). Alt-click: click through. While dragging, hold Alt to collect loose dice.</div>
             </div>
           </details>
           <canvas id="dice-canvas" aria-label="Rendered three-dimensional dice over the table and character sheet"></canvas>

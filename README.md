@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.63.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.64.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.63.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.64.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -40,6 +40,10 @@ When editing a character, open **Spells → Configure standard spell slots** to 
 **v0.47 manual spellbook safety:** Spells added with **+ Spell** are separate player-authored records, even if a later PDF contains a spell with the same name. PDF reimport preserves those records, and the sheet identifies them as **Manual entry**. In Edit mode, **Remove manual spell** asks for confirmation; it cannot remove PDF-owned spells. Deleting a spell does not end effects already in progress. Export a JSON backup before a significant reimport or deletion.
 
 **v0.46 spellcasting:** In Edit sheet, each spell can specify its casting ability (STR/DEX/CON/INT/WIS/CHA) or a bounded fixed modifier override. Qualified 2014 self-healing uses that explicit configuration. Legacy unambiguous source labels still work, but mixed class sources require an ability selection. Configuration survives unambiguous PDF reimports; no automatic class progression or new spell effects are introduced.
+
+## v0.64 — Collect dice with Alt
+
+While holding a die, hold Alt and move near loose dice to collect them into the same hand. Releasing Alt keeps the dice held. Release the mouse to throw them; Escape/right-click cancels. Alt-click without an active drag still clicks through dice to the sheet. The Hide sheet toggle is now beside Roll d20.
 
 ## v0.63 — Directional spin and configurable character HP hearts
 

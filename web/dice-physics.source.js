@@ -108,7 +108,7 @@ function createDicePhysics(RAPIER) {
   function height(d){return -Math.min(...mesh(d.sides).v.map(v=>rotate(d.q,scale(v,d.r))[2]));}
 
  const PIXEL=.01,STEP=1/120;
- const MAX_SLING_PULL=480,MAX_SLING_SPEED=2800,MAX_HAND_STEP=.28;
+ const MAX_SLING_PULL=480,MAX_SLING_SPEED=2800,MAX_HAND_STEP=.34;
   const HAND_THROW_SOFT_LIMIT=1600;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const planeDir=(x,y)=>{const l=Math.hypot(x,y);return l>1e-6?[x/l,y/l]:[0,0];};
@@ -248,7 +248,7 @@ function createDicePhysics(RAPIER) {
   b.setAngularDamping(12);b.setLinearDamping(8);
   // Compliant damped spring permits a little hand-to-die lag.
   const joint=world.createImpulseJoint(
-   RAPIER.JointData.spring(0,1100,38,{x:0,y:0,z:0},local),anchor,b,true);
+   RAPIER.JointData.spring(0,1450,44,{x:0,y:0,z:0},local),anchor,b,true);
   // Fixed support reference avoids an orientation→hand-position feedback loop.
   grips.set(d,{anchor,joint,offset:off,support:height(d),target:anchor.translation()});
   moveGrip(d,x,y,lift);

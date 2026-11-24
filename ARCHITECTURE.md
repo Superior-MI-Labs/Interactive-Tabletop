@@ -1,5 +1,9 @@
 # Interactive Tabletop architecture — v0.54.0
 
+## v0.64 — One hand, optional collection
+
+Move the sheet toggle beside Roll d20. During an existing drag, Alt collects nearby loose dice using the current grip, release and rollback paths (20 dice maximum); Alt-click still passes through when idle. Prepared and active roll membership is protected: plain manual dice merge into one result; collected extras on linked/prepared rolls launch separately. Increase the hand anchor step from 28 to 34px per physics step and tune the damped spring from 1100/38 to 1450/44; no change to launch velocity, spin or wall settings.
+
 ## v0.63 — Unified directional spin and character-owned heart scale
 
 Rapier remains the sole source of angular velocity and contacts. Rendering and physics hit-testing now use matching down-positive screen Y projection. The shared throw-release function adds a one-time signed angular boost proportional to planar speed divided by die radius, capped at 18 rad/s, without a second rotation system or post-contact forces.
