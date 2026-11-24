@@ -1,3 +1,10 @@
+## v0.63.0 — Directional spin and configurable vitality (candidate)
+
+- Make visual dice Y projection, d4 labels and hit-testing agree with tabletop physics coordinates. Scale one-time forward/backspin by planar throw speed divided by die radius (maximum 18 rad/s), with no post-contact scripted rotation.
+- Adjust current HP by one per wheel notch only over the HP number or hearts, bounded at 0–maximum and sharing the existing heart-click setter and vault persistence; temporary HP and combat damage/concentration mechanics remain untouched.
+- Add optional per-character `hp.heart_value` display setting under Edit HP (legacy default 5, positive integer); preserve it across PDF reimports. Hearts show the correct partial fill and individual HP targets.
+- Expand Node and Chromium regression coverage; correct an existing practice-turn smoke test that clicked through an overlapping physical die without the documented Alt modifier.
+
 ## v0.62.0 — Compact vitality, compliant mouse throws, and taller tray walls (candidate)
 
 - Raise the single Rapier wall-top setting from 40px to 52px, keeping collider geometry and over-wall wrapping in sync; deepen the existing visual tray rim slightly. Test the new intermediate-height no-wrap case.

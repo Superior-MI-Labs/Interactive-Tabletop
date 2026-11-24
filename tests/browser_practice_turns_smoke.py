@@ -62,14 +62,15 @@ with sync_playwright() as pw:
  board.evaluate('el=>el.open=true')
  assert 'Restrained' in board.inner_text()
  assert 'end turn 2' in board.inner_text()
- board.get_by_role('button',name='End turn').click()
+ # Dice can cover this button; Alt-click passes through the overlay.
+ board.get_by_role('button',name='End turn').click(modifiers=['Alt'])
  assert page.locator('#dlg-yes').count()==1
  page.locator('#dlg-yes').click()
  assert page.evaluate("Action.targetById(character,'target-1').condition_turn") == 2
  assert page.evaluate('Action.combat(character).turn') == 1
  board=page.locator('.creature-turn-board');board.evaluate('el=>el.open=true')
  assert 'due on confirmation' in board.inner_text()
- board.get_by_role('button',name='End turn').click()
+ board.get_by_role('button',name='End turn').click(modifiers=['Alt'])
  page.locator('#dlg-yes').click()
  assert not page.evaluate("Action.targetById(character,'target-1').conditions.includes('Restrained')")
  assert page.evaluate('Action.combat(character).turn') == 1
