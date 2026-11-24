@@ -79,6 +79,26 @@ with sync_playwright() as pw:
  assert page.evaluate('activeRoll.diceIds.length')==2
  assert page.evaluate("activeRoll.expression==='1d6+1d8'")
  page.evaluate('abandonCharacterDice(activeId);dice=[];throwSettings.height=.35')
+ # The displayed label is not a trustworthy roll type: an authored roll can
+ # coincidentally share the manual tray's display name.
+ page.evaluate("""()=>{
+  queueRoll('1d6','Manual dice');
+  const extra=DP.makeDie(8,120,210,30);extra.id=++nextDieId;dice.push(extra);
+  window.protectedExtraId=extra.id;
+  beginThrow(120,30,0,null,[extra]);
+ }""")
+ assert page.evaluate('activeRoll.diceIds.length')==1,'character roll must not absorb the extra die'
+ assert page.evaluate('!activeRoll.diceIds.includes(window.protectedExtraId)')
+ page.evaluate('abandonCharacterDice(activeId);dice=[]')
+ # A deliberately prepared manual tray, by contrast, combines extras.
+ page.evaluate("""()=>{
+  addReadyDie(6);
+  const extra=DP.makeDie(8,120,210,30);extra.id=++nextDieId;dice.push(extra);
+  beginThrow(120,30,0,null,[extra]);
+ }""")
+ assert page.evaluate('activeRoll.diceIds.length')==2,'manual tray must combine collected dice'
+ assert page.evaluate("activeRoll.expression==='1d6+1d8'")
+ page.evaluate('abandonCharacterDice(activeId);dice=[]')
  assert page.locator('details[data-panel="Conditions"]').count()==0
  assert page.locator('.buff-bar .condition-rail .condition-toggle').count()==15
  assert page.locator('.recipient-context').is_visible()
