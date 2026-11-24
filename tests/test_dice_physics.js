@@ -198,6 +198,8 @@ assert.equal(DP.punch([strong],390,360,1),1,'full radius must affect close dice'
 DP.stepWorld([weak,strong],1/120,550,450);
 assert.ok(strong.v[0]>weak.v[0]*1.7,
  'full charge should exceed quick pulse using the softened force mapping');
+// A single setting raises physical colliders and the aerial wrap threshold together.
+assert.equal(DP.WALL_TOP_PX,52,'tray wall top should be 52px');
 // Only dice genuinely airborne above the physical wall top may wrap.
 // Bottom-left vault maps to top-right; bottom-right vault to top-left.
 for(const spec of [{x:-8,y:458,vx:-360,vy:260,side:'left'},
@@ -221,6 +223,11 @@ DP.launch(wallDie,-180,0,0,{angleDeg:0,spin:0,height:0});
 for(let i=0;i<160;i++)DP.stepWorld([wallDie],1/120,550,450);
 assert.ok(wallDie.x>0&&wallDie.x<220,
  'low throw must remain inside the tray after colliding with its wall');
+const nearCrest=DP.makeDie(6,-45,245,24);
+nearCrest.z=DP.height(nearCrest)+46;nearCrest.v=[0,0,0];
+DP.park(nearCrest);DP.stepWorld([nearCrest],1/120,550,450);
+assert.ok(nearCrest.x<0,
+ 'die clearing previous 40px height but below new 52px wall must not teleport');
 const groundedOutside=DP.makeDie(6,-8,245,24);
 groundedOutside.z=DP.height(groundedOutside);groundedOutside.v=[0,0,0];
 DP.park(groundedOutside);

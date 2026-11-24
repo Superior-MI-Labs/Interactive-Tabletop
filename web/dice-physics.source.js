@@ -123,7 +123,8 @@ function createDicePhysics(RAPIER) {
  const MIN_PUNCH_CHARGE=.15,MAX_PUNCH_RADIUS=187.5;
  // 75% of the previous minimum impulse; 50% of the maximum.
  const MIN_PUNCH_IMPULSE=1.18125,MAX_PUNCH_IMPULSE=2.25;
- const WALL_TOP_PX=40,WALL_HALF_THICKNESS=.08;
+ // Single physical wall height drives collider volume and aerial wrap clearance.
+ const WALL_TOP_PX=52,WALL_HALF_THICKNESS=.08;
  const punchRadius=charge=>MAX_PUNCH_RADIUS*clamp(charge,MIN_PUNCH_CHARGE,1);
  const punchStrength=charge=>{
   const t=(clamp(charge,MIN_PUNCH_CHARGE,1)-MIN_PUNCH_CHARGE)/(1-MIN_PUNCH_CHARGE);

@@ -1,5 +1,9 @@
 # Interactive Tabletop architecture — v0.54.0
 
+## v0.62 — Taller physical tray rim
+
+The authored physics owner `web/dice-physics.source.js` raises the **single** wall-top constant from 40px to 52px. It already drives Rapier wall collider height, vertical placement, and the lowest-vertex clearance required for over-the-wall mirroring. No second collision or wall state is introduced. The existing `web/styles.css` border gains a slightly deeper inset shadow to signal the raised rim without changing pointer or dice hit-testing. A physics regression covers the new 40–52px clearance band as well as existing low impacts and high vaults.
+
 ## v0.61 — Pointer-owned throw and combined status projection
 
 One Rapier physics world remains the source of truth for free dice. While grabbed, the same physical spring follows an invisible pointer-driven hand anchor. On normal mouseup, a bounded **recent pointer-position history** in `web/app.js` determines the release velocity directly, avoiding previous half-smoothed estimates and UI/physics speed caps. The pointer samples are transient interaction state, never character or roll state. A stopped hand drops the die. The Ctrl-slingshot uses the same `DP.release` and `releaseVelocity` initial-condition code but keeps its intentional maximum power. Angle and height describe launch direction and hand elevation respectively. Signed spin is an initial angular boost applied once at release; the earlier vertical sign is restored. `DP.stepWorld` and Rapier contacts own all subsequent angular motion—no ongoing scripted ground-spin force or new animation engine.

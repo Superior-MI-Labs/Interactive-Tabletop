@@ -10,6 +10,10 @@
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
 **Current status:** v0.61.0 is deployed. v0.62.0 candidate consolidates player controls, moves recovery into the character ribbon, and tunes the existing Rapier hand without adding a second physics or gameplay owner.
 
+### v0.62 addendum — slightly taller tray walls
+
+Raise the authoritative Rapier wall top from 40px to 52px in `web/dice-physics.source.js`, and subtly deepen the existing CSS rim. The same constant already governs collider geometry and airborne mirror-wrap eligibility. Regress the clearance band between the old and new top, low-wall contact, and over-wall vaults; no second wall system or alternative physics owner.
+
 ### v0.62 candidate — one player HUD and one physical hand
 
 Use the already-existing My Turn tab as the sole turn-control surface, and keep all HP updates on existing handlers. Condense Vitality to one desktop row; place recovery controls in the title ribbon immediately before AC/INIT. The existing time-stamped cursor history still measures throw direction/velocity; the one Rapier owner now applies smooth high-speed compression only for actual mouse throws, and a slightly softer damped spring while held. Ctrl slingshot, automated rolls, resource commitment, face results and post-release friction remain unchanged. Qualification must cover slow/fast throws, grip lag, UI tabs, HP and rest controls; verify publication separately after merge.

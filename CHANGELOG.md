@@ -1,4 +1,6 @@
-## v0.62.0 — Compact vitality and compliant mouse throws (candidate)
+## v0.62.0 — Compact vitality, compliant mouse throws, and taller tray walls (candidate)
+
+- Raise the single Rapier wall-top setting from 40px to 52px, keeping collider geometry and over-wall wrapping in sync; deepen the existing visual tray rim slightly. Test the new intermediate-height no-wrap case.
 
 - Use the existing Gameplay → My Turn tab as the only personal action-economy control surface; remove its duplicate strip above the sheet without changing the turn ledger.
 - Reflow Vitality into one desktop row with current/max HP, amount, damage/heal, a scrollable heart meter, temporary HP and Edit HP. Place Short/Long rest buttons in the character header before AC/INIT. Narrow layouts can wrap to keep controls usable.
