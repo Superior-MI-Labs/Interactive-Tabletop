@@ -1469,7 +1469,7 @@ function addReadyDie(sides){
  die.id=++nextDieId;die.ready=true;dice.push(die);
  const all=dice.filter(d=>d.ready);
  const expression=all.map(d=>`1d${d.sides}`).join('+');
- pendingRoll={count:all.length,sides:null,modifier:0,expression,label:'Manual dice',diceIds:all.map(d=>d.id)};
+ pendingRoll={count:all.length,sides:null,modifier:0,expression,label:'Manual dice',manualTray:true,diceIds:all.map(d=>d.id)};
  $('#tray-help').textContent=`${all.length} dice ready · grab one and throw the group`;
  toast(`${all.length} dice ready on the tabletop`);
 }
@@ -1849,7 +1849,7 @@ function initDiceCanvas(){
   else {
    // A plain manual preparation can absorb extras; linked/gameplay rolls
    // retain their original membership and launch collected dice separately.
-   const combine=pendingRoll?.label==='Manual dice';
+   const combine=pendingRoll?.manualTray===true;
    ok=beginThrow(vx,vy,0,settings,combine?extras:[]);
    if(ok&&!combine&&extras.length)manualThrow(extras,vx,vy,settings);
   }
@@ -2108,7 +2108,7 @@ function beginThrow(vx=120,vy=45,shake=80,settings=null,extras=[]){
  let p=pendingRoll;
  const selected=(p.diceIds||[]).map(id=>dice.find(d=>d.id===id)).filter(d=>d&&d.ready);
  if(!selected.length)return;
- if(extras.length&&p.label==='Manual dice'){
+ if(extras.length&&p.manualTray===true){
   selected.push(...extras);
   p={...p,expression:selected.map(d=>'1d'+d.sides).join('+')};
  }
