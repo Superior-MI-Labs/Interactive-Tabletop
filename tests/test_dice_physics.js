@@ -108,6 +108,19 @@ assert.ok(back.w[1]<0,'negative spin must create backspin against the direction 
 const neutral=DP.makeDie(6,180,170);
 DP.launch(neutral,500,0,0,{angleDeg:0,spin:0});
 assert.ok(Math.hypot(...neutral.w)<.001,'zero spin must not add arbitrary rotation');
+const slowSpin=DP.makeDie(6,180,170,26),fastSpin=DP.makeDie(6,180,170,26);
+DP.launch(slowSpin,52,0,0,{angleDeg:0,spin:1,height:1});
+DP.launch(fastSpin,500,0,0,{angleDeg:0,spin:1,height:1});
+assert.ok(Math.abs(slowSpin.w[1]-2)<.01,'gentle spin scales with speed/radius');
+assert.ok(fastSpin.w[1]>slowSpin.w[1]*6,'fast spin scales with speed');
+for(const [vx,vy] of [[200,0],[-200,0],[0,200],[0,-200],[150,150]]){
+ const die=DP.makeDie(6,180,170,26);
+ DP.launch(die,vx,vy,0,{angleDeg:0,spin:1,height:1});
+ const top=DP.rotate(die.q,[0,0,1]);
+ const next=DP.rotate(DP.advance(die.q,die.w,.001),[0,0,1]);
+ assert.ok((next[0]-top[0])*vx+(next[1]-top[1])*vy>0,
+  'forward spin follows screen travel: '+vx+','+vy);
+}
 const fastMouseThrow=DP.makeDie(6,230,170);
 DP.launch(fastMouseThrow,4800,0,0,{angleDeg:0,spin:0,height:.8});
 assert.ok(fastMouseThrow.v[0]>4700,
