@@ -162,6 +162,9 @@ function reconcile(old,fresh){
  // Latest PDF owns published maximums, stats and attack bonuses; gameplay state stays live.
  merged.hp.current=Math.max(0,Math.min(next.hp.max,Number(before.hp.current)||0));
  merged.hp.temp=Math.max(0,Number(before.hp.temp)||0);
+ // Character display preference survives PDF reimport; imported max HP remains authoritative.
+ if(Number.isSafeInteger(Number(before.hp.heart_value))&&Number(before.hp.heart_value)>=1&&Number(before.hp.heart_value)<=99999)
+  merged.hp.heart_value=Number(before.hp.heart_value);
  merged.conditions=before.conditions||[];
  merged.effects=before.effects||{};
  merged.roll_history=before.roll_history||[];

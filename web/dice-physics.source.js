@@ -95,7 +95,7 @@ function createDicePhysics(RAPIER) {
     };
     for(const f of shape.faces){
       if(rotate(d.q,f.normal)[2]<.02)continue;
-      const pts=f.indices.map(i=>{const v=rotate(d.q,shape.v[i]);return [d.x+size*v[0],sy-size*v[1]+size*.20*v[2]];});
+      const pts=f.indices.map(i=>{const v=rotate(d.q,shape.v[i]);return [d.x+size*v[0],sy+size*v[1]+size*.20*v[2]];});
       if(inside(pts)||pts.some((p,i)=>edgeDistance(p,pts[(i+1)%pts.length])<=padding))return true;
     }
     return false;
@@ -260,7 +260,7 @@ function createDicePhysics(RAPIER) {
   g.target={x:(x+g.offset[0])*PIXEL,y:(y+g.offset[1])*PIXEL,
    z:Math.max(d.r*.2,z+g.offset[2])*PIXEL};
  }
- function releaseVelocity(b,vx,vy,settings={}){
+ function releaseVelocity(d,b,vx,vy,settings={}){
   const angle=clamp(Number(settings.angleDeg)||0,-45,45)*Math.PI/180;
   // A real hand toss retains low-speed precision but compresses very fast flicks
    // smoothly, without a hard cut-off or scripted forces after release.
@@ -272,8 +272,9 @@ function createDicePhysics(RAPIER) {
   b.setLinvel({x:dir[0]*speed*Math.cos(angle)*PIXEL,
    y:dir[1]*speed*Math.cos(angle)*PIXEL,z:speed*Math.sin(angle)*PIXEL},true);
   const spin=clamp(Number(settings.spin)||0,-1,1);
-  if(spin&&speed>1){
-   const w=b.angvel(),turn=spin*18;
+  if(spin&&speed>0){
+   // One-time angular boost proportional to planar throw speed / die radius.
+   const w=b.angvel(),turn=spin*Math.min(18,speed*Math.cos(angle)/Math.max(1,d.r));
    // One-time forward/backspin boost as the die leaves the hand.
    // Rapier alone owns subsequent spin, impacts, friction and settling.
    // Restore the earlier vertical sign (v0.59 inverted this incorrectly).
@@ -293,7 +294,7 @@ function createDicePhysics(RAPIER) {
    vx=dir[0]*pulled.power*MAX_SLING_SPEED;
    vy=dir[1]*pulled.power*MAX_SLING_SPEED;
   }
-  releaseVelocity(b,vx,vy,settings);
+  releaseVelocity(d,b,vx,vy,settings);
   sync(d,b);
  }
  function launch(d,vx=0,vy=0,shake=0,settings={}){
@@ -302,7 +303,7 @@ function createDicePhysics(RAPIER) {
   const lift=Number.isFinite(settings.height)?settings.height:.35;
   d.z=height(d)+d.r*5*clamp(lift,0,1);
   d.v=[0,0,0];d.w=[0,0,0];
-  park(d);releaseVelocity(body(d),vx,vy,{angleDeg:settings.angleDeg??15,spin:settings.spin??0});
+  park(d);releaseVelocity(d,body(d),vx,vy,{angleDeg:settings.angleDeg??15,spin:settings.spin??0});
   sync(d,body(d));
  }
  function punch(dice,x,y,charge=1){

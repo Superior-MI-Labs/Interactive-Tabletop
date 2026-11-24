@@ -284,16 +284,21 @@ function conditionRail(){
   <div class='condition-icons' aria-label='Toggle character conditions'>${Object.keys(conditionPaths).map(name=>conditionIcon(name,active.includes(name))).join('')}</div>
  </div>`;
 }
+function hpPerHeart(hp){
+ const value=Number(hp.heart_value);
+ return Number.isSafeInteger(value)&&value>=1&&value<=99999?value:5;
+}
 function heartMeter(hp){
- const total=Math.max(1,Math.ceil(hp.max/5));
+ const perHeart=hpPerHeart(hp);
+ const total=Math.max(1,Math.ceil(hp.max/perHeart));
  const hearts=Array.from({length:Math.min(500,total)},(_,i)=>{
-  const capacity=Math.max(0,Math.min(5,hp.max-i*5));
-  const remaining=Math.max(0,Math.min(capacity,hp.current-i*5));
-  const percent=remaining/5*100;
-  const target=Math.min(hp.max,(i+1)*5);
-  return `<button type="button" class="heart" data-action="set-hp" data-arg="${target}" aria-label="Set health to ${target} of ${hp.max}" data-tip="Set health to ${target} HP · 5 HP per heart" style="--heart-fill:${percent}%"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-empty" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/><path class="heart-full" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/></svg></button>`;
+  const capacity=Math.max(0,Math.min(perHeart,hp.max-i*perHeart));
+  const remaining=Math.max(0,Math.min(capacity,hp.current-i*perHeart));
+  const percent=remaining/perHeart*100;
+  const target=Math.min(hp.max,(i+1)*perHeart);
+  return `<button type="button" class="heart" data-action="set-hp" data-arg="${target}" aria-label="Set health to ${target} of ${hp.max}" data-tip="Set health to ${target} HP · ${perHeart} HP per heart" style="--heart-fill:${percent}%"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-empty" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/><path class="heart-full" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/></svg></button>`;
  }).join('');
- return `<div class="hearts" role="group" aria-label="Health: ${hp.current} of ${hp.max}, five points per heart">${hearts}</div>`;
+ return `<div class="hearts" data-hp-wheel role="group" aria-label="Health: ${hp.current} of ${hp.max}, ${perHeart} HP per heart. Scroll to adjust current HP one point per notch">${hearts}</div>`;
 }
 function resourcePips(name,v){
  const max=Math.max(0,Math.floor(num(v.max))),current=Math.max(0,Math.min(max,Math.floor(num(v.current))));
@@ -659,7 +664,7 @@ function overview(){
  `<section class="vitals-panel" aria-label="Hit points">
  <div class="vitals-line">
   <strong class="vital-label">♥ Vitality</strong>
-  <span class="hp-total">${hp.current}<span> / ${hp.max}</span></span>
+  <span class="hp-total" data-hp-wheel title="Scroll to adjust current HP by one per notch">${hp.current}<span> / ${hp.max}</span></span>
   <span class="vital-gap" aria-hidden="true"></span>
   <div class="vital-controls"><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
    ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}</div>
@@ -669,7 +674,7 @@ function overview(){
   <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
   <span class="vital-gap" aria-hidden="true"></span>
   <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
-   ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}
+   ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('HP per heart','hp.heart_value',hpPerHeart(hp),'number')}
   </div></details>
  </div></section>
  <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
@@ -867,11 +872,16 @@ function setPath(path,value){
  let obj=character;
  for(const p of parts.slice(0,-1)){if(!obj||!Object.prototype.hasOwnProperty.call(obj,p))return;obj=obj[p];}
  const key=parts.at(-1);
- if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|spellcasting_ability|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
+ if(!obj||(!Object.prototype.hasOwnProperty.call(obj,key)&&path!=='hp.heart_value'&&! /^(?:actions|spells)\.\d+\.(?:effect_kind|effect_condition|duration_rounds|roll|damage_type|spellcasting_ability|economy_units|grant_resource|grant_amount|grant_economy|trigger_event|event_save_ability|event_damage_type|event_min_damage|event_min_hp_loss)$/.test(path)))return;
  if(/^actions\.\d+\.workflow\.save\.dc$/.test(path))value=value.trim()===''?null:Number(value);
  if(/^(?:attacks|spells)\.\d+\.(?:name|bonus|damage|roll)$/.test(path)||/^spells\.\d+\.spellcasting_ability$/.test(path))
   value=window.CharacterImport.validateManualEntryField(parts[0],key,value);
  if(typeof obj[key]==='number')value=Math.max(key==='current' && path.startsWith('hp.')?0:-999999,Math.min(999999,num(value)));
+ if(path==='hp.heart_value'){
+  const valueNumber=Number(value);
+  if(!Number.isSafeInteger(valueNumber)||valueNumber<1||valueNumber>99999)throw Error('HP per heart must be a whole number from 1 to 99999.');
+  value=valueNumber;
+ }
  obj[key]=value;
  if(/^actions\.\d+\.(?:economy_units|grant_amount|event_min_damage|event_min_hp_loss)$/.test(path))obj[key]=Math.max(0,Math.min(999999,Math.floor(num(value))));
  if(/^(?:actions|spells)\.\d+\.duration_rounds$/.test(path))obj[key]=Math.max(0,Math.min(999,Math.floor(num(value))));
@@ -891,6 +901,12 @@ function dialog(heading,message,onConfirm,confirmLabel='Continue',cancelLabel='C
   if(ownerId!==activeId||ownerCharacter!==character){toast('Character changed. Please review the action again.');return;}
   onConfirm();
  };
+}
+function setCurrentHP(value){
+ const hp=character.hp,max=Math.max(0,Math.floor(num(hp.max,0)));
+ const next=Math.max(0,Math.min(max,Math.floor(num(value,0))));
+ if(next===hp.current)return;
+ hp.current=next;save();render();
 }
 function applyDamage(kind){
  const amount=Math.max(0,Math.min(999999,Math.floor(num($('#hp-amount')?.value,0))));
@@ -1042,7 +1058,7 @@ function handleAction(action,arg){
   case 'hp':applyDamage(arg);break;
   case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
   case 'condition':try{Action.setTargetCondition(character,'self',arg,!character.conditions.includes(arg));save();render();}catch(e){toast(e.message);}break;
-  case 'set-hp':{character.hp.current=Math.max(0,Math.min(character.hp.max,num(arg)));save();render();break;}
+  case 'set-hp':setCurrentHP(arg);break;
   case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=Number(arg.slice(at+1));try{Action.setResourceCurrent(character,name,value);save();render();}catch(e){toast(e.message);}break;}
   case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r)try{Action.setResourceCurrent(character,name,Math.min(Number(r.max),Math.max(0,Number(r.current)+delta)));save();render();}catch(e){toast(e.message);}break;}
   case 'add-attack':character.attacks=character.attacks||[];character.attacks.push({name:'New attack',bonus:0,damage:'1d6',type:'attack',attack_type:'unspecified',attack_range:'unspecified'});save();render();break;
@@ -1498,6 +1514,19 @@ document.addEventListener('click',e=>{
  const die=e.target.closest('[data-die]');if(die){addReadyDie(num(die.dataset.die));return;}
  const act=e.target.closest('[data-action]');if(act){handleAction(act.dataset.action,act.dataset.arg||'');return;}
 });
+// Mousewheel edits health only when hovering the HP number or hearts.
+let hpWheelRemainder=0,hpWheelAt=0,hpWheelOwner=null;
+document.addEventListener('wheel',e=>{
+ if(!character||!e.target.closest?.('[data-hp-wheel]')||e.ctrlKey||!e.deltaY)return;
+ e.preventDefault();
+ const now=performance.now();
+ if(hpWheelOwner!==activeId||now-hpWheelAt>500)hpWheelRemainder=0;
+ hpWheelOwner=activeId;hpWheelAt=now;
+ hpWheelRemainder+=e.deltaMode===1?e.deltaY*40:e.deltaMode===2?e.deltaY*120:e.deltaY;
+ const steps=Math.trunc(hpWheelRemainder/100);
+ hpWheelRemainder-=steps*100;
+ if(steps)setCurrentHP(num(character.hp.current)-steps);
+},{passive:false});
 document.addEventListener('change',e=>{
  const el=e.target;
  if(el.id==='rules-profile'){
@@ -2223,7 +2252,7 @@ function drawDie(d){
   const face=shape.faces[i];const normal=DP.rotate(q,face.normal);
   if(normal[2]<.02)continue;
   const pts=face.indices.map(index=>{
-    const v=vertices[index];return [x+size*v[0],sy-size*v[1]+size*.20*v[2]];
+    const v=vertices[index];return [x+size*v[0],sy+size*v[1]+size*.20*v[2]];
   });
   const center=face.indices.reduce((sum,index)=>sum+vertices[index][2],0)/face.indices.length;
   faces.push({pts,shade:normal[2],center,index:i});
@@ -2246,7 +2275,7 @@ function drawDie(d){
  // Tetrahedral dice use vertex values; render the physically upper vertex.
  if(sides===4){
    const vertex=vertices[DP.faceValue(d)-1];
-   const px=x+size*vertex[0],py=sy-size*vertex[1]+size*.20*vertex[2];
+   const px=x+size*vertex[0],py=sy+size*vertex[1]+size*.20*vertex[2];
    const tx=px+(x-px)*.30,ty=py+(sy-py)*.30;
    ctx.fillStyle='#fff2d5';ctx.strokeStyle='#0b1018';ctx.lineWidth=3;
    ctx.font='bold 17px Georgia';ctx.textAlign='center';ctx.textBaseline='middle';

@@ -183,7 +183,7 @@ button,select,input,textarea {min-width:0}
 #page .vitals-panel{border:1px solid #716656;border-radius:7px;background:#202b35ed;padding:6px 10px;margin-bottom:7px;position:relative}
 #page .vitals-line{display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
 #page .vital-label{font:15px Georgia,serif;color:#f3ce90;flex:none}
-#page .hp-total{color:#ffc9aa;font:20px/1 Georgia,serif;white-space:nowrap;flex:none}
+#page .hp-total{color:#ffc9aa;font:20px/1 Georgia,serif;white-space:nowrap;flex:none;cursor:ns-resize}
 #page .hp-total span{color:#c4c8c9;font:13px Georgia,serif}
 #page .vital-gap{flex:0 0 7px}
 #page .vital-controls{display:flex;align-items:center;gap:5px;flex:none}
