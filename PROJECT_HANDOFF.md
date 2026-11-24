@@ -3,12 +3,18 @@
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
 **Last verified application release:** `v0.62.0` — commit `3252d61` passed qualification and Pages deployment in run `45161097546`.  
-**Candidate application release:** `v0.63.0` — corrected spin and character-owned HP wheel/heart scale; awaiting qualification.  
+**Candidate application release:** `v0.64.0` — Alt collection and sheet toggle; stacked on qualified v0.63 PR #9 (`6735638`), not yet deployed.  
 **Latest wall patch:** `a929702` raised the rim to 52px; its Pages run `45508173347` failed in the separate practice-turn UI test (covered button), not wall physics.  
 **Handoff reviewed:** 2026-11-24  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
 **Current status:** v0.62.0 was deployed before the 52px rim patch; v0.63.0 candidate retains the raised physical walls and adds directional spin and HP adjustments.
+
+### v0.64 candidate — one grip and Alt collection
+
+Move the sheet toggle beside Roll d20. During an existing drag, Alt collects nearby loose dice using the current grip, release and rollback paths (20 dice maximum); Alt-click still passes through when idle. Prepared and active roll membership is protected: plain manual dice merge into one result; collected extras on linked/prepared rolls launch separately. Increase the hand anchor step from 28 to 34px per physics step and tune the damped spring from 1100/38 to 1450/44; no change to launch velocity, spin or wall settings.
+
+Run the existing qualification gate and manually assess the feel; do not assume publication until Pages succeeds. Retarget this branch to main after PR #9 is merged.
 
 ### v0.63 candidate — directional spin and adaptive vitality
 

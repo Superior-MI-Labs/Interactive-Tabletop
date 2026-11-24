@@ -253,9 +253,6 @@ button,select,input,textarea {min-width:0}
 .top-actions .button{min-height:28px;padding:4px 8px;font-size:11px}
 .sheet-wrap{position:absolute;z-index:2;top:42px;left:9px;right:9px;bottom:9px;filter:drop-shadow(7px 10px 13px #030305a6);transition:opacity .2s,transform .2s}
 .sheet-hidden .sheet-wrap{opacity:0;transform:translateX(-20px);pointer-events:none;visibility:hidden}
-.sheet-handle{position:absolute;z-index:8;top:50%;left:0;writing-mode:vertical-rl;padding:12px 4px;border:1px solid #9b7648;border-radius:5px;background:#202934f5;color:#ffdf9f;font-size:11px;box-shadow:0 3px 12px #0008;min-height:25px}
-.sheet-handle:hover{border-color:#e5bb7a;background:#34414e}
-.sheet-hidden .sheet-handle{padding:15px 5px;border-radius:0 7px 7px 0;font-size:13px}
 #page{padding:10px 13px 16px}
 #page .panel{align-self:start;border-color:#586571;background:#242e38e6}
 #page .panel>summary{font:15px/1.12 Georgia,serif;padding:7px 10px;background:linear-gradient(100deg,#39444c,#2e3944)}
@@ -363,8 +360,6 @@ button,select,input,textarea {min-width:0}
  #page .identity-editor{margin-left:auto}
  #page .identity-fields{right:0}
  #page .condition-icons{width:100%}
- .sheet-handle span{display:none}
- .sheet-hidden .sheet-handle span{display:inline}
 }
 @media(max-width:460px){
  .brand strong{font-size:15px}

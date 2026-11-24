@@ -42,6 +42,43 @@ with sync_playwright() as pw:
  for file in ['dnd-slots.js','character-import.js','vault-store.js','dnd-action.js','browser-pdf.js','dice-physics.js','app.js']:
   page.add_script_tag(content=(ROOT/'web'/file).read_text())
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Player Sheet QA'")
+ # Sheet toggle belongs to the top bar and remains accessible when hidden.
+ assert page.locator('.top-actions #quick-d20 + #sheet-handle').count()==1
+ page.locator('#sheet-handle').click()
+ assert page.locator('#sheet-handle').inner_text()=='Show sheet'
+ assert page.locator('#sheet-handle').get_attribute('aria-expanded')=='false'
+ assert not page.locator('#sheet-wrap').is_visible()
+ page.locator('#sheet-handle').click()
+ assert page.locator('#sheet-wrap').is_visible()
+ # Seed loose dice at known positions without relying on random roll outcomes.
+ page.evaluate("""()=>{
+  dice=[];throwSettings.height=0;
+  for(const [side,x] of [[6,200],[8,350]]){
+   const d=DP.makeDie(side,x,220,30);d.id=++nextDieId;d.q=[1,0,0,0];
+   d.z=DP.height(d);d.sleeping=true;dice.push(d);DP.park(d);
+  }
+ }""")
+ stage=page.locator('#dice-stage').bounding_box()
+ x,y=stage['x']+200,stage['y']+220-page.evaluate('dice[0].z*.45')
+ page.mouse.move(x,y);page.mouse.down()
+ assert page.evaluate('pointer.selected.length')==1
+ page.keyboard.down('Alt')
+ page.mouse.move(x+125,y,steps=10)
+ page.wait_for_function('pointer?.selected.length===2')
+ page.keyboard.up('Alt')
+ assert page.evaluate('pointer.selected.length')==2
+ page.keyboard.press('Escape')
+ page.mouse.up()
+ assert page.evaluate('pointer===null && dice.every(d=>!d.held)')
+ assert page.evaluate('Math.abs(dice.find(d=>d.sides===8).x-350)<3')
+ # Recollect and release together as one mixed manual roll.
+ page.mouse.move(x,y);page.mouse.down();page.keyboard.down('Alt')
+ page.mouse.move(x+125,y,steps=10)
+ page.wait_for_function('pointer?.selected.length===2')
+ page.keyboard.up('Alt');page.mouse.up()
+ assert page.evaluate('activeRoll.diceIds.length')==2
+ assert page.evaluate("activeRoll.expression==='1d6+1d8'")
+ page.evaluate('abandonCharacterDice(activeId);dice=[];throwSettings.height=.35')
  assert page.locator('details[data-panel="Conditions"]').count()==0
  assert page.locator('.buff-bar .condition-rail .condition-toggle').count()==15
  assert page.locator('.recipient-context').is_visible()

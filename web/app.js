@@ -1785,6 +1785,35 @@ function initDiceCanvas(){
     clamp(hand.y+off.y+liftY,d.r,lastDimensions.h-d.r),throwSettings.height);
   });
  };
+ // Collection uses the same physical grip and rollback arrays as initial pickup.
+ // Only free dice are eligible: prepared/active roll IDs remain authoritative.
+ const collectDice=()=>{
+  const hand=pointer;
+  if(!hand?.down||!hand.altCollect||hand.slingAnchor||hand.selected.length>=20)return;
+  const reserved=new Set([...(pendingRoll?.diceIds||[]),...activeRolls.flatMap(g=>g.diceIds)]);
+  const held=hand.selected.slice();
+  for(const d of dice){
+   if(hand.selected.length>=20)break;
+   if(d.held||d.ready||reserved.has(d.id))continue;
+   const index=held.findIndex(h=>Math.hypot(h.x-d.x,h.y-d.y)<=1.12*(h.r+d.r));
+   if(index<0)continue;
+   const h=held[index],off=hand.offsets[index];
+   const dx=d.x-h.x,dy=d.y-h.y,dist=Math.hypot(dx,dy);
+   const spacing=Math.max(d.r+h.r, diceSpacing());
+   hand.selected.push(d);
+   hand.prior.push(snapshotDie(d));
+   hand.supports.push(DP.height(d));
+   hand.offsets.push({x:off.x+(dist?dx/dist:1)*spacing,y:off.y+(dist?dy/dist:0)*spacing});
+   DP.grab(d,d.x,d.y,throwSettings.height);
+  }
+  if(hand.selected.length!==held.length)moveGrips();
+ };
+ const snapshotDie=d=>({ready:d.ready,sleeping:d.sleeping,rolling:d.rolling,
+  v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]});
+ const manualThrow=(selected,vx,vy,settings)=>startDiceGroup(selected,{
+  modifier:0,label:selected.length===1?'d'+selected[0].sides:'Manual dice',
+  expression:selected.map(d=>'1d'+d.sides).join('+')
+ },vx,vy,0,null,settings);
  const cancelGrab=()=>{
   if(!pointer?.down)return false;
   const held=pointer;pointer=null;document.body.classList.remove('dice-dragging');
@@ -1811,13 +1840,20 @@ function initDiceCanvas(){
   const vx=speed.x,vy=speed.y;
   const settings={...throwSettings,handThrow:true,sling:held.slingAnchor?{
    anchorX:held.slingAnchor.x,anchorY:held.slingAnchor.y,fromX:held.x,fromY:held.y}:null};
-  if(held.mode==='existing')held.selected.forEach(d=>DP.release(d,vx,vy,settings));
+  const extras=held.selected.slice(held.initialCount);
+  let ok=true;
+  if(held.mode==='existing'){
+   held.selected.slice(0,held.initialCount).forEach(d=>DP.release(d,vx,vy,settings));
+   if(extras.length)manualThrow(extras,vx,vy,settings);
+  }else if(held.mode==='manual')ok=manualThrow(held.selected,vx,vy,settings);
   else {
-   const p=held.selected[0],ok=held.mode==='manual'
-    ?startDiceGroup(held.selected,{modifier:0,label:'d'+p.sides,expression:'1d'+p.sides},vx,vy,0,null,settings)
-    :beginThrow(vx,vy,0,settings);
-   if(!ok)held.selected.forEach((d,i)=>{Object.assign(d,held.prior[i]);d.held=false;DP.park(d);});
+   // A plain manual preparation can absorb extras; linked/gameplay rolls
+   // retain their original membership and launch collected dice separately.
+   const combine=pendingRoll?.label==='Manual dice';
+   ok=beginThrow(vx,vy,0,settings,combine?extras:[]);
+   if(ok&&!combine&&extras.length)manualThrow(extras,vx,vy,settings);
   }
+  if(!ok)held.selected.forEach((d,i)=>{Object.assign(d,held.prior[i]);d.held=false;DP.park(d);});
   lastDiceGesture={time:performance.now(),x:held.x,y:held.y};
  };
  stage.addEventListener('click',e=>{
@@ -1861,16 +1897,16 @@ function initDiceCanvas(){
   const active=activeRolls.find(g=>g.diceIds.includes(hitDie.id));
   const mode=active?'existing':hitDie.ready&&pendingRoll?'prepared':'manual';
   const selected=mode==='prepared'?dice.filter(d=>d.ready):[hitDie];
-  const prior=selected.map(d=>({ready:d.ready,sleeping:d.sleeping,rolling:d.rolling,
-   v:[...d.v],w:[...d.w],z:d.z,restTime:d.restTime,x:d.x,y:d.y,q:[...d.q]}));
+  const prior=selected.map(snapshotDie);
   const offsets=selected.map(d=>({x:d.x-x,y:d.y-y}));
   const supports=selected.map(d=>DP.height(d));
   selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
   pointer={id:e.pointerId,x,y,down:true,samples:[{x,y,time:performance.now()}],selected,mode,
-   offsets,prior,supports,slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
+   offsets,prior,supports,initialCount:selected.length,altCollect:false,
+   slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
   moveGrips();
   document.body.classList.add('dice-dragging');
-  $('#tray-help').textContent='Grab · wheel lift · Ctrl+wheel 5° angle · Shift+wheel spin · Ctrl slingshot · right-click cancel';
+  $('#tray-help').textContent='Grab · Alt collect loose dice · wheel lift · Ctrl+wheel 5° angle · Shift+wheel spin · Ctrl slingshot · right-click cancel';
  },true);
  stage.addEventListener('pointermove',e=>{
   const {x,y}=relative(e);pointerPosition={x,y};
@@ -1897,7 +1933,7 @@ function initDiceCanvas(){
   if(pointer.id!==e.pointerId)return;
   e.preventDefault();
   recordHandMotion(pointer,x,y,performance.now());
-  pointer.x=x;pointer.y=y;
+  pointer.x=x;pointer.y=y;pointer.altCollect=e.altKey;
   if(e.ctrlKey&&!pointer.slingAnchor)pointer.slingAnchor={x,y};
   if(!e.ctrlKey)pointer.slingAnchor=null;
   moveGrips();
@@ -1942,6 +1978,7 @@ function initDiceCanvas(){
   if(pointer?.down&&pointer.id===e.pointerId)cancelGrab();
  });
  document.addEventListener('keydown',e=>{
+  if(e.key==='Alt'&&pointer?.down){pointer.altCollect=true;e.preventDefault();}
   if(e.key==='Control'&&pointer?.down&&!pointer.slingAnchor){
    pointer.slingAnchor={x:pointer.x,y:pointer.y};
    moveGrips();
@@ -1951,11 +1988,13 @@ function initDiceCanvas(){
   }
  });
  document.addEventListener('keyup',e=>{
+  if(e.key==='Alt'&&pointer?.down){pointer.altCollect=false;e.preventDefault();}
   if(e.key==='Control'&&pointer?.down){
    pointer.slingAnchor=null;
    moveGrips();
   }
  });
+ window.addEventListener('blur',()=>{if(pointer?.down)pointer.altCollect=false;});
  stage.addEventListener('pointerleave',()=>{
   if(!pointer?.down){pointerPosition=null;hoverDieId=null;stage.classList.remove('die-hover');}
  });
@@ -2024,6 +2063,7 @@ function initDiceCanvas(){
   const dt=Math.max(0,Math.min((now-(lastFrame||now))/1000,.06));lastFrame=now;
   accumulator=Math.min(.08,accumulator+dt);
   while(accumulator>=1/120){
+    collectDice();
     DP.stepWorld(dice,1/120,r.width,r.height);
     accumulator-=1/120;
   }
@@ -2063,10 +2103,15 @@ function startDiceGroup(selected,p,vx,vy,shake,effect,settings=null){
  $('#tray-help').textContent='Rolling · grab another die at any time';
  return true;
 }
-function beginThrow(vx=120,vy=45,shake=80,settings=null){
+function beginThrow(vx=120,vy=45,shake=80,settings=null,extras=[]){
  if(!pendingRoll)return;
- const p=pendingRoll,selected=(p.diceIds||[]).map(id=>dice.find(d=>d.id===id)).filter(d=>d&&d.ready);
+ let p=pendingRoll;
+ const selected=(p.diceIds||[]).map(id=>dice.find(d=>d.id===id)).filter(d=>d&&d.ready);
  if(!selected.length)return;
+ if(extras.length&&p.label==='Manual dice'){
+  selected.push(...extras);
+  p={...p,expression:selected.map(d=>'1d'+d.sides).join('+')};
+ }
  const effect=queuedEffect;
  if(effect?.workflowId||effect?.sequenceId){
   try{
@@ -2354,7 +2399,7 @@ window.addEventListener('resize',hideHudTip,{passive:true});
 const sheetHandle=$('#sheet-handle');
 function updateLayoutButtons(){
  const hidden=document.body.classList.contains('sheet-hidden');
- sheetHandle.innerHTML=hidden?'›› <span>Show sheet</span>':'‹‹ <span>Hide sheet</span>';
+ sheetHandle.textContent=hidden?'Show sheet':'Hide sheet';
  sheetHandle.setAttribute('aria-expanded',String(!hidden));
  sheetHandle.title=hidden?'Show character sheet':'Hide character sheet';
 }

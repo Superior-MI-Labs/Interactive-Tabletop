@@ -1,3 +1,8 @@
+## v0.64.0 — Hand collection and sheet toggle (candidate)
+
+- Move the sheet toggle beside Roll d20. During an existing drag, Alt collects nearby loose dice using the current grip, release and rollback paths (20 dice maximum); Alt-click still passes through when idle. Prepared and active roll membership is protected: plain manual dice merge into one result; collected extras on linked/prepared rolls launch separately. Increase the hand anchor step from 28 to 34px per physics step and tune the damped spring from 1100/38 to 1450/44; no change to launch velocity, spin or wall settings.
+- Add browser regression for top-bar toggle, Alt collection, rollback and mixed-dice release.
+
 ## v0.63.0 — Directional spin and configurable vitality (candidate)
 
 - Make visual dice Y projection, d4 labels and hit-testing agree with tabletop physics coordinates. Scale one-time forward/backspin by planar throw speed divided by die radius (maximum 18 rad/s), with no post-contact scripted rotation.
