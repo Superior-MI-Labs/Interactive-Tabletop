@@ -2,13 +2,17 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.61.0`  
-**Candidate application release:** `v0.62.0` — compact player HUD and softer natural hand throws; awaiting qualification.  
-**Release commit:** v0.61.0 `2e6453a` — qualification and Pages deployment passed in run `45155833863` (2026-11-23 UTC).  
-**Handoff reviewed:** 2026-11-23  
+**Last verified application release:** `v0.62.0` — commit `3252d61` passed qualification and Pages deployment in run `45161097546`.  
+**Candidate application release:** `v0.63.0` — corrected spin and character-owned HP wheel/heart scale; awaiting qualification.  
+**Latest wall patch:** `a929702` raised the rim to 52px; its Pages run `45508173347` failed in the separate practice-turn UI test (covered button), not wall physics.  
+**Handoff reviewed:** 2026-11-24  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.61.0 is deployed. v0.62.0 candidate consolidates player controls, moves recovery into the character ribbon, and tunes the existing Rapier hand without adding a second physics or gameplay owner.
+**Current status:** v0.62.0 was deployed before the 52px rim patch; v0.63.0 candidate retains the raised physical walls and adds directional spin and HP adjustments.
+
+### v0.63 candidate — directional spin and adaptive vitality
+
+Keep one Rapier release path; align visual Y projection with physics, and scale spin by planar speed/radius instead of a fixed maximum for gentle tosses. Reuse character current HP and existing save for wheel/click editing. Add an optional per-character `hp.heart_value` (default 5) preserved by PDF reimport. Preserve 52px physical walls. The existing practice-turn UI test now uses the documented Alt-click to reach controls underneath a die.
 
 ### v0.62 addendum — slightly taller tray walls
 
