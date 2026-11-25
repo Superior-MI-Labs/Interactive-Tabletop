@@ -297,7 +297,7 @@ function heartMeter(hp){
   const target=Math.min(hp.max,(i+1)*perHeart);
   return `<button type="button" class="heart" data-action="set-hp" data-arg="${target}" aria-label="Set health to ${target} of ${hp.max}" data-tip="Set health to ${target} HP · ${perHeart} HP per heart" style="--heart-fill:${percent}%"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-empty" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/><path class="heart-full" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/></svg></button>`;
  }).join('');
- return `<div class="hearts" data-hp-wheel role="group" aria-label="Health: ${hp.current} of ${hp.max}, ${perHeart} HP per heart. Scroll to adjust current HP one point per notch">${hearts}</div>`;
+ return `<div class="hearts" role="group" aria-label="Health: ${hp.current} of ${hp.max}, ${perHeart} HP per heart. Scroll to view additional rows; click a heart to set HP">${hearts}</div>`;
 }
 function resourcePips(name,v){
  const max=Math.max(0,Math.floor(num(v.max))),current=Math.max(0,Math.min(max,Math.floor(num(v.current))));
