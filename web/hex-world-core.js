@@ -68,12 +68,13 @@
     return {scene,tiles,elevations:[...new Set(scene.tiles.map(elevation))].sort((a,b)=>a-b),
       tileAt:(q,r)=>tiles.get(key(q,r))||null};
   }
-  function exposedFaces(index,tile){
-    // An absent tile is an actual scene boundary in this standalone lab.
-    // Future chunk streaming must distinguish unloaded neighbors from void.
+  function exposedFaces(index,tile,neighborAt=index.tileAt){
+    // The standalone index returns null for actual scene boundaries. A future
+    // multi-chunk resolver can return undefined for not-yet-loaded neighbors.
     const top=elevation(tile),faces=[];
     for(let edge=0;edge<6;edge++){
-      const [dq,dr]=EDGE_DIRECTIONS[edge],neighbor=index.tileAt(tile.q+dq,tile.r+dr);
+      const [dq,dr]=EDGE_DIRECTIONS[edge],neighbor=neighborAt(tile.q+dq,tile.r+dr);
+      if(neighbor===undefined)continue; // Unknown is not empty; no phantom cliff.
       const bottom=neighbor?elevation(neighbor):top-BORDER_SKIRT;
       if(top>bottom)faces.push({edge,top,bottom,boundary:!neighbor});
     }
