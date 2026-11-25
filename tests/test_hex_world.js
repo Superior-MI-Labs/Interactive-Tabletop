@@ -13,6 +13,7 @@ assert.equal(H.exposedFaces(index,scene.tiles.find(t=>t.q===0&&t.r===0)).length,
 assert.equal(H.exposedFaces(raisedIndex,raised.tiles.find(t=>t.q===0&&t.r===0)).length,6,'raised rock exposes all six sides');
 assert.ok(H.exposedFaces(raisedIndex,raised.tiles.find(t=>t.q===0&&t.r===0)).every(f=>f.bottom===0));
 assert.equal(H.exposedFaces(index,scene.tiles[0]).some(f=>f.boundary),true,'outer world edge has visual skirt');
+assert.ok(H.exposedFaces(index,scene.tiles[0],(q,r)=>index.tiles.get(H.key(q,r))).length<H.exposedFaces(index,scene.tiles[0]).length,'unknown adjacent chunk must not create a fake cliff');
 const demo=JSON.parse(fs.readFileSync(path.join(__dirname,'../web/hex-world-demo.json'),'utf8'));
 assert.equal(H.createSceneIndex(demo).tiles.size,127);
 assert.equal(demo.grid.feet_per_step,5);
