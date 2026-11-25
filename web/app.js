@@ -715,36 +715,32 @@ function demoPractice(){
 }
 function overview(){
  const hp=character.hp;
- const res=Object.entries(character.resources||{}).map(([key,v])=>resourcePips(key,v)).join('');
- const ability=Object.entries(character.abilities||{}).map(([abbr,a])=>
-  `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
-  <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
-  <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- return identityRibbon()+characterSetup()+buffBar()+
- `<section class="vitals-panel" aria-label="Hit points">
- <div class="vitals-line">
-  <strong class="vital-label">♥ Vitality</strong>
-  <span class="hp-total" data-hp-wheel title="Scroll to adjust current HP by one per notch">${hp.current}<span> / ${hp.max}</span></span>
-  <span class="vital-gap" aria-hidden="true"></span>
-  <div class="vital-controls"><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
-   ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}</div>
-  <span class="vital-gap" aria-hidden="true"></span>
-  ${heartMeter(hp)}
-  <span class="vital-gap" aria-hidden="true"></span>
-  <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
-  <span class="vital-gap" aria-hidden="true"></span>
-  <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
-   ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('HP per heart','hp.heart_value',hpPerHeart(hp),'number')}
-  </div></details>
- </div></section>
- <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
- <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
- <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
- <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}</div>
- <div class="hud-zone hud-main">${workspacePane()}</div>
+ return identityRibbon()+characterSetup()+
+ `<div class="sheet-layout ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
+  ${abilityStrip()}
+  ${buffBar()}
+  <section class="vitals-panel" aria-label="Hit points">
+   <div class="vitals-line">
+    <strong class="vital-label">♥ Vitality</strong>
+    <span class="hp-total" data-hp-wheel title="Scroll to adjust current HP by one per notch">${hp.current}<span> / ${hp.max}</span></span>
+    <span class="vital-gap" aria-hidden="true"></span>
+    <div class="vital-controls"><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
+     ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}</div>
+    <span class="vital-gap" aria-hidden="true"></span>
+    ${heartMeter(hp)}
+    <span class="vital-gap" aria-hidden="true"></span>
+    <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
+    <span class="vital-gap" aria-hidden="true"></span>
+    <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
+     ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('HP per heart','hp.heart_value',hpPerHeart(hp),'number')}
+    </div></details>
+   </div>
+  </section>
+  ${skillRolls()}
+  ${resourceStrip()}
+  ${workspacePane()}
  </div>`;
 }
-
 // Read-only hover metadata for character entries. This is a view over the
 // imported/DM record and optional edition-verified catalog, never new rules.
 function entryHint(name,details,source){
@@ -1119,6 +1115,11 @@ function handleAction(action,arg){
   case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
   case 'condition':try{Action.setTargetCondition(character,'self',arg,!character.conditions.includes(arg));save();render();}catch(e){toast(e.message);}break;
   case 'set-hp':setCurrentHP(arg);break;
+  case 'pin-resource':{
+   if(!Object.prototype.hasOwnProperty.call(character.resources||{},arg))break;
+   if(pinnedResources.has(arg))pinnedResources.delete(arg);else pinnedResources.add(arg);
+   render();break;
+  }
   case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=Number(arg.slice(at+1));try{Action.setResourceCurrent(character,name,value);save();render();}catch(e){toast(e.message);}break;}
   case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r)try{Action.setResourceCurrent(character,name,Math.min(Number(r.max),Math.max(0,Number(r.current)+delta)));save();render();}catch(e){toast(e.message);}break;}
   case 'add-attack':character.attacks=character.attacks||[];character.attacks.push({name:'New attack',bonus:0,damage:'1d6',type:'attack',attack_type:'unspecified',attack_range:'unspecified'});save();render();break;
@@ -1496,7 +1497,7 @@ function attackFollowup(result,group,knownHit){
 function queueRoll(expr,label,effect=null,rollKind='untyped'){
  try{
    const p=parseExpression(expr);
-   const choice=$('#d20-mode')?.value||'normal';
+   const choice=d20Mode;
    const mode=p.sides===20&&p.count===1?choice:'normal';
    const primaryCount=mode==='normal'?p.count:2;
    const reserved=activeRolls.flatMap(group=>(group.bonuses||[]).map(b=>b.effectId));
@@ -1569,6 +1570,15 @@ document.addEventListener('submit',e=>{
  }catch(error){toast('Cannot add target: '+error.message);}
 });
 document.addEventListener('click',e=>{
+ const mode=e.target.closest('[data-d20-mode]');
+ if(mode){
+  const value=mode.dataset.d20Mode;
+  if(['normal','advantage','disadvantage'].includes(value)){
+   d20Mode=value;
+   $('[data-d20-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.d20Mode===value)));
+  }
+  return;
+ }
  const nav=e.target.closest('[data-view]');if(nav){setView(nav.dataset.view);return;}
  const roll=e.target.closest('[data-roll]');if(roll){queueRoll(roll.dataset.roll,roll.dataset.rollLabel,null,roll.dataset.rollKind||'untyped');return;}
  const die=e.target.closest('[data-die]');if(die){addReadyDie(num(die.dataset.die));return;}
