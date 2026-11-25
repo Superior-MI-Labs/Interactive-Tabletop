@@ -34,7 +34,7 @@ with sync_playwright() as pw:
   page.add_script_tag(content=(R/'web'/fname).read_text())
  page.wait_for_function('document.querySelector(".page-title")?.textContent==="Legacy Caster"')
  assert page.evaluate('character.resources["Level 1 Spell Slots"].current')==2
- assert page.locator('.hud-resources').inner_text().count('Level 1 Spell Slots')==1
+ assert page.locator('.resource-chip[data-arg="Level 1 Spell Slots"]').count()==1
  page.get_by_role('tab',name='Spells').click()
  spell=page.locator('.spell-entry').filter(has_text='Bless');spell.locator('summary').click()
  assert spell.locator('[data-slot-choice]').locator('option').count()==1
@@ -43,9 +43,7 @@ with sync_playwright() as pw:
  page.wait_for_function('window.testVault.characters[0].character.resources["Level 1 Spell Slots"]?.current===1')
  page.get_by_role('tab',name='Actions').click()
  page.evaluate("()=>{const target=Action.addTarget(character,{name:'Practice Opponent',ac:15,hp:25});selectedTargetId=target.id;render();}")
- page.locator('#dice-widget > summary').click() if page.locator('#dice-widget').get_attribute('open') is None else None
- page.locator('#d20-mode').select_option('advantage')
- page.locator('#dice-widget > summary').click() # Close floating controls before hitting the sheet
+ page.locator('[data-d20-mode=advantage]').click() # Persistent controls remain visible when dice widget is collapsed
  page.evaluate("handleAction('tracked-attack','0')")
  assert page.evaluate('pendingRoll.count')==2
  assert page.evaluate('pendingRoll.d20Mode')=='advantage'
@@ -63,9 +61,7 @@ with sync_playwright() as pw:
  page.evaluate('''()=>{beginThrow();for(const g of activeRolls)for(const d of dice.filter(x=>g.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('lastAttackOutcome') is None
  # A *normal* natural 20 must also auto-stage doubled damage dice, not only advantage.
- page.locator('#dice-widget > summary').click()
- page.locator('#d20-mode').select_option('normal')
- page.locator('#dice-widget > summary').click()
+ page.locator('[data-d20-mode=normal]').click()
  page.evaluate("handleAction('tracked-attack','0')")
  page.evaluate('''()=>{beginThrow();DP.faceValue=()=>20;for(const d of dice.filter(x=>activeRoll.diceIds.includes(x.id)))d.sleeping=true;finishRollIfSettled();}''')
  assert page.evaluate('lastResult.outcome')=='CRITICAL HIT'
