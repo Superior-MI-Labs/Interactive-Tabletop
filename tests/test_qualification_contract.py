@@ -14,6 +14,19 @@ class QualificationContract(unittest.TestCase):
                        'TABLETOP_CHROMIUM: managed', 'bash tools/qualify.sh',
                        'python -m playwright install --with-deps chromium'):
             self.assertIn(phrase, workflow)
+        # One Pages artifact is created by the qualified build. Deployment is
+        # downstream and contains no upload step, so a failed deploy can be
+        # retried without creating duplicate same-name artifacts.
+        self.assertIn('  build-pages:', workflow)
+        self.assertIn('    needs: build-pages', workflow)
+        build, deploy = workflow.split('  build-pages:', 1)[1].split('  deploy:', 1)
+        self.assertIn('    needs: qualify', build)
+        self.assertIn('actions/upload-pages-artifact@v3', build)
+        self.assertNotIn('actions/deploy-pages@v4', build)
+        self.assertIn('actions/deploy-pages@v4', deploy)
+        self.assertNotIn('actions/upload-pages-artifact@v3', deploy)
+        self.assertNotIn('tools/build_release.py', deploy)
+        self.assertEqual(workflow.count('actions/upload-pages-artifact@v3'), 1)
         self.assertIn('bash tools/qualify.sh', (ROOT/'PUBLISH-LINUX.sh').read_text())
 
     def test_browser_qualification_is_complete_and_portable(self):
