@@ -5,9 +5,9 @@
 
 **FREE · LOCAL-FIRST · EARLY ALPHA / PROTOTYPE**
 
-> **v0.64.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
+> **v0.65.0 alpha:** GitHub Pages deploys from the canonical `web/` source after its release checks pass. Verify the site version in the browser before assuming a push is live.
 
-[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.64.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
+[**Launch browser alpha**](https://superior-mi-labs.github.io/Interactive-Tabletop/) · [**Download desktop ZIP**](https://superior-mi-labs.github.io/Interactive-Tabletop/downloads/SkyBlueEyes-Tabletop-v0.65.0.zip) · [**Build with an AI agent**](AI_START_HERE.md) · [**Report a bug**](https://github.com/Superior-MI-Labs/Interactive-Tabletop/issues)
 
 ![Status: early alpha](https://img.shields.io/badge/status-EARLY%20ALPHA-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Linux%20%7C%20Windows-bluegrey)
 
@@ -40,6 +40,15 @@ When editing a character, open **Spells → Configure standard spell slots** to 
 **v0.47 manual spellbook safety:** Spells added with **+ Spell** are separate player-authored records, even if a later PDF contains a spell with the same name. PDF reimport preserves those records, and the sheet identifies them as **Manual entry**. In Edit mode, **Remove manual spell** asks for confirmation; it cannot remove PDF-owned spells. Deleting a spell does not end effects already in progress. Export a JSON backup before a significant reimport or deletion.
 
 **v0.46 spellcasting:** In Edit sheet, each spell can specify its casting ability (STR/DEX/CON/INT/WIS/CHA) or a bounded fixed modifier override. Qualified 2014 self-healing uses that explicit configuration. Legacy unambiguous source labels still work, but mixed class sources require an ability selection. Configuration survives unambiguous PDF reimports; no automatic class progression or new spell effects are introduced.
+
+## v0.65 — Compact HUD, resource controls, wrapped hearts, and full-dice collection
+
+- **Character HUD:** all six stat cards fit in one desktop row, with the imported saving-throw bonus beside the ability check in each card. The separate Saving Throws panel and four-column layout are gone; Gameplay now spans the full width beneath compact Skills and Resources strips.
+- **Skills:** a horizontal strip of labeled roll buttons with their saved modifiers, rather than long vertical rows. Skill and saving-throw modifiers still edit through the existing character sheet editor.
+- **Resources:** concise horizontal buttons (including short spell-slot names) reveal ten-wide resource pip rows on hover/focus. Click to pin any number of independent nonoverlapping resource panels below the strip; click again to close. Values still use the original gameplay resource setter.
+- **HP:** hearts wrap into as many rows as fit the available width (30 hearts / 10 per row = 3 rows). Large meters scroll vertically after six rows, never sideways.
+- **Dice:** permanent Normal / Advantage / Disadvantage controls remain visible to the left of the collapsed dice panel. The distracting bottom-right status overlay is visually hidden but stays available to screen readers.
+- **Alt collect:** swiping across loose dice now uses a swept movement path; collect up to the entire 35-die tabletop, even on fast movements, while prepared combat rolls keep their established limits and ownership. Existing Rapier grips and release remain the only physics path.
 
 ## v0.64 — Collect dice with Alt
 
