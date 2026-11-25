@@ -38,7 +38,7 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding
 <div class="toolbar" role="group" aria-label="Camera controls">
 <button type="button" id="rotate-left" aria-label="Rotate camera counterclockwise by sixty degrees">↶ Rotate</button>
 <button type="button" id="rotate-right" aria-label="Rotate camera clockwise by sixty degrees">Rotate ↷</button>
-<label class="slider" for="camera-tilt">Tilt <input id="camera-tilt" type="range" min="25" max="70" value="40"><output id="tilt-value" for="camera-tilt">40°</output></label>
+<span class="slider" title="Standard isometric elevation, fixed across all scenes">Tilt <strong id="tilt-value">35.26° · locked</strong></span>
 <button type="button" id="fit-scene">Fit map</button>
 <label class="file-control">Load scene<input type="file" id="scene-file" accept=".json,application/json"></label>
 </div>
