@@ -15,16 +15,20 @@ assert.equal(H.neighbors(0,0).length,6);
 for(const tile of scene.tiles){
  const world=H.axialToWorld(tile.q,tile.r);
  assert.deepEqual(H.worldToAxial(world.x,world.y),{q:tile.q,r:tile.r});
- for(let rotation=0;rotation<6;rotation++)for(const tilt of [25,40,65]){
-  const camera=H.makeCamera({zoom:37.5,rotation,tilt,panX:104,panY:-32});
+ for(let rotation=0;rotation<6;rotation++){
+  const camera=H.makeCamera({zoom:37.5,rotation,panX:104,panY:-32});
   const p=H.project(camera,world.x,world.y,960,680);
   const back=H.unproject(camera,p.x,p.y,960,680);
   assert.ok(Math.abs(back.x-world.x)<1e-10&&Math.abs(back.y-world.y)<1e-10);
   assert.deepEqual(H.pick(camera,p.x,p.y,960,680,index),tile);
  }
 }
+assert.ok(Math.abs(H.ISO_ELEVATION_DEG-35.26438968)<1e-6,'standard isometric elevation');
+assert.equal('tilt' in H.makeCamera({tilt:65}),false,'legacy tilt override must not change a locked view');
 const camera=H.makeCamera({rotation:4});H.fitScene(camera,scene,1200,800);
 assert.ok(camera.zoom>=12&&camera.zoom<=180);
+const old=H.project(camera,2,1,1200,800);camera.tilt=70;
+assert.deepEqual(H.project(camera,2,1,1200,800),old,'external tilt mutation must not alter view');
 const anchor={x:370,y:300},before=H.unproject(camera,anchor.x,anchor.y,1200,800);
 H.setZoomAt(camera,camera.zoom*1.7,anchor.x,anchor.y,1200,800);
 const after=H.unproject(camera,anchor.x,anchor.y,1200,800);
