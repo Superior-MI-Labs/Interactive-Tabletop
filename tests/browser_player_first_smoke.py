@@ -94,6 +94,26 @@ with sync_playwright() as pw:
  assert page.evaluate('activeRoll.diceIds.length')==2
  assert page.evaluate("activeRoll.expression==='1d6+1d8'")
  page.evaluate('abandonCharacterDice(activeId);dice=[];throwSettings.height=.35')
+ # A very fast Alt sweep must collect more than the former 20-die cap.
+ # The swept segment crosses 23 stationary dice in one frame.
+ page.evaluate("""()=>{
+  dice=[];throwSettings.height=0;
+  for(let i=0;i<23;i++){
+   const d=DP.makeDie(6,140+i*42,215,22);d.id=++nextDieId;
+   d.q=[1,0,0,0];d.z=DP.height(d);d.sleeping=true;dice.push(d);DP.park(d);
+  }
+ }""")
+ stage=page.locator('#dice-stage').bounding_box()
+ hx,hy=stage['x']+140,stage['y']+215-page.evaluate('dice[0].z*.45')
+ page.mouse.move(hx,hy);page.mouse.down()
+ assert page.evaluate('pointer?.selected.length')==1
+ page.keyboard.down('Alt')
+ page.evaluate('pointer.x+=950') # Simulate movement between animation frames.
+ page.wait_for_function('pointer?.selected.length>=21')
+ assert page.evaluate('pointer.selected.length')==23,'All 23 loose dice are collectible'
+ page.keyboard.press('Escape');page.keyboard.up('Alt');page.mouse.up()
+ assert page.evaluate('pointer===null && dice.every(d=>!d.held)')
+ page.evaluate('abandonCharacterDice(activeId);dice=[];throwSettings.height=.35')
  # The displayed label is not a trustworthy roll type: an authored roll can
  # coincidentally share the manual tray's display name.
  page.evaluate("""()=>{
