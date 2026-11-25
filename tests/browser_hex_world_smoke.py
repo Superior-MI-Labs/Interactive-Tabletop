@@ -18,6 +18,8 @@ with sync_playwright() as pw:
     page.add_script_tag(content=(ROOT/'web/hex-world-lab.js').read_text())
     page.wait_for_function('window.HexWorldLab?.getScene()?.tiles.length===127')
     assert page.locator('#scene-name').inner_text()==SCENE['name']
+    assert page.evaluate('HexWorldLab.getScene().tiles.some(t=>t.elevation>0)')
+    assert page.evaluate('HexWorld.exposedFaces(HexWorld.createSceneIndex(HexWorldLab.getScene()), HexWorldLab.getScene().tiles.find(t=>t.elevation>0)).length>0')
     assert page.locator('#message').inner_text().startswith('127 hexes · 14 objects')
     assert page.locator('canvas').evaluate('(el)=>el.width>500&&el.height>300')
     assert page.evaluate('HexWorldLab.camera.zoom')>25,'The initial map must fit the actual canvas, not a pre-layout 1px viewport'

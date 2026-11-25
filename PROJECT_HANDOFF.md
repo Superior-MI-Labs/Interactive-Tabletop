@@ -2,13 +2,19 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.64.0` — merge commit `4a6878f` passed qualification and Pages deployment in run `45512746954`.  
-**Candidate application release:** `v0.65.0` — merged into main at `0504fed` with deterministic dice-test follow-up `f8353e6`; full qualification passed in PR runs `45520208861` and `45521022530` and main run `45521391807`. Pages publication remains unconfirmed due to an upstream deployment error.  
+**Last verified application release:** `v0.65.0` — qualification, build and Pages deployment passed in run `45522994277`; independent Hex World camera lab also passed main deployment run `45537912951`.  
+**Current Hex World work:** isolated lab extension for rock/earth skirts, raised terrain and pure signed chunk coordinates. The connected-world / region / visibility plan is maintained in `HEX_WORLD_CONTRACT.md`; runtime streaming, portals, fog of war and actors crossing chunks are not built.  
 **Latest wall patch:** `a929702` raised the rim to 52px; its Pages run `45508173347` failed in the separate practice-turn UI test (covered button), not wall physics.  
 **Handoff reviewed:** 2026-11-25  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.64.0 is the last confirmed live release. v0.65.0 has been merged and qualified, including wrapped HP rows and improved dice collection. Pages deployment run `45521391807` failed after artifact upload; retrying the same job created two same-named Pages artifacts. Use a fresh workflow run to publish, not another rerun of that deployment job.
+**Current status:** v0.65.0 is published; the separate Hex World Lab is available from the Pages source. The existing game/dice UI is unchanged by the Hex World work. The corrected Pages pipeline builds once and deploys independently.
+
+### Hex World terrain extension — current isolated scope
+
+Hex World uses signed axial world coordinates and a fixed 35.264° isometric elevation. The terrain lab now distinguishes grass, dirt, stone, rock and water surfaces; draws only visible exposed side faces (no seams between equal-height cells); supports bounded integer elevation steps with raised top picking; and provides signed 32-cell chunk coordinates including correct negative positions. Pointer-anchored zoom respects raised ground. These features remain a **debug visual prototype**, not an Atlas-textured production scene or a world streamer.
+
+The **world index / chunks / region portals / actor ownership / minimap and full-map overview / fog of war and visibility** contracts and their staged acceptance gates are in HEX_WORLD_CONTRACT.md. Do not duplicate Atlas asset manifests, D&D state, actor records, or scene authority. Future adjacency must distinguish an **unloaded chunk** from a **real world boundary**, or false cliffs will appear.
 
 ### v0.65 candidate — compact HUD and swept pickup
 

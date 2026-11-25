@@ -276,7 +276,8 @@
     {
       "q": -1,
       "r": 3,
-      "terrain": "stone"
+      "terrain": "stone",
+      "elevation": 1
     },
     {
       "q": -1,
@@ -341,7 +342,8 @@
     {
       "q": 0,
       "r": 3,
-      "terrain": "stone"
+      "terrain": "stone",
+      "elevation": 1
     },
     {
       "q": 0,
@@ -401,7 +403,8 @@
     {
       "q": 1,
       "r": 2,
-      "terrain": "stone"
+      "terrain": "stone",
+      "elevation": 1
     },
     {
       "q": 1,
@@ -456,7 +459,8 @@
     {
       "q": 2,
       "r": 1,
-      "terrain": "stone"
+      "terrain": "rock",
+      "elevation": 1
     },
     {
       "q": 2,
@@ -506,7 +510,8 @@
     {
       "q": 3,
       "r": 0,
-      "terrain": "stone"
+      "terrain": "rock",
+      "elevation": 2
     },
     {
       "q": 3,
