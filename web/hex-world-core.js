@@ -109,10 +109,10 @@
     }
     return best;
   }
-  function setZoomAt(camera,value,screenX,screenY,w,h){
-    const anchor=unproject(camera,screenX,screenY,w,h);
+  function setZoomAt(camera,value,screenX,screenY,w,h,z=0){
+    const anchor=unproject(camera,screenX,screenY,w,h,z);
     camera.zoom=Math.max(12,Math.min(180,value));
-    const p=project(camera,anchor.x,anchor.y,w,h);
+    const p=project(camera,anchor.x,anchor.y,w,h,z);
     camera.panX+=screenX-p.x;camera.panY+=screenY-p.y;
     return camera;
   }
