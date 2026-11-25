@@ -1959,6 +1959,8 @@ function initDiceCanvas(){
  },true);
  stage.addEventListener('pointerdown',e=>{
   if(pointer?.down||punchCharge||e.button!==0)return;
+  // The permanent dice-mode selector must stay usable above resting dice.
+  if(e.target.closest?.('.d20-modes'))return;
   const {x,y}=relative(e);pointerPosition={x,y};
   // Capture before a covered button can receive an ordinary click.
   if(e.shiftKey){
