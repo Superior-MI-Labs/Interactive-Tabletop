@@ -440,21 +440,31 @@ const abilityFullNames={STR:'Strength',DEX:'Dexterity',CON:'Constitution',INT:'I
 function abilityStrip(){
  const entries=Object.entries(character.abilities||{});
  const saved=Object.entries(character.saves||{});
+ // A partial imported sheet may record a saving throw without its score.
+ // Keep that saved roll visible rather than fabricating an ability modifier.
+ const saveAbility=name=>{
+  const key=name.replace(/saving throw|save/gi,'').trim().toLowerCase();
+  return Object.keys(abilityFullNames).find(abbr=>key===abbr.toLowerCase()||key===abilityFullNames[abbr].toLowerCase());
+ };
+ for(const [name] of saved){
+  const abbr=saveAbility(name);
+  if(abbr&&!entries.some(([key])=>key===abbr))entries.push([abbr,null]);
+ }
  const cards=entries.map(([abbr,a])=>{
   const full=abilityFullNames[abbr]||abbr.toUpperCase();
   const match=saved.find(([name])=>{
    const key=name.replace(/saving throw|save/gi,'').trim().toLowerCase();
    return key===full.toLowerCase()||key===abbr.toLowerCase();
   });
-  const save=match?`<button type="button" class="ability-save" data-roll="${esc('1d20'+sgn(match[1]))}" data-roll-label="${esc(full+' save')}" data-roll-kind="save" ${entryHint(full+' saving throw','Roll 1d20'+sgn(match[1])+' · saved saving throw bonus','Character saving throw · imported or DM configured')}>Save <strong>${esc(sgn(match[1]))}</strong></button>`
+  const save=match?`<button type="button" class="ability-save" data-roll="${esc('1d20'+sgn(match[1]))}" data-roll-label="${esc(full+' save')}" data-roll-kind="save" aria-label="${esc(full+' save '+sgn(match[1]))}" ${entryHint(full+' saving throw','Roll 1d20'+sgn(match[1])+' · saved saving throw bonus','Character saving throw · imported or DM configured')}>Save <strong>${esc(sgn(match[1]))}</strong></button>`
    :`<button type="button" class="ability-save" disabled title="${esc(full)} saving throw not recorded">Save —</button>`;
   return `<div class="ability-card">
     <div class="ability-compact-top"><strong class="ability-abbr">${esc(abbr)}</strong>
-     ${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
-     <span class="ability-mod">MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</span>
+     ${a?(editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`):'<strong class="ability-readout">—</strong>'}
+     <span class="ability-mod">MOD ${a?(editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`):'—'}</span>
     </div>
     <div class="ability-roll-pair">
-     <button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" ${entryHint(full+' check','Roll 1d20'+sgn(a.modifier)+' · saved ability modifier','Character ability · imported or DM configured')} aria-label="Roll ${esc(full)} check">d20</button>
+     ${a?`<button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" ${entryHint(full+' check','Roll 1d20'+sgn(a.modifier)+' · saved ability modifier','Character ability · imported or DM configured')} aria-label="Roll ${esc(full)} check">d20</button>`:`<button type="button" class="ability-roll" disabled title="${esc(full)} ability check not recorded">d20 —</button>`}
      ${save}
     </div>
     ${editMode&&editRollModifiers&&match?`<input class="input sm bonus-editor" aria-label="Edit ${esc(full)} saving throw bonus" type="number" data-mod-type="saves" data-mod-name="${esc(match[0])}" value="${esc(match[1])}">`:''}
