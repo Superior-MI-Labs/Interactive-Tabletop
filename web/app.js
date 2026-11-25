@@ -1585,7 +1585,7 @@ document.addEventListener('click',e=>{
   const value=mode.dataset.d20Mode;
   if(['normal','advantage','disadvantage'].includes(value)){
    d20Mode=value;
-   $('[data-d20-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.d20Mode===value)));
+   document.querySelectorAll('[data-d20-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.d20Mode===value)));
   }
   return;
  }
