@@ -774,3 +774,90 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 #page .advanced-encounter[open]>*:not(summary){margin-top:8px}
 #page .advanced-encounter .attack-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 #page .advanced-encounter .attack-row small{opacity:.75}
+
+/* v0.65: one horizontal character HUD; the existing gameplay/roll/resource
+   contracts remain authoritative. The strip is presentation-only. */
+#page .sheet-layout{display:flex;flex-direction:column;gap:7px;min-width:0}
+#page .sheet-strip{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid #5c6a75;border-radius:7px;background:#202c36ed;min-width:0}
+#page .strip-label{flex:0 0 auto;color:#e9bd7b;font:700 11px system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#page .ability-cards{flex:1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;min-width:0}
+#page .abilities-strip .ability-card{min-width:0;padding:6px;background:#303d46;border:1px solid #61707a;border-radius:5px}
+#page .ability-compact-top{display:flex;align-items:center;gap:6px;min-width:0;margin-bottom:5px}
+#page .ability-abbr{font-size:12px;color:#f1c68b}
+#page .abilities-strip .ability-readout{font:21px/1 Georgia,serif;color:#ffdf9d}
+#page .abilities-strip .ability-mod{display:flex;align-items:center;gap:3px;margin-left:auto;font:700 9px system-ui,sans-serif;color:#b4c4d0;white-space:nowrap}
+#page .abilities-strip .mod-readout{min-width:0;font:700 13px system-ui,sans-serif;color:#a9dbf5}
+#page .abilities-strip .ability-number{width:47px;padding:3px}
+#page .abilities-strip .ability-mod .input{width:47px;padding:3px}
+#page .ability-roll-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px}
+#page .ability-roll-pair button{min-height:28px;padding:3px 4px;font:600 11px system-ui,sans-serif;border:1px solid #697580;border-radius:4px;background:#25333e;color:#e7ebef;cursor:pointer;white-space:nowrap}
+#page .ability-roll-pair button:hover:not(:disabled){border-color:#e2b77a;background:#46515d}
+#page .ability-roll-pair .ability-save{color:#e7c48b}
+#page .ability-roll-pair button:disabled{opacity:.55;cursor:not-allowed}
+#page .ability-save strong{color:#a9dbf5}
+#page .skills-strip{align-items:flex-start}
+#page .skills-strip>.strip-label{padding-top:5px}
+#page .skill-chips{display:flex;flex:1;align-items:center;flex-wrap:wrap;gap:4px;min-width:0}
+#page .skill-chip-entry{min-width:0;display:flex;align-items:center;gap:3px}
+#page .skill-chip{min-height:26px;display:inline-flex;align-items:center;gap:7px;padding:4px 7px;border:1px solid #566978;border-radius:5px;background:#293945;color:#e6e9ec;white-space:nowrap;font:11px system-ui,sans-serif}
+#page .skill-chip strong{font-size:11px;color:#addcf5}
+#page .skill-chip:hover,#page .skill-chip:focus-visible{border-color:#e0b479;background:#42515d}
+#page .skills-strip .skill-search{width:125px;min-width:80px;max-width:170px;padding:4px;font-size:11px}
+#page .sheet-layout[data-edit-bonuses] .bonus-editor{display:inline-block}
+#page .skills-strip .bonus-editor{width:53px;max-width:53px}
+#page .skills-strip .edit-bonus{order:initial;min-height:26px}
+#page .resources-strip{display:block;position:relative;z-index:15}
+#page .resource-strip-row{display:flex;align-items:center;gap:10px}
+#page .resource-chips{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+#page .resource-chip-wrap{position:relative;flex:0 0 auto}
+#page .resource-chip{display:flex;align-items:center;gap:6px;min-height:28px;padding:4px 8px;background:#293945;border:1px solid #667380;border-radius:5px;color:#e8e5df;font:11px system-ui,sans-serif}
+#page .resource-chip:hover,#page .resource-chip:focus-visible,#page .resource-chip[aria-pressed="true"]{border-color:#e2b77a;background:#4a4540}
+#page .resource-glyph{font-size:14px;color:#e5b66b}
+#page .resource-chip strong{color:#ffe0aa;font-variant-numeric:tabular-nums}
+#page .resource-chip strong span{color:#b8c4cc;font-weight:500}
+#page .resource-preview{position:absolute;top:100%;left:0;z-index:30;padding-top:4px;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .1s}
+#page .resource-chip-wrap:hover .resource-preview,#page .resource-chip-wrap:focus-within .resource-preview{visibility:visible;opacity:1;pointer-events:auto}
+#page .resource-preview .resource-pips{box-sizing:border-box;width:max-content;min-width:265px;max-width:min(340px,90vw);padding:9px 11px;border:1px solid #af8956;border-radius:7px;background:#192630;box-shadow:0 12px 30px #000d}
+#page .resource-pinned-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:7px;margin-top:7px}
+#page .resource-pinned-card{position:relative;min-width:0;padding:8px 30px 8px 10px;border:1px solid #a0825b;border-radius:6px;background:#253540}
+#page .resource-pinned-card .resource-pips{border:0;padding:0}
+#page .resource-close{position:absolute;top:4px;right:5px;border:1px solid #687581;border-radius:4px;background:#2c3944;color:#e5d0b7;width:22px;height:22px}
+#page .resource-empty{font-size:11px;color:#aebec9}
+/* Same ten-wide physical pip grid in hover and pinned panels. The name and
+   count stay vertically centered beside every row, including 15/19. */
+#page .resources-strip .resource-pips{display:grid;grid-template-columns:minmax(75px,auto) minmax(0,1fr);align-items:center;gap:10px}
+#page .resources-strip .resource-info{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;min-width:0;margin:0}
+#page .resources-strip .resource-count{margin:0;font-size:13px}
+#page .resources-strip .resource-info small{min-width:0;text-align:left}
+#page .resources-strip .pip-track{display:flex;flex-direction:column;gap:3px;max-width:100%;align-items:flex-start}
+#page .resources-strip .pip-row{display:grid;grid-template-columns:repeat(10,14px);gap:4px;min-height:14px}
+/* Avoid endlessly horizontal HP meters; a normal 30-heart character gets
+   three visible rows when only ten hearts fit across the available width. */
+#page .hearts{flex-wrap:wrap;align-content:flex-start;overflow-x:hidden;overflow-y:auto;max-height:132px;scrollbar-width:thin}
+.status-msg{position:absolute;top:0;left:0;right:auto;bottom:auto;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* One d20 selector remains available when the dice panel is collapsed. */
+.dice-dock{position:absolute;right:12px;bottom:12px;z-index:9;display:flex;align-items:flex-end;gap:7px;max-width:calc(100% - 20px);pointer-events:none}
+.dice-dock>*{pointer-events:auto}
+.dice-dock .desk-controls{position:relative;right:auto;bottom:auto;z-index:auto;flex:0 1 auto}
+.d20-modes{display:flex;align-items:center;gap:3px;flex:0 0 auto}
+.d20-modes button{border:1px solid #746b62;border-radius:5px;background:#242e38;color:#d9e3e9;padding:6px 8px;min-height:33px;font:600 11px system-ui,sans-serif}
+.d20-modes button[aria-pressed="true"]{background:#a87a42;border-color:#edc28c;color:#161d24}
+.d20-modes button:hover{border-color:#d8ae77}
+@media(max-width:1170px){
+ #page .ability-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #page .abilities-strip{align-items:flex-start}
+ #page .abilities-strip>.strip-label{padding-top:8px}
+}
+@media(max-width:670px){
+ #page .ability-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #page .sheet-strip{gap:6px;padding:6px}
+ #page .abilities-strip{display:block}
+ #page .abilities-strip>.strip-label{display:block;padding:0 0 6px}
+ #page .skills-strip{display:block}
+ #page .skills-strip>.strip-label{display:inline-block;padding:0;margin-right:6px;margin-bottom:5px}
+ #page .resource-strip-row{align-items:flex-start;flex-wrap:wrap;gap:5px}
+ #page .resource-strip-row>.strip-label{padding-top:6px}
+ .dice-dock{right:7px;bottom:9px;flex-direction:column;align-items:flex-end;gap:4px}
+ .d20-modes button{min-height:28px;padding:3px 6px;font-size:10px}
+}
+/* The old four-column grid has no layout responsibility after v0.65. */
