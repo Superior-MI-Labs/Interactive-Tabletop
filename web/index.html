@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171b22">
-  <title>Interactive Tabletop v0.64.0</title>
+  <title>Interactive Tabletop v0.65.0</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./solar-crest.png">
@@ -40,14 +40,19 @@
 
             <main id="page" tabindex="-1"><div class="loading">Opening tabletop…</div></main>
           </div>
-          <details class="desk-controls" id="dice-widget" aria-label="Dice controls">
+          <div class="dice-dock">
+            <div class="d20-modes" role="group" aria-label="d20 roll mode" data-pointer-priority="control">
+              <button type="button" data-d20-mode="normal" aria-pressed="true" title="Normal: roll one d20">Normal</button>
+              <button type="button" data-d20-mode="advantage" aria-pressed="false" title="Advantage: keep the higher of two d20s">Adv</button>
+              <button type="button" data-d20-mode="disadvantage" aria-pressed="false" title="Disadvantage: keep the lower of two d20s">Dis</button>
+            </div>
+            <details class="desk-controls" id="dice-widget" aria-label="Dice controls">
             <summary class="desk-heading"><span>Dice</span><span id="collapsed-result" class="collapsed-result" aria-live="polite">Ready</span><span class="expand-glyph" aria-hidden="true">⌄</span></summary>
             <div class="dice-widget-content">
               <div class="dice-choice" aria-label="Choose dice to spawn">
                 <button data-die="4">d4</button><button data-die="6">d6</button><button data-die="8">d8</button>
                 <button data-die="10">d10</button><button data-die="12">d12</button><button data-die="20">d20</button><button data-die="100">d100</button>
               </div>
-              <div class="dice-roll-options"><label for="d20-mode">d20 mode</label><select id="d20-mode" class="input" aria-label="d20 roll mode"><option value="normal">Normal</option><option value="advantage">Advantage (highest)</option><option value="disadvantage">Disadvantage (lowest)</option></select></div>
               <div class="throw-row"><input class="input" id="custom-roll" value="1d20+0" aria-label="Dice expression" spellcheck="false" placeholder="2d6+3">
                 <button class="button primary" data-action="custom-roll" title="Prepare dice">Prepare</button>
                 <button class="button" data-action="auto-throw">Throw</button>
@@ -58,7 +63,8 @@
                 <ul id="table-history" class="history"></ul><button class="button mini subtle" data-action="clear-history">Clear history</button></details>
               <div class="tray-help" id="tray-help">Click dice to grab, even over buttons. Wheel: lift, Ctrl+wheel: 5° angle, Shift+wheel: spin. Ctrl: slingshot. Shift+hold and release: charged force punch (0.5s). Alt-click: click through. While dragging, hold Alt to collect loose dice.</div>
             </div>
-          </details>
+            </details>
+          </div>
           <canvas id="dice-canvas" aria-label="Rendered three-dimensional dice over the table and character sheet"></canvas>
         </div>
       </section>

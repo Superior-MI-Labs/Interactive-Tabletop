@@ -1,4 +1,12 @@
-# Interactive Tabletop architecture — v0.54.0
+# Interactive Tabletop architecture — v0.65.0
+
+## v0.65 — One character source, one hand, responsive horizontal HUD
+
+The existing `overview()` render pipeline remains the only sheet layout owner. It projects saved ability scores/modifiers, saved saving throws and skill bonuses into compact horizontal controls and uses existing roll dispatch, never recomputing imported bonuses. The `workspacePane()` remains the sole Gameplay tab renderer and now occupies full width. Resource pips still call the existing `resource-set` action; hover/focus previews and arbitrarily many pinned panels share a transient set keyed by resource name. This set is cleared on character switch and is **not** saved to the character vault. The d20 mode has a single transient selection, not parallel controls or saved rules.
+
+HP hearts remain a view over `character.hp` with configurable `heart_value`. CSS wraps hearts by actual available width, with vertical scrolling after six rows to protect Gameplay space. The heart meter's wheel scrolls its rows; only the numerical HP readout adjusts current HP by wheel gesture. The bottom-right live status remains available to assistive technology without an on-screen overlay.
+
+Alt pickup sweeps the pointer between observed physics frames to collect every free die under its path, up to the 35 physical dice allowed on the tabletop. The 20-die cap on deliberate prepared character rolls remains untouched. Collected dice use the existing Rapier joints, single pointer state, rollback snapshot, and throw/release path. Fixed sunflower slots keep the grip cluster bounded instead of extending a chained tail.
 
 ## v0.64 — One hand, optional collection
 

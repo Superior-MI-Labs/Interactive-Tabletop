@@ -28,6 +28,8 @@ let recipientChoice='self'; // transient self/other intent; never an encounter t
 let pointerPosition=null,following=false,hoverDieId=null,lastDiceGesture=null; // stage-local cursor, not a second dice scene
 
 const panelState=new Map();
+const pinnedResources=new Set(); // Transient presentation only; resource values stay in character JSON.
+let d20Mode='normal'; // Single selector shared by expanded and collapsed dice controls.
 
 function toast(message){$('#status-msg').textContent=message;}
 async function persistVault(){
@@ -59,6 +61,7 @@ function selectLoadedCharacter(){
   // A modal confirmation belongs to the sheet on which it was opened.
   const modal=$('#dialog-layer');if(modal){modal.hidden=true;modal.innerHTML='';}
  }
+ if(activeId!==nextId)pinnedResources.clear();
  activeId=nextId;
  character=entry?.character||null;
  if(character){
@@ -239,10 +242,6 @@ function button(label,action,arg='',variant='ghost'){return `<button class="${va
 function input(path,value,type='text',cls='input'){return `<input aria-label="${esc(path)}" class="${cls}" type="${esc(type)}" data-input="${esc(path)}" value="${esc(value)}">`;}
 function panel(name,content,defaultOpen=true){return `<details class="panel" data-panel="${esc(name)}" ${panelState.get(name)??defaultOpen?'open':''}><summary>${esc(name)}</summary><div class="panel-content">${content}</div></details>`;}
 function stat(label,value,meta=''){return `<div class="kpi" title="${esc(meta)}"><small>${esc(label)}</small><div class="value">${esc(value)}</div></div>`;}
-function rollButton(label,modifier,expression,editType='',editKey='',rollKind='untyped'){
- return `<div class="rollrow"><button class="rollable" type="button" data-roll="${esc(expression)}" data-roll-label="${esc(label)}" data-roll-kind="${esc(rollKind)}" ${entryHint(label,`Roll ${expression} · saved modifier ${sgn(modifier)}`,'Character roll · imported or DM configured')}><span>${esc(label)}</span><span class="tag">${esc(sgn(modifier))}</span></button>
- ${editType?`<input aria-label="Edit ${esc(label)} modifier" class="input sm bonus-editor" type="number" data-mod-type="${esc(editType)}" data-mod-name="${esc(editKey)}" value="${esc(modifier)}">`:''}</div>`;
-}
 function field(label,path,value,type='text'){return `<label class="field"><span class="field-label">${esc(label)}</span>${input(path,value,type)}</label>`;}
 
 // Small, accessible presentation controls; only character JSON owns their values.
@@ -298,7 +297,7 @@ function heartMeter(hp){
   const target=Math.min(hp.max,(i+1)*perHeart);
   return `<button type="button" class="heart" data-action="set-hp" data-arg="${target}" aria-label="Set health to ${target} of ${hp.max}" data-tip="Set health to ${target} HP · ${perHeart} HP per heart" style="--heart-fill:${percent}%"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-empty" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/><path class="heart-full" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/></svg></button>`;
  }).join('');
- return `<div class="hearts" data-hp-wheel role="group" aria-label="Health: ${hp.current} of ${hp.max}, ${perHeart} HP per heart. Scroll to adjust current HP one point per notch">${hearts}</div>`;
+ return `<div class="hearts" role="group" aria-label="Health: ${hp.current} of ${hp.max}, ${perHeart} HP per heart. Scroll to view additional rows; click a heart to set HP">${hearts}</div>`;
 }
 function resourcePips(name,v){
  const max=Math.max(0,Math.floor(num(v.max))),current=Math.max(0,Math.min(max,Math.floor(num(v.current))));
@@ -333,10 +332,6 @@ function attackRows(mode='compact'){
   if(mode==='detailed')return `<div class="resource-row" ${hint}><div><strong>${esc(a.name)}</strong><small>Damage: ${esc(a.damage)} · ${esc(type)} · ${esc(range)} range</small>${editMode?`<label class="field">Attack type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed strike</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon attack</option></select></label><label class="field">Attack range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Not classified</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</div><div class="res-count">${esc(sgn(a.bonus))}</div><div class="controls-row">${controls}</div></div>`;
   return `<div class="attack-row" ${hint}><span class="attack-name">${esc(a.name)}${editMode?`<div class="setup-attack-fields">${field('Attack name',`attacks.${i}.name`,a.name)}${field('Attack bonus',`attacks.${i}.bonus`,a.bonus,'number')}${field('Damage dice',`attacks.${i}.damage`,a.damage||'')}</div><label class="field">Type <select class="input" data-attack-type="${i}"><option value="unspecified" ${type==='unspecified'?'selected':''}>Not classified</option><option value="unarmed" ${type==='unarmed'?'selected':''}>Unarmed</option><option value="weapon" ${type==='weapon'?'selected':''}>Weapon</option></select></label><label class="field">Range <select class="input" data-attack-range="${i}"><option value="unspecified" ${range==='unspecified'?'selected':''}>Unknown</option><option value="melee" ${range==='melee'?'selected':''}>Melee</option><option value="ranged" ${range==='ranged'?'selected':''}>Ranged</option></select></label>`:''}</span><strong class="attack-bonus">${esc(sgn(a.bonus))}</strong><div class="controls-row">${controls}</div></div>`;
  }).join('');
-}
-function rollRows(kind,mode='compact'){
- const entries=kind==='ability'?Object.entries(character.abilities||{}).map(([key,v])=>[key+' check',v.modifier,key]):Object.entries(character[kind]||{}).map(([key,v])=>[kind==='saves'?key+' save':key,v,key]);
- return entries.map(([label,modifier,key])=>`<div data-filter-row="${esc(label.toLowerCase())}">${rollButton(label,modifier,`1d20${sgn(modifier)}`,mode==='detailed'||mode==='editable'?kind:'',key,kind==='skills'||kind==='ability'?'ability-check':kind==='saves'?'save':'untyped')}</div>`).join('');
 }
 function effectDetails(effect){
  const details=[];
@@ -427,9 +422,84 @@ function identityRibbon(){
  <div class="identity-fields">${field('Name','name',character.name)}${field('Armor class','ac',character.ac,'number')}${field('Initiative','initiative',character.initiative,'number')}${field('Proficiency','proficiency',character.proficiency,'number')}${field('Movement','speed',character.speed)}${field('Class / level','class_level',character.class_level)}${field('Species','species',character.species)}${field('Background','background',character.background)}</div>
  </details>`:''}</header>`;
 }
-function savingRolls(){return `<div class="rolls-tight">${rollRows('saves','editable')}</div>`;}
-function skillRolls(){return `<div class="skill-tools">${editBonusButton()}<label class="sr-only" for="skill-filter">Find skill</label><input id="skill-filter" class="input" type="search" placeholder="Find a skill…" aria-label="Find skill"></div>
- <div class="rolls-tight skills-list">${rollRows('skills','editable')}</div>`;}
+function skillRolls(){
+ const entries=Object.entries(character.skills||{});
+ return `<section class="sheet-strip skills-strip" aria-label="Skills">
+  <strong class="strip-label">Skills</strong>
+  ${editBonusButton()}
+  ${editMode?`<label class="sr-only" for="skill-filter">Find skill</label><input id="skill-filter" class="input skill-search" type="search" placeholder="Find skill…" aria-label="Find skill">`:''}
+  <div class="skills-list skill-chips">${entries.map(([name,modifier])=>`<div class="skill-chip-entry" data-filter-row="${esc(name.toLowerCase())}">
+   <button type="button" class="skill-chip" data-roll="${esc('1d20'+sgn(modifier))}" data-roll-label="${esc(name)}" data-roll-kind="ability-check" ${entryHint(name,'Roll 1d20'+sgn(modifier)+' · saved skill bonus','Character skill · imported or DM configured')}>
+    <span>${esc(name)}</span><strong>${esc(sgn(modifier))}</strong>
+   </button>
+   ${editMode&&editRollModifiers?`<input class="input sm bonus-editor" aria-label="Edit ${esc(name)} skill bonus" type="number" data-mod-type="skills" data-mod-name="${esc(name)}" value="${esc(modifier)}">`:''}
+  </div>`).join('')}</div>
+ </section>`;
+}
+const abilityFullNames={STR:'Strength',DEX:'Dexterity',CON:'Constitution',INT:'Intelligence',WIS:'Wisdom',CHA:'Charisma'};
+function abilityStrip(){
+ const entries=Object.entries(character.abilities||{});
+ const saved=Object.entries(character.saves||{});
+ // A partial imported sheet may record a saving throw without its score.
+ // Keep that saved roll visible rather than fabricating an ability modifier.
+ const saveAbility=name=>{
+  const key=name.replace(/saving throw|save/gi,'').trim().toLowerCase();
+  return Object.keys(abilityFullNames).find(abbr=>key===abbr.toLowerCase()||key===abilityFullNames[abbr].toLowerCase());
+ };
+ for(const [name] of saved){
+  const abbr=saveAbility(name);
+  if(abbr&&!entries.some(([key])=>key===abbr))entries.push([abbr,null]);
+ }
+ const cards=entries.map(([abbr,a])=>{
+  const full=abilityFullNames[abbr]||abbr.toUpperCase();
+  const match=saved.find(([name])=>{
+   const key=name.replace(/saving throw|save/gi,'').trim().toLowerCase();
+   return key===full.toLowerCase()||key===abbr.toLowerCase();
+  });
+  const save=match?`<button type="button" class="ability-save" data-roll="${esc('1d20'+sgn(match[1]))}" data-roll-label="${esc(full+' save')}" data-roll-kind="save" aria-label="${esc(full+' save '+sgn(match[1]))}" ${entryHint(full+' saving throw','Roll 1d20'+sgn(match[1])+' · saved saving throw bonus','Character saving throw · imported or DM configured')}>Save <strong>${esc(sgn(match[1]))}</strong></button>`
+   :`<button type="button" class="ability-save" disabled title="${esc(full)} saving throw not recorded">Save —</button>`;
+  return `<div class="ability-card">
+    <div class="ability-compact-top"><strong class="ability-abbr">${esc(abbr)}</strong>
+     ${a?(editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`):'<strong class="ability-readout">—</strong>'}
+     <span class="ability-mod">MOD ${a?(editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`):'—'}</span>
+    </div>
+    <div class="ability-roll-pair">
+     ${a?`<button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" ${entryHint(full+' check','Roll 1d20'+sgn(a.modifier)+' · saved ability modifier','Character ability · imported or DM configured')} aria-label="Roll ${esc(full)} check">d20</button>`:`<button type="button" class="ability-roll" disabled title="${esc(full)} ability check not recorded">d20 —</button>`}
+     ${save}
+    </div>
+    ${editMode&&editRollModifiers&&match?`<input class="input sm bonus-editor" aria-label="Edit ${esc(full)} saving throw bonus" type="number" data-mod-type="saves" data-mod-name="${esc(match[0])}" value="${esc(match[1])}">`:''}
+   </div>`;
+ }).join('');
+ return `<section class="sheet-strip abilities-strip" aria-label="Abilities and saving throws">
+  <strong class="strip-label">Abilities</strong><div class="ability-cards">${cards}</div></section>`;
+}
+function resourceShortName(name){
+ const slot=/^Level (\d+) Spell Slots?$/i.exec(name);
+ return slot?'Lv'+slot[1]+' Slots':name;
+}
+function resourceStrip(){
+ const entries=Object.entries(character.resources||{});
+ const chips=entries.map(([name,v])=>{
+  const pinned=pinnedResources.has(name),spell=/spell slot/i.test(name);
+  const current=Math.max(0,Math.floor(num(v.current))),max=Math.max(0,Math.floor(num(v.max)));
+  return `<div class="resource-chip-wrap ${pinned?'is-pinned':''}">
+   <button type="button" class="resource-chip" data-action="pin-resource" data-arg="${esc(name)}" aria-pressed="${pinned}" aria-label="${esc(name)} ${current} of ${max}. Click to ${pinned?'close pinned':'pin'} resource controls" title="${esc(name)} · ${current}/${max} · Click to ${pinned?'unpin':'pin'} controls">
+    <span class="resource-glyph" aria-hidden="true">${spell?'✦':'◈'}</span><span>${esc(resourceShortName(name))}</span><strong>${current}<span>/${max}</span></strong>
+   </button>
+   ${!pinned?`<div class="resource-preview" role="group" aria-label="${esc(name)} controls">${resourcePips(name,v)}</div>`:''}
+  </div>`;
+ }).join('');
+ const pinned=entries.filter(([name])=>pinnedResources.has(name));
+ return `<section class="sheet-strip resources-strip" aria-label="Character resources">
+  <div class="resource-strip-row"><strong class="strip-label">Resources</strong>
+   <div class="resource-chips">${chips||'<span class="resource-empty">No resources recorded</span>'}</div>
+  </div>
+  ${pinned.length?`<div class="resource-pinned-grid">${pinned.map(([name,v])=>`<div class="resource-pinned-card">
+    <button type="button" class="resource-close" data-action="pin-resource" data-arg="${esc(name)}" aria-label="Unpin ${esc(name)}">×</button>
+    ${resourcePips(name,v)}
+   </div>`).join('')}</div>`:''}
+ </section>`;
+}
 function editBonusButton(){return editMode?`<button type="button" class="edit-bonus" data-action="toggle-edit-rolls" aria-pressed="${editRollModifiers}" data-tip="${editRollModifiers?'Finish editing':'Edit'} saved skill and saving throw bonuses">${editRollModifiers?'Done':'✎'}</button>`:'';}
 function workspaceTabs(){
  const items=[['overview','Actions'],['encounter','My Turn'],['spells','Spells'],['inventory','Inventory'],['features','Features'],['background','Background'],['notes','Notes'],['reference','Reference']];
@@ -655,36 +725,32 @@ function demoPractice(){
 }
 function overview(){
  const hp=character.hp;
- const res=Object.entries(character.resources||{}).map(([key,v])=>resourcePips(key,v)).join('');
- const ability=Object.entries(character.abilities||{}).map(([abbr,a])=>
-  `<div class="ability-card"><div class="ability-head"><span>${esc(abbr)}</span><button type="button" class="ability-roll" data-action="roll-ability" data-arg="${esc(abbr)}" data-tip="Roll ${esc(abbr)} check" aria-label="Roll ${esc(abbr)} check">d20 ↗</button></div>
-  <div class="ability-values">${editMode?input(`abilities.${abbr}.score`,a.score,'number','input sm ability-number'):`<strong class="ability-readout">${esc(a.score)}</strong>`}
-  <label>MOD ${editMode?input(`abilities.${abbr}.modifier`,a.modifier,'number','input sm ability-mod'):`<strong class="mod-readout">${esc(sgn(a.modifier))}</strong>`}</label></div></div>`).join('');
- return identityRibbon()+characterSetup()+buffBar()+
- `<section class="vitals-panel" aria-label="Hit points">
- <div class="vitals-line">
-  <strong class="vital-label">♥ Vitality</strong>
-  <span class="hp-total" data-hp-wheel title="Scroll to adjust current HP by one per notch">${hp.current}<span> / ${hp.max}</span></span>
-  <span class="vital-gap" aria-hidden="true"></span>
-  <div class="vital-controls"><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
-   ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}</div>
-  <span class="vital-gap" aria-hidden="true"></span>
-  ${heartMeter(hp)}
-  <span class="vital-gap" aria-hidden="true"></span>
-  <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
-  <span class="vital-gap" aria-hidden="true"></span>
-  <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
-   ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('HP per heart','hp.heart_value',hpPerHeart(hp),'number')}
-  </div></details>
- </div></section>
- <div class="hud-four ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
- <div class="hud-zone hud-attributes" data-scroll-key="attributes">${panel('Abilities',`<div class="grid three">${ability}</div>`)}${panel('Saving throws',savingRolls())}</div>
- <div class="hud-zone hud-skills" data-scroll-key="skills">${panel('Skills',skillRolls())}</div>
- <div class="hud-zone hud-resources" data-scroll-key="resources">${panel('Resources',res)}</div>
- <div class="hud-zone hud-main">${workspacePane()}</div>
+ return identityRibbon()+characterSetup()+
+ `<div class="sheet-layout ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
+  ${abilityStrip()}
+  ${buffBar()}
+  <section class="vitals-panel" aria-label="Hit points">
+   <div class="vitals-line">
+    <strong class="vital-label">♥ Vitality</strong>
+    <span class="hp-total" data-hp-wheel title="Scroll to adjust current HP by one per notch">${hp.current}<span> / ${hp.max}</span></span>
+    <span class="vital-gap" aria-hidden="true"></span>
+    <div class="vital-controls"><input id="hp-amount" class="input md" type="number" min="0" max="99999" value="5" aria-label="Damage or healing amount">
+     ${button('− Damage','hp','damage','button warn')}${button('+ Heal','hp','heal','button')}</div>
+    <span class="vital-gap" aria-hidden="true"></span>
+    ${heartMeter(hp)}
+    <span class="vital-gap" aria-hidden="true"></span>
+    <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
+    <span class="vital-gap" aria-hidden="true"></span>
+    <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
+     ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('HP per heart','hp.heart_value',hpPerHeart(hp),'number')}
+    </div></details>
+   </div>
+  </section>
+  ${skillRolls()}
+  ${resourceStrip()}
+  ${workspacePane()}
  </div>`;
 }
-
 // Read-only hover metadata for character entries. This is a view over the
 // imported/DM record and optional edition-verified catalog, never new rules.
 function entryHint(name,details,source){
@@ -1059,6 +1125,11 @@ function handleAction(action,arg){
   case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
   case 'condition':try{Action.setTargetCondition(character,'self',arg,!character.conditions.includes(arg));save();render();}catch(e){toast(e.message);}break;
   case 'set-hp':setCurrentHP(arg);break;
+  case 'pin-resource':{
+   if(!Object.prototype.hasOwnProperty.call(character.resources||{},arg))break;
+   if(pinnedResources.has(arg))pinnedResources.delete(arg);else pinnedResources.add(arg);
+   render();break;
+  }
   case 'resource-set':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),value=Number(arg.slice(at+1));try{Action.setResourceCurrent(character,name,value);save();render();}catch(e){toast(e.message);}break;}
   case 'resource':{const at=arg.lastIndexOf(':'),name=arg.slice(0,at),delta=num(arg.slice(at+1));const r=character.resources?.[name];if(r)try{Action.setResourceCurrent(character,name,Math.min(Number(r.max),Math.max(0,Number(r.current)+delta)));save();render();}catch(e){toast(e.message);}break;}
   case 'add-attack':character.attacks=character.attacks||[];character.attacks.push({name:'New attack',bonus:0,damage:'1d6',type:'attack',attack_type:'unspecified',attack_range:'unspecified'});save();render();break;
@@ -1436,7 +1507,7 @@ function attackFollowup(result,group,knownHit){
 function queueRoll(expr,label,effect=null,rollKind='untyped'){
  try{
    const p=parseExpression(expr);
-   const choice=$('#d20-mode')?.value||'normal';
+   const choice=d20Mode;
    const mode=p.sides===20&&p.count===1?choice:'normal';
    const primaryCount=mode==='normal'?p.count:2;
    const reserved=activeRolls.flatMap(group=>(group.bonuses||[]).map(b=>b.effectId));
@@ -1509,6 +1580,15 @@ document.addEventListener('submit',e=>{
  }catch(error){toast('Cannot add target: '+error.message);}
 });
 document.addEventListener('click',e=>{
+ const mode=e.target.closest('[data-d20-mode]');
+ if(mode){
+  const value=mode.dataset.d20Mode;
+  if(['normal','advantage','disadvantage'].includes(value)){
+   d20Mode=value;
+   document.querySelectorAll('[data-d20-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.d20Mode===value)));
+  }
+  return;
+ }
  const nav=e.target.closest('[data-view]');if(nav){setView(nav.dataset.view);return;}
  const roll=e.target.closest('[data-roll]');if(roll){queueRoll(roll.dataset.roll,roll.dataset.rollLabel,null,roll.dataset.rollKind||'untyped');return;}
  const die=e.target.closest('[data-die]');if(die){addReadyDie(num(die.dataset.die));return;}
@@ -1787,23 +1867,38 @@ function initDiceCanvas(){
  };
  // Collection uses the same physical grip and rollback arrays as initial pickup.
  // Only free dice are eligible: prepared/active roll IDs remain authoritative.
+ const collectDistance=(px,py,x1,y1,x2,y2)=>{
+  const dx=x2-x1,dy=y2-y1,denom=dx*dx+dy*dy;
+  const t=denom?Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/denom)):0;
+  return Math.hypot(px-(x1+dx*t),py-(y1+dy*t));
+ };
+ // Swept pointer path catches dice skipped between physics frames. Collect every
+ // unreserved die on the table; the prepared gameplay roll limit stays at 20.
  const collectDice=()=>{
   const hand=pointer;
-  if(!hand?.down||!hand.altCollect||hand.slingAnchor||hand.selected.length>=20)return;
+  if(!hand?.down)return;
+  const from=hand.collectFrom||{x:hand.x,y:hand.y};
+  const to={x:hand.x,y:hand.y};
+  hand.collectFrom=to;
+  if(!hand.altCollect||hand.slingAnchor||hand.selected.length>=dice.length)return;
   const reserved=new Set([...(pendingRoll?.diceIds||[]),...activeRolls.flatMap(g=>g.diceIds)]);
   const held=hand.selected.slice();
   for(const d of dice){
-   if(hand.selected.length>=20)break;
    if(d.held||d.ready||reserved.has(d.id))continue;
-   const index=held.findIndex(h=>Math.hypot(h.x-d.x,h.y-d.y)<=1.12*(h.r+d.r));
-   if(index<0)continue;
-   const h=held[index],off=hand.offsets[index];
-   const dx=d.x-h.x,dy=d.y-h.y,dist=Math.hypot(dx,dy);
-   const spacing=Math.max(d.r+h.r, diceSpacing());
+   const hit=held.some((h,i)=>{
+    const off=hand.offsets[i],radius=1.12*(h.r+d.r);
+    return collectDistance(d.x,d.y,from.x+off.x,from.y+off.y,to.x+off.x,to.y+off.y)<=radius
+     ||Math.hypot(h.x-d.x,h.y-d.y)<=radius;
+   });
+   if(!hit)continue;
+   // Fixed packing positions avoid an ever-growing, unstable trail of offsets.
+   const index=hand.selected.length,angle=index*2.39996323;
+   const radius=Math.sqrt(index+1)*diceSpacing()*.70;
+   const center=hand.offsets[0];
    hand.selected.push(d);
    hand.prior.push(snapshotDie(d));
    hand.supports.push(DP.height(d));
-   hand.offsets.push({x:off.x+(dist?dx/dist:1)*spacing,y:off.y+(dist?dy/dist:0)*spacing});
+   hand.offsets.push({x:center.x+Math.cos(angle)*radius,y:center.y+Math.sin(angle)*radius});
    DP.grab(d,d.x,d.y,throwSettings.height);
   }
   if(hand.selected.length!==held.length)moveGrips();
@@ -1874,6 +1969,8 @@ function initDiceCanvas(){
  },true);
  stage.addEventListener('pointerdown',e=>{
   if(pointer?.down||punchCharge||e.button!==0)return;
+  // The permanent dice-mode selector must stay usable above resting dice.
+  if(e.target.closest?.('.d20-modes'))return;
   const {x,y}=relative(e);pointerPosition={x,y};
   // Capture before a covered button can receive an ordinary click.
   if(e.shiftKey){
@@ -1902,7 +1999,7 @@ function initDiceCanvas(){
   const supports=selected.map(d=>DP.height(d));
   selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
   pointer={id:e.pointerId,x,y,down:true,samples:[{x,y,time:performance.now()}],selected,mode,
-   offsets,prior,supports,initialCount:selected.length,altCollect:false,
+   offsets,prior,supports,initialCount:selected.length,altCollect:false,collectFrom:{x,y},
    slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
   moveGrips();
   document.body.classList.add('dice-dragging');

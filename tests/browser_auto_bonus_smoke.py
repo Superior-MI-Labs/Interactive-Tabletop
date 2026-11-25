@@ -33,7 +33,7 @@ with sync_playwright() as pw:
  page.get_by_role('button',name='Wisdom save',exact=False).focus();page.keyboard.press('Enter')
  assert page.evaluate('pendingRoll.bonuses.length')==0
  # Advantage + skill: exactly two primary d20 and one bonus d4.
- page.evaluate("document.getElementById('d20-mode').value='advantage'")
+ page.locator('[data-d20-mode=advantage]').click()
  skill=page.get_by_role('button',name='Medicine',exact=False)
  skill.focus();page.keyboard.press('Enter')
  assert page.evaluate('pendingRoll.primaryCount')==2

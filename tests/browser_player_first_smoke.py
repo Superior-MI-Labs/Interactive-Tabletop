@@ -44,6 +44,34 @@ with sync_playwright() as pw:
  page.wait_for_function("document.querySelector('.page-title')?.textContent==='Player Sheet QA'")
  # Sheet toggle belongs to the top bar and remains accessible when hidden.
  assert page.locator('.top-actions #quick-d20 + #sheet-handle').count()==1
+ # d20 mode is a single always-visible selector outside the collapsed widget.
+ assert page.locator('#dice-widget').get_attribute('open') is None
+ assert page.locator('.dice-dock .d20-modes [data-d20-mode]').count()==3
+ page.locator('[data-d20-mode=advantage]').click()
+ assert page.locator('[data-d20-mode=advantage]').get_attribute('aria-pressed')=='true'
+ assert page.evaluate("d20Mode==='advantage'")
+ page.evaluate("queueRoll('1d20','Mode QA')")
+ assert page.evaluate("pendingRoll.d20Mode==='advantage' && pendingRoll.primaryCount===2")
+ page.evaluate('cancelPreparedRoll()')
+ page.locator('[data-d20-mode=disadvantage]').click()
+ assert page.evaluate("d20Mode==='disadvantage'")
+ page.locator('[data-d20-mode=normal]').click()
+ assert page.evaluate("d20Mode==='normal'")
+ # Even a resting die behind the dock must not steal mode-button clicks.
+ mode_box=page.locator('[data-d20-mode=advantage]').bounding_box()
+ stage_box=page.locator('#dice-stage').bounding_box()
+ page.evaluate("""p=>{
+  const x=p.x,pY=p.y;
+  const d=DP.makeDie(6,x,pY,24);d.id=++nextDieId;
+  d.z=DP.height(d);d.y=pY+d.z*.45;d.sleeping=true;dice.push(d);DP.park(d);
+ }""",{'x':mode_box['x']+mode_box['width']/2-stage_box['x'],
+       'y':mode_box['y']+mode_box['height']/2-stage_box['y']})
+ page.locator('[data-d20-mode=advantage]').click()
+ assert page.evaluate("d20Mode==='advantage' && pointer===null"),'Mode controls take precedence over dice underneath'
+ page.locator('[data-d20-mode=normal]').click()
+ page.evaluate('dice=[]')
+ assert page.locator('#dice-widget').get_attribute('open') is None
+
  page.locator('#sheet-handle').click()
  assert page.locator('#sheet-handle').inner_text()=='Show sheet'
  assert page.locator('#sheet-handle').get_attribute('aria-expanded')=='false'
@@ -79,6 +107,26 @@ with sync_playwright() as pw:
  assert page.evaluate('activeRoll.diceIds.length')==2
  assert page.evaluate("activeRoll.expression==='1d6+1d8'")
  page.evaluate('abandonCharacterDice(activeId);dice=[];throwSettings.height=.35')
+ # A very fast Alt sweep must collect more than the former 20-die cap.
+ # The swept segment crosses 23 stationary dice in one frame.
+ page.evaluate("""()=>{
+  dice=[];throwSettings.height=0;
+  for(let i=0;i<23;i++){
+   const d=DP.makeDie(6,140+i*42,215,22);d.id=++nextDieId;
+   d.q=[1,0,0,0];d.z=DP.height(d);d.sleeping=true;dice.push(d);DP.park(d);
+  }
+ }""")
+ stage=page.locator('#dice-stage').bounding_box()
+ hx,hy=stage['x']+140,stage['y']+215-page.evaluate('dice[0].z*.45')
+ page.mouse.move(hx,hy);page.mouse.down()
+ assert page.evaluate('pointer?.selected.length')==1
+ page.keyboard.down('Alt')
+ page.evaluate('pointer.x+=950') # Simulate movement between animation frames.
+ page.wait_for_function('pointer?.selected.length>=21')
+ assert page.evaluate('pointer.selected.length')==23,'All 23 loose dice are collectible'
+ page.keyboard.press('Escape');page.keyboard.up('Alt');page.mouse.up()
+ assert page.evaluate('pointer===null && dice.every(d=>!d.held)')
+ page.evaluate('abandonCharacterDice(activeId);dice=[];throwSettings.height=.35')
  # The displayed label is not a trustworthy roll type: an authored roll can
  # coincidentally share the manual tray's display name.
  page.evaluate("""()=>{
@@ -105,6 +153,19 @@ with sync_playwright() as pw:
  assert page.get_by_role('tab',name='My Turn').count()==1
  assert page.locator('.personal-turn-summary').count()==0
  assert page.locator('.vitals-line').count()==1
+ # Saves live alongside abilities with their original imported modifier.
+ assert page.locator('.abilities-strip .ability-card').count()==1
+ assert page.locator('details[data-panel="Saving throws"]').count()==0
+ assert page.locator('.ability-card .ability-save').inner_text()=='Save +3'
+ page.locator('.ability-card .ability-save').click(modifiers=['Alt'])
+ assert page.evaluate("pendingRoll?.expression==='1d20+3' && pendingRoll?.rollKind==='save'")
+ page.evaluate('cancelPreparedRoll()')
+ assert page.locator('.skill-chips .skill-chip').count()==1
+ page.locator('.skill-chip').click(modifiers=['Alt'])
+ assert page.evaluate("pendingRoll?.expression==='1d20+6' && pendingRoll?.rollKind==='ability-check'")
+ page.evaluate('cancelPreparedRoll()')
+ assert page.locator('.sheet-layout>.game-workspace').count()==1
+
  assert page.locator('.hearts .heart').count()==6,'legacy default five HP per heart'
  page.locator('.hp-total').hover()
  page.mouse.wheel(0,-100)
@@ -120,10 +181,45 @@ with sync_playwright() as pw:
  page.locator('[data-input="hp.heart_value"]').press('Tab')
  assert page.evaluate('character.hp.heart_value')==1
  assert page.locator('.hearts .heart').count()==30,'one heart per HP'
+ # With ten hearts fitting horizontally, thirty hearts occupy three rows.
+ page.evaluate('''()=>{const meter=document.querySelector(".hearts");meter.style.flex="0 0 210px";meter.style.width="210px";}''')
+ rows=page.evaluate('''()=>[...new Set([...document.querySelectorAll(".heart")].map(h=>Math.round(h.getBoundingClientRect().top)))]''')
+ assert len(rows)==3,f'Hearts should wrap into three rows, got {len(rows)}'
+ assert page.evaluate('''()=>{const m=document.querySelector(".hearts");return m.scrollWidth<=m.clientWidth+2}'''),'No horizontal HP scrolling'
+ # For very high maximum HP, wheel navigates the wrapped hearts; the HP
+ # number remains the intentional +/-1 adjustment target.
+ page.evaluate('''()=>{character.hp.max=203;character.hp.current=203;render();
+   const m=document.querySelector(".hearts");m.style.flex="0 0 210px";m.style.width="210px"}''')
+ assert page.locator('.hearts .heart').count()==203
+ assert page.evaluate('''()=>{const m=document.querySelector(".hearts");return m.scrollHeight>m.clientHeight}''')
+ page.locator('.hearts').hover()
+ page.mouse.wheel(0,250)
+ page.wait_for_function('document.querySelector(".hearts").scrollTop>0')
+ assert page.evaluate('character.hp.current')==203,'Scrolling heart rows must not damage or heal the character'
+ page.evaluate('character.hp.max=30;character.hp.current=30;render()')
+
  assert page.evaluate('vaultData.characters[0].character.hp.heart_value')==1,'vault-owned setting'
  page.locator('.hearts .heart').nth(11).click(modifiers=['Alt'])
  assert page.evaluate('character.hp.current')==12,'heart click sets exact HP'
  assert page.locator('.vitals-panel [data-action=rest]').count()==0
+ # Compact resource chips share the character's existing resource-pip controller.
+ page.evaluate('''()=>{character.resources.Ki.current=15;character.resources.Ki.max=19;
+   character.resources['Level 1 Spell Slots']={current:2,max:2,reset:'long rest'};render()}''')
+ assert page.locator('.resource-chip').count()==2
+ ki=page.locator('.resource-chip-wrap').filter(has=page.locator('.resource-chip[data-arg="Ki"]'))
+ ki.locator('.resource-chip').hover()
+ assert ki.locator('.resource-preview .pip-row').count()==2,'nineteen pips render in two rows'
+ assert ki.locator('.resource-preview .resource-pip').count()==19
+ assert ki.locator('.resource-preview').evaluate('(el)=>getComputedStyle(el).visibility')=='visible'
+ page.locator('.resource-chip[data-arg="Ki"]').click(modifiers=['Alt'])
+ assert page.locator('.resource-pinned-card').count()==1
+ page.locator('.resource-chip[data-arg="Level 1 Spell Slots"]').click(modifiers=['Alt'])
+ assert page.locator('.resource-pinned-card').count()==2,'Two resource controls pin independently'
+ assert page.locator('.resource-pinned-grid').evaluate('(el)=>getComputedStyle(el).display')=='grid'
+ page.locator('.resource-pinned-card').first.locator('.resource-pip').nth(11).click(modifiers=['Alt'])
+ assert page.evaluate('character.resources.Ki.current')==11,'Pinned pips use the original resource setter'
+ assert page.locator('.resource-pinned-card').count()==2,'Pinned panels remain open after editing'
+
  assert page.locator('.identity-ribbon .header-rest [data-action=rest]').count()==2
  assert page.locator('.identity-ribbon .header-rest').bounding_box()['x']<page.locator('.identity-ribbon .status-chips').bounding_box()['x']
  assert page.locator('.encounter-targets').count()==0

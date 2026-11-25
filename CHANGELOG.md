@@ -1,3 +1,12 @@
+## v0.65.0 — Compact sheet HUD and swept full-tray dice collection (candidate)
+
+- Consolidate saving throws into their respective ability cards, use compact labeled skill buttons in a horizontal strip, and give the existing Gameplay workspace the whole width.
+- Replace resource columns with hover/focus previews that reuse existing ten-wide pip rows. Multiple resource panels can be pinned simultaneously in a nonoverlapping grid; names and counts stay vertically centered beside stacked pip rows.
+- Wrap HP hearts across the available width; cap visible height to six rows with vertical scrolling for exceptionally large maximum HP values. Keep +/-1 wheel editing on the HP number, while wheel-over-hearts scrolls their rows.
+- Replace the d20 dropdown with a single permanent Normal / Adv / Dis selector beside the collapsed dice panel; do not duplicate mode state. Visually hide bottom-right status text while preserving live-region accessibility.
+- Remove the Alt-collection 20-die cap (table remains limited to 35) and use the hand's swept motion path for high-speed pickups. Pack collected grips in a compact sunflower pattern, preserving rollback, action ownership, physics and original prepared-roll limits.
+- Expand browser contract regressions for 23-die collection, mode selection while collapsed, imported save modifiers, skill rolls, resource pinning, ten-wide pip rows, and wrapped 30-heart displays.
+
 ## v0.64.0 — Hand collection and sheet toggle (candidate)
 
 - Move the sheet toggle beside Roll d20. During an existing drag, Alt collects nearby loose dice using the current grip, release and rollback paths (20 dice maximum); Alt-click still passes through when idle. Prepared and active roll membership is protected: plain manual dice merge into one result; collected extras on linked/prepared rolls launch separately. Increase the hand anchor step from 28 to 34px per physics step and tune the damped spring from 1100/38 to 1450/44; no change to launch velocity, spin or wall settings.

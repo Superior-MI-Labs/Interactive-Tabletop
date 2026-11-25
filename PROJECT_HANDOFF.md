@@ -2,13 +2,19 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
-**Last verified application release:** `v0.63.0` — merge commit `44fc37b` passed qualification and Pages deployment in run `45511348190` (second deployment attempt).  
-**Candidate application release:** `v0.64.0` — Alt collection and sheet toggle; PR #10 targets `main`, not yet deployed.  
+**Last verified application release:** `v0.64.0` — merge commit `4a6878f` passed qualification and Pages deployment in run `45512746954`.  
+**Candidate application release:** `v0.65.0` — horizontal HUD, resource pinning, wrapped hearts, persistent d20 mode controls, and full-tray swept Alt collection; awaiting qualification.  
 **Latest wall patch:** `a929702` raised the rim to 52px; its Pages run `45508173347` failed in the separate practice-turn UI test (covered button), not wall physics.  
 **Handoff reviewed:** 2026-11-24  
 **Project:** [Superior-MI-Labs/Interactive-Tabletop](https://github.com/Superior-MI-Labs/Interactive-Tabletop)  
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
-**Current status:** v0.63.0 is deployed, including 52px walls, directional spin and HP adjustments. v0.64.0 is under review with existing Rapier grip-based Alt collection.
+**Current status:** v0.64.0 is deployed and qualified. v0.65.0 candidate consolidates the UI and corrects the 20-die collection ceiling and fast-pointer missed pickups.
+
+### v0.65 candidate — compact HUD and swept pickup
+
+The entire sheet remains a single `overview()` render; six ability cards now contain their own check and save controls using imported values, and compact Skills/Resources strips sit above full-width Gameplay. Resource hover previews and independently pinned pip panels are transient UI; values still belong to the character JSON and existing `resource-set` handler. The one d20 selector remains visible beside minimized dice. HP hearts wrap to new lines and scroll vertically after six rows, so large HP totals never grow sideways. Alt collection now sweeps the hand path to pick up more than 20 free dice (up to 35 physical dice on the table); prepared combat roll membership and the original 20 dice/roll policy remain intact.
+
+Verify browser regression and Pages deployment before calling the release live. UI feel and responsiveness on Linux Alt+drag still require user observation.
 
 ### v0.64 candidate — one grip and Alt collection
 
