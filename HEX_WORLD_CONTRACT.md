@@ -53,9 +53,10 @@ The current prototype does **not** download Atlas artwork, implement animation s
 
 Keep three independent contracts rather than extending the Atlas manifest with game-world state:
 
-1. `smi-hex-world/1` **world index** (future): world ID, grid specification, 32-cell chunk size, region IDs, chunk references, portal references, Atlas pack dependencies, and derived overview summaries. This is the navigation manifest, not the game save.
-2. `smi-hex-chunk/1` **terrain chunk** (future): immutable or authored terrain/decoration data. Use **global signed axial `q,r`** within each chunk, not screen coordinates or separate local gameplay origins. Chunk `(cq,cr)` contains `32*cq <= q < 32*(cq+1)` and similarly for `r`. It is an axial parallelogram, not a hexagonal radius, and may contain holes or empty cells. `chunkOf()` uses mathematical floor for negative coordinates.
-3. **World runtime state**, with persistent **actor IDs, world position, region, altitude, conditions and object deltas** (later): a moving actor has a single ID and single position authority. Its tile/chunk is derived from its position. Never migrate or copy its full record into the next chunk when moving; chunk files hold static placements, not dynamic character health or authoritative monster state. Interactive Tabletop's vault/rules engine remains the authority for character stats, actions, HP, and effects.
+1. `smi-hex-world/1` **world index** (future): world ID, grid specification, 32-cell chunk size, region IDs, region-index paths, portal references and Atlas pack dependencies. It should stay small even when the world grows; this is navigation metadata, not the game save.
+2. `smi-hex-region/1` **region index** (future): a region ID and its chunk file references. This is the single authored listing for that region, so adding chunks does not require rewriting a giant global manifest. Per-chunk overview summaries are derived from chunk data, not separately edited geography. A region may eventually shard its index only after size measurements justify it.
+3. `smi-hex-chunk/1` **terrain chunk** (future): immutable or authored terrain/decoration data. Use **global signed axial `q,r`** within each chunk, not screen coordinates or separate local gameplay origins. Chunk `(cq,cr)` contains `32*cq <= q < 32*(cq+1)` and similarly for `r`. It is an axial parallelogram, not a hexagonal radius, and may contain holes or empty cells. `chunkOf()` uses mathematical floor for negative coordinates.
+4. **World runtime state**, with persistent **actor IDs, world position, region, altitude, conditions and object deltas** (later): a moving actor has a single ID and single position authority. Its tile/chunk is derived from its position. Never migrate or copy its full record into the next chunk when moving; chunk files hold static placements, not dynamic character health or authoritative monster state. Interactive Tabletop's vault/rules engine remains the authority for character stats, actions, HP, and effects.
 
 An Atlas pack remains `smi-visual-pack/1`: stable asset IDs, textures, pivots, `region`, `sequence`, `state_set`, and `composition`. The world index lists pack dependencies; chunks refer to their stable asset IDs. Do not invent a competing texture, animation, or state-machine schema. A missing or disallowed pack should display a safe placeholder, not execute instructions from manifests.
 
@@ -67,17 +68,16 @@ An Atlas pack remains `smi-visual-pack/1`: stable asset IDs, textures, pivots, `
   "id": "upper-peninsula-fantasy",
   "grid": {"orientation": "pointy", "coordinates": "axial", "feet_per_step": 5, "chunk_size": 32},
   "asset_packs": [{"pack_id": "smi.fantasy.terrain", "version": "1.0.0", "manifest": "assets/terrain/manifest.json"}],
-  "regions": [{"id": "surface", "kind": "outdoor"}, {"id": "underdeep", "kind": "underground"}],
-  "chunks": [
-    {"region": "surface", "cq": 0, "cr": 0, "path": "chunks/surface/0_0.json"},
-    {"region": "surface", "cq": -1, "cr": 0, "path": "chunks/surface/-1_0.json"}
+  "regions": [
+    {"id": "surface", "kind": "outdoor", "index": "regions/surface/index.json"},
+    {"id": "underdeep", "kind": "underground", "index": "regions/underdeep/index.json"}
   ],
   "portals": [{"id": "cave-entrance", "from": {"region": "surface", "q": 7, "r": 4},
     "to": {"region": "underdeep", "q": 7, "r": 4}}]
 }
 ```
 
-A region is a **coordinate space**; a chunk is a **storage/loading unit** within it. Adjacent outdoor chunks share the same world coordinates automatically. Caves, rooms, interiors, ships, or other independent spaces connect through explicit portals, possibly with a coordinate transformation. A portal may represent a staircase, doorway, shaft, or hole; its destination must be validated and may require separate visibility/discovery permissions. A cave directly below an outdoor cell can use matching `q,r` but has a **different region ID**. Avoid using only `z` to distinguish physically overlapping interiors.
+A region index (separate from the root world file) maps coordinates to files, for example `{"schema":"smi-hex-region/1","id":"surface","chunks":[{"cq":0,"cr":0,"path":"chunks/surface/0_0.json"},{"cq":-1,"cr":0,"path":"chunks/surface/-1_0.json"}]}`. Only that index owns chunk references. A region is a **coordinate space**; a chunk is a **storage/loading unit** within it. Adjacent outdoor chunks share the same world coordinates automatically. Caves, rooms, interiors, ships, or other independent spaces connect through explicit portals, possibly with a coordinate transformation. A portal may represent a staircase, doorway, shaft, or hole; its destination must be validated and may require separate visibility/discovery permissions. A cave directly below an outdoor cell can use matching `q,r` but has a **different region ID**. Avoid using only `z` to distinguish physically overlapping interiors.
 
 ### Terrain materials, altitude, and exposed faces
 
@@ -111,7 +111,7 @@ Interior roofs, cliffs and walls may obscure an actor from a viewer even though 
 ### Progressive implementation milestones
 
 1. **Done in this terrain lab:** rock/stone/dirt/grass tops, exposed sides, integer raised terrain, top-surface picking, fixed-angle 2.5D projection, and pure signed 32-cell chunk coordinate math. No world streaming yet.
-2. **Next:** formalize and validate world index and chunk JSON schemas; load two neighboring chunks in one scene and assert no seams, no duplicate coordinates, safe path resolution, and negative-coordinate mapping.
+2. **Next:** formalize and validate world, region-index and chunk JSON schemas; load two neighboring chunks in one scene and assert no seams, no duplicate coordinates, safe path resolution, and negative-coordinate mapping.
 3. **After that:** integrate real, licensed Atlas terrain/prop assets through the existing resolver and anchored renderer; test rotating all six camera views and animation timing.
 4. **Then:** implement viewport-demand chunk loading and a derived minimap/full-map overview with strict scene cache bounds; benchmark before adding complex LOD schemes.
 5. **Then:** establish authoritative actor IDs/position updates and tested cross-chunk movement; add portal traversal to interior/underground spaces.
