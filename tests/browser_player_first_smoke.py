@@ -173,6 +173,17 @@ with sync_playwright() as pw:
  rows=page.evaluate('''()=>[...new Set([...document.querySelectorAll(".heart")].map(h=>Math.round(h.getBoundingClientRect().top)))]''')
  assert len(rows)==3,f'Hearts should wrap into three rows, got {len(rows)}'
  assert page.evaluate('''()=>{const m=document.querySelector(".hearts");return m.scrollWidth<=m.clientWidth+2}'''),'No horizontal HP scrolling'
+ # For very high maximum HP, wheel navigates the wrapped hearts; the HP
+ # number remains the intentional +/-1 adjustment target.
+ page.evaluate('''()=>{character.hp.max=203;character.hp.current=203;render();
+   const m=document.querySelector(".hearts");m.style.flex="0 0 210px";m.style.width="210px"}''')
+ assert page.locator('.hearts .heart').count()==203
+ assert page.evaluate('''()=>{const m=document.querySelector(".hearts");return m.scrollHeight>m.clientHeight}''')
+ page.locator('.hearts').hover()
+ page.mouse.wheel(0,250)
+ page.wait_for_function('document.querySelector(".hearts").scrollTop>0')
+ assert page.evaluate('character.hp.current')==203,'Scrolling heart rows must not damage or heal the character'
+ page.evaluate('character.hp.max=30;character.hp.current=30;render()')
 
  assert page.evaluate('vaultData.characters[0].character.hp.heart_value')==1,'vault-owned setting'
  page.locator('.hearts .heart').nth(11).click(modifiers=['Alt'])
