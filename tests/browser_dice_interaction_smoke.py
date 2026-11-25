@@ -180,11 +180,17 @@ with sync_playwright() as pw:
  assert page.evaluate('pendingRoll===null&&pointer===null'),'Old gesture cannot affect new character'
  # Hand motion stays directional but fast flicks smoothly compress,
  # without a sudden hard cutoff or loss of gentle-throw precision.
+ # Keep the hand-velocity regression independent from previously settled dice.
+ # Orientation is fixed because this test is not testing a random die face.
+ page.evaluate('abandonCharacterDice(activeId);dice=[]')
  flick=page.evaluate('''()=>{
-  const d=DP.makeDie(8,260,180,26);d.id=++nextDieId;dice.push(d);DP.park(d);
+  const d=DP.makeDie(8,260,180,26);d.id=++nextDieId;d.q=[1,0,0,0];
+  d.z=DP.height(d);d.sleeping=true;dice.push(d);DP.park(d);
   const r=document.querySelector('#dice-stage').getBoundingClientRect();
-  return {id:d.id,x:r.left+d.x,y:r.top+d.y-d.z*.45};
+  const px=d.x,py=d.y-d.z*.45;
+  return {id:d.id,x:r.left+px,y:r.top+py,hit:DP.hitTest(d,px,py,r.width,r.height)};
  }''')
+ assert flick['hit'],'Synthetic throw must start at a hittable projected point'
  page.mouse.move(flick['x'],flick['y']);page.mouse.down()
  assert page.evaluate('pointer?.selected[0].id')==flick['id']
  page.mouse.move(flick['x']+240,flick['y'])
