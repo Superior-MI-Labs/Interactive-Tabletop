@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive Tabletop | Hex World Lab</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Arial,sans-serif;background:#121920;color:#e7e6df}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 18px;background:#19242d;border-bottom:1px solid #a18155}
+header strong{font:600 20px Georgia,serif;color:#f0d7aa}
+header small{display:block;color:#b1bdc5;font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+a{color:#d9ba86;text-decoration:none}a:hover{text-decoration:underline}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+button,.file-control{border:1px solid #7a8791;border-radius:5px;background:#273640;color:#f1e8de;font:600 12px system-ui;padding:8px 11px;cursor:pointer;min-height:33px}
+button:hover,.file-control:hover{background:#40515d;border-color:#dfbd8b}
+button:focus-visible,.file-control:focus-within,input:focus-visible{outline:2px solid #e7c47e;outline-offset:2px}
+.file-control input{position:absolute;width:1px;height:1px;opacity:0}
+.slider{display:flex;align-items:center;gap:7px;background:#23313c;padding:4px 9px;border-radius:5px;font-size:12px}
+.slider input{width:96px;accent-color:#d8b47d}
+main{position:relative;flex:1;min-height:440px;overflow:hidden;background:radial-gradient(circle at 50% 44%,#344c4a 0,#1b2b31 55%,#101a22 100%)}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+main.is-dragging canvas{cursor:grabbing}
+.info{position:absolute;left:13px;bottom:13px;padding:10px 13px;max-width:360px;pointer-events:none;background:#15212ae8;border:1px solid #556973;border-radius:7px;font-size:12px;line-height:1.5;box-shadow:0 5px 20px #0007}
+.info strong{color:#edd2a0}
+#message{position:absolute;right:13px;top:13px;padding:8px 11px;border-radius:5px;background:#17242ce8;color:#b9cbd2;font-size:12px;max-width:350px}
+footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:9px 16px;background:#18232c;border-top:1px solid #334954;color:#aebec6;font-size:11px}
+@media(max-width:680px){header{padding:10px}header strong{font-size:17px}.toolbar{gap:5px}button,.file-control{padding:6px 8px}.info{font-size:11px}main{min-height:380px}}
+</style>
+
+<script src="./hex-world-core.js" defer></script>
+<script src="./hex-world-lab.js" defer></script>
+</head>
+<body>
+<header>
+<div><small>2.5D Sprite World Prototype</small><strong>Hex World Lab</strong> <a href="./index.html" title="Back to Interactive Tabletop">· Tabletop</a></div>
+<div class="toolbar" role="group" aria-label="Camera controls">
+<button type="button" id="rotate-left" aria-label="Rotate camera counterclockwise by sixty degrees">↶ Rotate</button>
+<button type="button" id="rotate-right" aria-label="Rotate camera clockwise by sixty degrees">Rotate ↷</button>
+<label class="slider" for="camera-tilt">Tilt <input id="camera-tilt" type="range" min="25" max="70" value="40"><output id="tilt-value" for="camera-tilt">40°</output></label>
+<button type="button" id="fit-scene">Fit map</button>
+<label class="file-control">Load scene<input type="file" id="scene-file" accept=".json,application/json"></label>
+</div>
+</header>
+<main id="scene-stage" aria-label="Interactive hex world sandbox">
+<canvas id="scene-canvas" role="img" aria-label="Isometric hex map: use mousewheel to zoom, middle-drag to pan, click to select a hex"></canvas>
+<div class="info"><strong id="scene-name">Loading scene...</strong><div id="tile-info">Select a tile to see its axial coordinates.</div><div>Wheel zoom · Middle/right drag pan · Q/E rotate · Click select</div></div>
+<div id="message" role="status" aria-live="polite">Prototype terrain and objects. Atlas sprites come next.</div>
+</main>
+<footer><span>World data is independent of the camera and rendering. Each neighboring hex represents 5 ft in the demo.</span><span id="camera-readout">Camera ready</span></footer>
+
+</body>
+</html>
