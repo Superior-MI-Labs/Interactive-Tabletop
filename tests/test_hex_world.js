@@ -51,6 +51,11 @@ const anchor={x:370,y:300},before=H.unproject(camera,anchor.x,anchor.y,1200,800)
 H.setZoomAt(camera,camera.zoom*1.7,anchor.x,anchor.y,1200,800);
 const after=H.unproject(camera,anchor.x,anchor.y,1200,800);
 assert.ok(Math.hypot(after.x-before.x,after.y-before.y)<1e-9,'cursor anchored zoom');
+const raisedAnchor=H.makeCamera({zoom:45,rotation:2});
+const rp=H.project(raisedAnchor,0,0,960,680,2);
+H.setZoomAt(raisedAnchor,90,rp.x,rp.y,960,680,2);
+const rz=H.project(raisedAnchor,0,0,960,680,2);
+assert.ok(Math.hypot(rz.x-rp.x,rz.y-rp.y)<1e-9,'zoom anchor remains fixed on raised terrain');
 function invalid(m){assert.throws(()=>H.validateScene(m),/Scene:/);}
 invalid({...scene,schema:'bogus'});
 invalid({...scene,tiles:[scene.tiles[0],scene.tiles[0]]});
