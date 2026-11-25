@@ -141,7 +141,9 @@
  canvas.addEventListener('wheel',event=>{
   event.preventDefault();if(!index)return;
   const rect=canvas.getBoundingClientRect();
-  H.setZoomAt(camera,camera.zoom*Math.exp(-Math.max(-250,Math.min(250,event.deltaY))*.001),event.clientX-rect.left,event.clientY-rect.top,width,height);
+  const sx=event.clientX-rect.left,sy=event.clientY-rect.top;
+  const tile=H.pick(camera,sx,sy,width,height,index);
+  H.setZoomAt(camera,camera.zoom*Math.exp(-Math.max(-250,Math.min(250,event.deltaY))*.001),sx,sy,width,height,H.elevation(tile));
   redraw();
  },{passive:false});
  canvas.addEventListener('contextmenu',event=>event.preventDefault());
