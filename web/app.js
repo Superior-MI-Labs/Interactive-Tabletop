@@ -1883,7 +1883,7 @@ function initDiceCanvas(){
    if(!hit)continue;
    // Fixed packing positions avoid an ever-growing, unstable trail of offsets.
    const index=hand.selected.length,angle=index*2.39996323;
-   const radius=Math.sqrt(index)*diceSpacing()*.86;
+   const radius=Math.sqrt(index+1)*diceSpacing()*.70;
    const center=hand.offsets[0];
    hand.selected.push(d);
    hand.prior.push(snapshotDie(d));
