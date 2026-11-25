@@ -35,8 +35,10 @@ with sync_playwright() as pw:
     assert page.evaluate('HexWorldLab.camera.rotation')==1
     page.locator('#rotate-left').click()
     assert page.evaluate('HexWorldLab.camera.rotation')==0
-    page.locator('#camera-tilt').fill('60')
-    assert page.evaluate('HexWorldLab.camera.tilt')==60
+    assert page.locator('#camera-tilt').count()==0
+    assert '35.26' in page.locator('#tilt-value').inner_text()
+    assert page.evaluate('HexWorldLab.camera.tilt===undefined')
+    assert page.evaluate('Math.abs(HexWorld.ISO_ELEVATION_DEG-35.26438968)<1e-6')
     page.mouse.move(center['x'],center['y']);page.mouse.down(button='middle');page.mouse.move(center['x']+90,center['y']+38,steps=3);page.mouse.up(button='middle')
     assert page.evaluate('HexWorldLab.camera.panX')!=0
     page.locator('#fit-scene').click()
