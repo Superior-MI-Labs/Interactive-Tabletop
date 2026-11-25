@@ -1857,23 +1857,38 @@ function initDiceCanvas(){
  };
  // Collection uses the same physical grip and rollback arrays as initial pickup.
  // Only free dice are eligible: prepared/active roll IDs remain authoritative.
+ const collectDistance=(px,py,x1,y1,x2,y2)=>{
+  const dx=x2-x1,dy=y2-y1,denom=dx*dx+dy*dy;
+  const t=denom?Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/denom)):0;
+  return Math.hypot(px-(x1+dx*t),py-(y1+dy*t));
+ };
+ // Swept pointer path catches dice skipped between physics frames. Collect every
+ // unreserved die on the table; the prepared gameplay roll limit stays at 20.
  const collectDice=()=>{
   const hand=pointer;
-  if(!hand?.down||!hand.altCollect||hand.slingAnchor||hand.selected.length>=20)return;
+  if(!hand?.down)return;
+  const from=hand.collectFrom||{x:hand.x,y:hand.y};
+  const to={x:hand.x,y:hand.y};
+  hand.collectFrom=to;
+  if(!hand.altCollect||hand.slingAnchor||hand.selected.length>=dice.length)return;
   const reserved=new Set([...(pendingRoll?.diceIds||[]),...activeRolls.flatMap(g=>g.diceIds)]);
   const held=hand.selected.slice();
   for(const d of dice){
-   if(hand.selected.length>=20)break;
    if(d.held||d.ready||reserved.has(d.id))continue;
-   const index=held.findIndex(h=>Math.hypot(h.x-d.x,h.y-d.y)<=1.12*(h.r+d.r));
-   if(index<0)continue;
-   const h=held[index],off=hand.offsets[index];
-   const dx=d.x-h.x,dy=d.y-h.y,dist=Math.hypot(dx,dy);
-   const spacing=Math.max(d.r+h.r, diceSpacing());
+   const hit=held.some((h,i)=>{
+    const off=hand.offsets[i],radius=1.12*(h.r+d.r);
+    return collectDistance(d.x,d.y,from.x+off.x,from.y+off.y,to.x+off.x,to.y+off.y)<=radius
+     ||Math.hypot(h.x-d.x,h.y-d.y)<=radius;
+   });
+   if(!hit)continue;
+   // Fixed packing positions avoid an ever-growing, unstable trail of offsets.
+   const index=hand.selected.length,angle=index*2.39996323;
+   const radius=Math.sqrt(index)*diceSpacing()*.86;
+   const center=hand.offsets[0];
    hand.selected.push(d);
    hand.prior.push(snapshotDie(d));
    hand.supports.push(DP.height(d));
-   hand.offsets.push({x:off.x+(dist?dx/dist:1)*spacing,y:off.y+(dist?dy/dist:0)*spacing});
+   hand.offsets.push({x:center.x+Math.cos(angle)*radius,y:center.y+Math.sin(angle)*radius});
    DP.grab(d,d.x,d.y,throwSettings.height);
   }
   if(hand.selected.length!==held.length)moveGrips();
@@ -1972,7 +1987,7 @@ function initDiceCanvas(){
   const supports=selected.map(d=>DP.height(d));
   selected.forEach(d=>DP.grab(d,d.x,d.y,throwSettings.height));
   pointer={id:e.pointerId,x,y,down:true,samples:[{x,y,time:performance.now()}],selected,mode,
-   offsets,prior,supports,initialCount:selected.length,altCollect:false,
+   offsets,prior,supports,initialCount:selected.length,altCollect:false,collectFrom:{x,y},
    slingAnchor:e.ctrlKey?{x,y}:null,wheelMode:null,wheelRemainder:0};
   moveGrips();
   document.body.classList.add('dice-dragging');
