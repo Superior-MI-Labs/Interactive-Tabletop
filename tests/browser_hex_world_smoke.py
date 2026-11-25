@@ -43,11 +43,11 @@ with sync_playwright() as pw:
     assert page.evaluate('HexWorldLab.getScene().id')=='forest-clearing'
     invalid={**SCENE,'tiles':SCENE['tiles']+[SCENE['tiles'][0]]}
     page.locator('#scene-file').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':json.dumps(invalid).encode()})
-    assert 'duplicate tile' in page.locator('#message').inner_text()
+    page.wait_for_function("document.querySelector('#message').textContent.includes('duplicate tile')")
     assert page.evaluate('HexWorldLab.getScene().id')=='forest-clearing'
     alternate={**SCENE,'id':'new-map','name':'New Map'}
     page.locator('#scene-file').set_input_files({'name':'new-map.json','mimeType':'application/json','buffer':json.dumps(alternate).encode()})
-    assert page.evaluate('HexWorldLab.getScene().id')=='new-map'
+    page.wait_for_function("HexWorldLab.getScene()?.id==='new-map'")
     assert page.locator('#scene-name').inner_text()=='New Map'
     assert not errors,errors
     browser.close()
