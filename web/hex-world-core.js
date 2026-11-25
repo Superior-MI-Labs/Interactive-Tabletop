@@ -6,6 +6,9 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
   const SQRT3=Math.sqrt(3),DEG=Math.PI/180;
+  // True isometric elevation: arctan(1 / sqrt(2)) above the ground plane.
+  const ISO_ELEVATION_DEG=Math.atan(1/Math.sqrt(2))/DEG;
+  const GROUND_VERTICAL_SCALE=Math.sin(ISO_ELEVATION_DEG*DEG);
   const SCHEMA='smi-hex-scene/1';
   const key=(q,r)=>`${q},${r}`;
   const integer=n=>Number.isSafeInteger(n);
@@ -53,17 +56,19 @@
     return {scene,tiles,tileAt:(q,r)=>tiles.get(key(q,r))||null};
   }
   function makeCamera(overrides={}){
-    return Object.assign({zoom:42,panX:0,panY:0,rotation:0,tilt:40},overrides);
+    // Only view position, zoom and six hex-aligned yaw steps can vary.
+    return {zoom:overrides.zoom??42,panX:overrides.panX??0,
+            panY:overrides.panY??0,rotation:overrides.rotation??0};
   }
   function project(camera,worldX,worldY,viewWidth,viewHeight){
     const a=camera.rotation*60*DEG,c=Math.cos(a),s=Math.sin(a);
     const u=worldX*c-worldY*s,v=worldX*s+worldY*c;
     return {x:viewWidth/2+camera.panX+camera.zoom*u,
-            y:viewHeight/2+camera.panY+camera.zoom*v*Math.sin(camera.tilt*DEG)};
+            y:viewHeight/2+camera.panY+camera.zoom*v*GROUND_VERTICAL_SCALE};
   }
   function unproject(camera,screenX,screenY,viewWidth,viewHeight){
     const u=(screenX-viewWidth/2-camera.panX)/camera.zoom;
-    const v=(screenY-viewHeight/2-camera.panY)/(camera.zoom*Math.sin(camera.tilt*DEG));
+    const v=(screenY-viewHeight/2-camera.panY)/(camera.zoom*GROUND_VERTICAL_SCALE);
     const a=camera.rotation*60*DEG,c=Math.cos(a),s=Math.sin(a);
     return {x:u*c+v*s,y:-u*s+v*c};
   }
@@ -97,5 +102,5 @@
     camera.panY=-(minY+maxY)*camera.zoom/2;
     return camera;
   }
-  return Object.freeze({SCHEMA,key,roundAxial,axialToWorld,worldToAxial,distance,neighbors,validateScene,createSceneIndex,makeCamera,project,unproject,pick,setZoomAt,fitScene});
+  return Object.freeze({SCHEMA,ISO_ELEVATION_DEG,key,roundAxial,axialToWorld,worldToAxial,distance,neighbors,validateScene,createSceneIndex,makeCamera,project,unproject,pick,setZoomAt,fitScene});
 });
