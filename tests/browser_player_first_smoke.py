@@ -216,7 +216,7 @@ with sync_playwright() as pw:
  page.locator('.resource-chip[data-arg="Level 1 Spell Slots"]').click(modifiers=['Alt'])
  assert page.locator('.resource-pinned-card').count()==2,'Two resource controls pin independently'
  assert page.locator('.resource-pinned-grid').evaluate('(el)=>getComputedStyle(el).display')=='grid'
- page.locator('.resource-pinned-card').first.locator('.resource-pip').nth(10).click(modifiers=['Alt'])
+ page.locator('.resource-pinned-card').first.locator('.resource-pip').nth(11).click(modifiers=['Alt'])
  assert page.evaluate('character.resources.Ki.current')==11,'Pinned pips use the original resource setter'
  assert page.locator('.resource-pinned-card').count()==2,'Pinned panels remain open after editing'
 
