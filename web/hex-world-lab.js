@@ -6,29 +6,50 @@
  const canvas=document.getElementById('scene-canvas');
  const ctx=canvas.getContext('2d');
  const camera=H.makeCamera();
- const terrainColors={grass:'#5a8460',dirt:'#a78958',stone:'#82908c',water:'#437d96'};
+ const terrainColors={grass:'#5a8460',dirt:'#a78958',stone:'#82908c',rock:'#707b82',water:'#437d96'};
+ const sideColors={grass:['#815d3c','#69462f'],dirt:['#81664b','#65472f'],stone:['#737a7b','#535d64'],rock:['#62676e','#495258'],water:['#376474','#244c60']};
  let index=null,selected=null,drag=null,width=1,height=1;
  const $=id=>document.getElementById(id);
  function message(text){$('message').textContent=text;}
- function center(tile){const p=H.axialToWorld(tile.q,tile.r);return H.project(camera,p.x,p.y,width,height);}
- function hexPath(q,r){
+ function center(tile){const p=H.axialToWorld(tile.q,tile.r);return H.project(camera,p.x,p.y,width,height,H.elevation(index?.tileAt(tile.q,tile.r)));}
+ function hexPath(q,r,z=0){
   const c=H.axialToWorld(q,r);
   ctx.beginPath();
   for(let i=0;i<6;i++){
    const a=(i*60-30)*Math.PI/180;
-   const p=H.project(camera,c.x+Math.cos(a),c.y+Math.sin(a),width,height);
+   const p=H.project(camera,c.x+Math.cos(a),c.y+Math.sin(a),width,height,z);
    if(!i)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);
   }
   ctx.closePath();
  }
+ function drawSides(tile){
+  const center=H.axialToWorld(tile.q,tile.r),yaw=camera.rotation*Math.PI/3;
+  for(const face of H.exposedFaces(index,tile)){
+   const normal=face.edge*Math.PI/3;
+   if(Math.sin(yaw+normal)<=.01)continue; // Draw only camera-facing faces.
+   const a=(face.edge*60-30)*Math.PI/180,b=(face.edge*60+30)*Math.PI/180;
+   const xa=center.x+Math.cos(a),ya=center.y+Math.sin(a);
+   const xb=center.x+Math.cos(b),yb=center.y+Math.sin(b);
+   const topA=H.project(camera,xa,ya,width,height,face.top);
+   const topB=H.project(camera,xb,yb,width,height,face.top);
+   const baseB=H.project(camera,xb,yb,width,height,face.bottom);
+   const baseA=H.project(camera,xa,ya,width,height,face.bottom);
+   const palette=sideColors[tile.terrain]||sideColors.grass;
+   ctx.beginPath();ctx.moveTo(topA.x,topA.y);ctx.lineTo(topB.x,topB.y);ctx.lineTo(baseB.x,baseB.y);ctx.lineTo(baseA.x,baseA.y);ctx.closePath();
+   ctx.fillStyle=face.edge%2?palette[0]:palette[1];ctx.fill();
+   ctx.lineWidth=Math.max(.7,camera.zoom*.015);ctx.strokeStyle='#293f3b';ctx.stroke();
+  }
+ }
  function drawTerrain(){
-  for(const tile of index.scene.tiles){
-   hexPath(tile.q,tile.r);
+  const sorted=index.scene.tiles.map(t=>({tile:t,p:center(t)})).sort((a,b)=>a.p.y-b.p.y||a.p.x-b.p.x);
+  for(const {tile} of sorted){
+   drawSides(tile);
+   hexPath(tile.q,tile.r,H.elevation(tile));
    ctx.fillStyle=terrainColors[tile.terrain]||'#69736c';ctx.fill();
    ctx.lineWidth=Math.max(.7,camera.zoom*.016);ctx.strokeStyle='#22392e';ctx.stroke();
   }
   if(selected){
-   hexPath(selected.q,selected.r);
+   hexPath(selected.q,selected.r,H.elevation(selected));
    ctx.fillStyle='#ead6a51e';ctx.fill();ctx.lineWidth=2.5;
    ctx.strokeStyle='#f1d69c';ctx.stroke();
   }
@@ -98,7 +119,7 @@
   if(firstSize&&index)H.fitScene(camera,index.scene,width,height);
   redraw();
  }
- function showTile(tile){$('tile-info').textContent=tile?`Hex (${tile.q}, ${tile.r}) · ${tile.terrain} · ${index.scene.grid.feet_per_step} ft per step`:'Click a hex to inspect terrain and coordinates.';}
+ function showTile(tile){$('tile-info').textContent=tile?`Hex (${tile.q}, ${tile.r}) · ${tile.terrain} · elevation ${H.elevation(tile)*index.scene.grid.feet_per_step} ft · ${index.scene.grid.feet_per_step} ft per step`:'Click a hex to inspect terrain and coordinates.';}
  function load(scene){
   const checked=H.createSceneIndex(scene);
   index=checked;selected=null;
