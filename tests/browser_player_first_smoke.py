@@ -57,6 +57,19 @@ with sync_playwright() as pw:
  assert page.evaluate("d20Mode==='disadvantage'")
  page.locator('[data-d20-mode=normal]').click()
  assert page.evaluate("d20Mode==='normal'")
+ # Even a resting die behind the dock must not steal mode-button clicks.
+ mode_box=page.locator('[data-d20-mode=advantage]').bounding_box()
+ stage_box=page.locator('#dice-stage').bounding_box()
+ page.evaluate("""p=>{
+  const x=p.x,pY=p.y;
+  const d=DP.makeDie(6,x,pY,24);d.id=++nextDieId;
+  d.z=DP.height(d);d.y=pY+d.z*.45;d.sleeping=true;dice.push(d);DP.park(d);
+ }""",{'x':mode_box['x']+mode_box['width']/2-stage_box['x'],
+       'y':mode_box['y']+mode_box['height']/2-stage_box['y']})
+ page.locator('[data-d20-mode=advantage]').click()
+ assert page.evaluate("d20Mode==='advantage' && pointer===null"),'Mode controls take precedence over dice underneath'
+ page.locator('[data-d20-mode=normal]').click()
+ page.evaluate('dice=[]')
  assert page.locator('#dice-widget').get_attribute('open') is None
 
  page.locator('#sheet-handle').click()
