@@ -87,7 +87,7 @@
   drawTerrain();
   const sorted=index.scene.objects.map(o=>({o,p:center(o)})).sort((a,b)=>a.p.y-b.p.y||a.p.x-b.p.x);
   for(const {o} of sorted)drawProp(o);
-  $('camera-readout').textContent=`Zoom ${Math.round(camera.zoom*100/42)}% · Rotation ${camera.rotation*60}° · Tilt ${camera.tilt}°`;
+  $('camera-readout').textContent=`Zoom ${Math.round(camera.zoom*100/42)}% · Rotation ${camera.rotation*60}° · Tilt ${H.ISO_ELEVATION_DEG.toFixed(2)}° (fixed)`;
  }
  function resize(){
   const firstSize=width<=1||height<=1;
@@ -110,7 +110,6 @@
  $('rotate-left').addEventListener('click',()=>rotate(-1));
  $('rotate-right').addEventListener('click',()=>rotate(1));
  $('fit-scene').addEventListener('click',()=>{if(index){H.fitScene(camera,index.scene,width,height);redraw();}});
- $('camera-tilt').addEventListener('input',event=>{camera.tilt=Number(event.target.value);$('tilt-value').textContent=`${camera.tilt}°`;redraw();});
  $('scene-file').addEventListener('change',async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{
