@@ -10,6 +10,10 @@
 **Live Pages:** https://superior-mi-labs.github.io/Interactive-Tabletop/  
 **Current status:** v0.65.0 is published; the separate Hex World Lab is available from the Pages source. The existing game/dice UI is unchanged by the Hex World work. The corrected Pages pipeline builds once and deploys independently.
 
+### Qualification workflow maintenance (2026-11-27)
+
+November audit: 113 failures across 214 workflow runs, 101 on development branches. Sampled failures include ambiguous browser selectors, JavaScript null/type errors, timing and physics assertions, and separate Pages artifact errors. Preserve the single full qualification gate; use its explicit `--fast` mode for local non-browser iterations and `TABLETOP_CHROMIUM=managed bash tools/qualify.sh --full` before a batched push. CI cancels superseded runs only for the same pull request. Desktop packages contain runtime tests, not repository-only maintenance tests. No gameplay or version change is intended; CI qualification of this maintenance batch remains required.
+
 ### Hex World terrain extension — current isolated scope
 
 Hex World uses signed axial world coordinates and a fixed 35.264° isometric elevation. The terrain lab now distinguishes grass, dirt, stone, rock and water surfaces; draws only visible exposed side faces (no seams between equal-height cells); supports bounded integer elevation steps with raised top picking; and provides signed 32-cell chunk coordinates including correct negative positions. Pointer-anchored zoom respects raised ground. These features remain a **debug visual prototype**, not an Atlas-textured production scene or a world streamer.

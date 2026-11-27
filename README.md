@@ -226,7 +226,21 @@ Alternatively extract and run `RUN-DESKTOP-LINUX.sh`, or on Windows `RUN-DESKTOP
 
 ## Release and publishing
 
-The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh` (Python, JavaScript and 30 actual Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same command is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
+The `VERSION` file is authoritative for release metadata. The single CI workflow runs `bash tools/qualify.sh --full` (Python, JavaScript and all Chromium smoke tests) before building the Pages site and desktop ZIP from `web/`. The same full gate is required by `PUBLISH-LINUX.sh`. Generated `docs/` are not a second source of UI truth.
+
+For development, install the pinned dependencies once, then iterate locally:
+
+```bash
+npm ci --ignore-scripts --no-audit --no-fund
+python3 -m pip install -r tools/requirements-qa.txt
+python3 -m playwright install chromium
+bash tools/qualify.sh --fast
+# Run a relevant browser smoke directly while iterating, if needed.
+# Before pushing a completed batch, match the CI browser runtime:
+TABLETOP_CHROMIUM=managed bash tools/qualify.sh --full
+```
+
+Fast mode checks Python and JavaScript only, never authorizes a release, and prints the command for each check. Batch related changes and push the fully qualified candidate once. Superseded PR runs are cancelled; main-branch qualification and deployment remain independent.
 
 The release publisher requires Playwright and Chromium to be installed for local qualification, refuses to overwrite dirty or unrelated clones, and checks the source version. To publish from Linux, save the source ZIP to `~/Downloads`, extract it there, then run `bash ~/Downloads/Interactive-Tabletop-v0.52.0/PUBLISH-LINUX.sh`. The script verifies the archive, checks tests, uses a clean Git clone and performs a fast-forward-only pull before pushing. Git credentials must be configured on your machine. Publish only after local qualification; GitHub Actions must report a successful Pages deployment before calling the site live.
 

@@ -23,9 +23,10 @@ Start each task by checking current `main`, `VERSION`, relevant source/tests and
 ## Qualification and publication
 
 ```bash
+npm ci --ignore-scripts --no-audit --no-fund
 python3 -m pip install -r tools/requirements-qa.txt
-# If needed: python3 -m playwright install chromium
-bash tools/qualify.sh
+python3 -m playwright install chromium
+TABLETOP_CHROMIUM=managed bash tools/qualify.sh --full
 python3 tools/build_release.py
 python3 tools/build_site.py
 ```
@@ -33,6 +34,6 @@ python3 tools/build_site.py
 - `tools/qualify.sh` is the **single** Python, JavaScript and Chromium gate used in `.github/workflows/pages.yml`. Browser tests must use `tests/browser_support.py`; `TABLETOP_CHROMIUM=managed` selects managed Chromium. Keep `tests/test_qualification_contract.py` synchronized without hardcoding counts in these instructions.
 - Never commit private PDFs, character saves, test screenshots/caches, generated ZIPs or manually changed Pages assets. Do not add dependencies or extra AI frameworks without an actual need.
 - For application releases, update `VERSION`, `CHANGELOG.md`, relevant contracts and [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) in the same batch. Docs-only changes do not require a version bump.
-- Commit/push **only when authorized**; inspect and preserve changes from other agents, never force-push. Report exact verification performed; **GitHub push, CI qualification and Pages deployment are separate states**. Do not claim success until each is verified.
+- Iterate locally with `bash tools/qualify.sh --fast` and targeted browser smoke tests. Fast mode is not a release gate; run the full managed Chromium gate on the finished batch before pushing. Commit/push **only when authorized**; inspect and preserve other agents' changes, never force-push. Batch related files into a cohesive commit and push once per qualified candidate. When local execution is unavailable, disclose the limitation and submit one reviewed candidate to CI, not a stream of per-file commits. Report exact verification performed; **GitHub push, CI qualification and Pages deployment are separate states**. Do not claim success until each is verified.
 
 **Keep this file short and version-neutral.** Architecture and rules detail belong in their respective contracts, release history in `CHANGELOG.md`, and current work in `PROJECT_HANDOFF.md`. Do not append a new AGENTS section for every patch.

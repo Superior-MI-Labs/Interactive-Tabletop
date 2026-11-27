@@ -11,9 +11,12 @@ class QualificationContract(unittest.TestCase):
         self.assertEqual([p.name for p in flows], ['pages.yml'])
         workflow = flows[0].read_text()
         for phrase in ('pull_request:', 'needs: qualify', "github.ref == 'refs/heads/main'",
-                       'TABLETOP_CHROMIUM: managed', 'bash tools/qualify.sh',
+                       'TABLETOP_CHROMIUM: managed', 'bash tools/qualify.sh --full',
                        'python -m playwright install --with-deps chromium'):
             self.assertIn(phrase, workflow)
+        self.assertIn('cancel-in-progress: ${{ github.event_name == \'pull_request\' }}', workflow)
+        self.assertIn('github.event.pull_request.number || github.run_id', workflow)
+        self.assertNotIn('--fast', workflow)
         # One Pages artifact is created by the qualified build. Deployment is
         # downstream and contains no upload step, so a failed deploy can be
         # retried without creating duplicate same-name artifacts.
