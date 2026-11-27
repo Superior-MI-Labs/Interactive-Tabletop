@@ -9,8 +9,10 @@ NAME=f'SkyBlueEyes-Tabletop-v{VERSION}'
 DEST=ROOT/'docs'/'downloads'/f'{NAME}.zip'
 FILES=['VERSION','INSTALL.sh','README.md','CHANGELOG.md','ARCHITECTURE.md','RULES_REFERENCE_DESIGN.md','RULESET_AUTOMATION_CONTRACT.md','NOTICE-SRD.md','DND_EFFECT_CAPABILITY_AUDIT.md','LICENSE','main.py','desktop.py','RUN-LINUX.sh','RUN-WINDOWS.bat','RUN-DESKTOP-LINUX.sh','RUN-DESKTOP-WINDOWS.bat']
 folders=['web','vendor']
-# Ship the exact source tests CI discovers; never hand-maintain test filenames.
-test_paths=sorted((ROOT/'tests').glob('test_*.js'))+sorted((ROOT/'tests').glob('test_*.py'))
+# Ship discovered runtime tests, not source-only checks of repository tooling.
+source_only_tests={'test_handoff_contract.py','test_qualification_contract.py','test_qualification_runner.py'}
+test_paths=sorted((ROOT/'tests').glob('test_*.js'))+sorted(
+    p for p in (ROOT/'tests').glob('test_*.py') if p.name not in source_only_tests)
 # Generate the physics runtime before collecting paths for the desktop ZIP.
 # A clean deploy checkout does not contain the generated dice-physics.js yet.
 subprocess.run([sys.executable,str(ROOT/'tools/build_physics.py')],check=True)

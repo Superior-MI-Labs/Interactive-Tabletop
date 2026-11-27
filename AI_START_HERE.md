@@ -19,7 +19,10 @@ saved characters, and uses the existing rules/action/dice pipelines.
 Push back if the request would create duplicate state or unsupported rules.
 
 Implement a cohesive, tested change, including failure and edge cases.
-Run bash tools/qualify.sh. Update relevant docs and PROJECT_HANDOFF.md
+Iterate locally with bash tools/qualify.sh --fast and relevant browser smoke tests.
+Run TABLETOP_CHROMIUM=managed bash tools/qualify.sh --full before pushing a
+single cohesive candidate. Fast mode is not release qualification.
+Update relevant docs and PROJECT_HANDOFF.md
 with what changed, the rationale, known limitations and where to resume.
 
 If I authorize a push and you have repository access, commit/push safely;

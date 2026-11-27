@@ -36,7 +36,7 @@ with ZipFile(archive) as z:
 PYZIP
 [[ -f "$SOURCE/web/app.js" && -f "$SOURCE/tools/build_site.py" && -f "$SOURCE/.github/workflows/pages.yml" && "$(tr -d '\n' < "$SOURCE/VERSION")" == "$VERSION" ]] || { echo 'Not a complete Tabletop release package' >&2; exit 1; }
 # Qualify without touching the existing checkout or browser saves.
-(cd "$SOURCE" && bash tools/qualify.sh)
+(cd "$SOURCE" && bash tools/qualify.sh --full)
 if [[ ! -d "$TARGET/.git" ]]; then
   [[ ! -e "$TARGET" || -z "$(ls -A "$TARGET" 2>/dev/null)" ]] || { echo "Target $TARGET exists and is not a Git clone; refusing to overwrite." >&2; exit 1; }
   mkdir -p "$(dirname "$TARGET")"

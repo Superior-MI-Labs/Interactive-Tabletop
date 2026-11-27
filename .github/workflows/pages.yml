@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Superseded PR candidates are not useful; main deployments keep their own runs.
+concurrency:
+  group: tabletop-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   qualify:
     runs-on: ubuntu-24.04
@@ -28,7 +33,7 @@ jobs:
       - name: Qualify gameplay, UI and source contracts
         env:
           TABLETOP_CHROMIUM: managed
-        run: bash tools/qualify.sh
+        run: bash tools/qualify.sh --full
 
   build-pages:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
