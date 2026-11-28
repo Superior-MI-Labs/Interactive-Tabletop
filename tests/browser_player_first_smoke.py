@@ -180,27 +180,27 @@ with sync_playwright() as pw:
  page.locator('[data-input="hp.heart_value"]').fill('1')
  page.locator('[data-input="hp.heart_value"]').press('Tab')
  assert page.evaluate('character.hp.heart_value')==1
- assert page.locator('.hearts .heart').count()==30,'one heart per HP'
- # With ten hearts fitting horizontally, thirty hearts occupy three rows.
- page.evaluate('''()=>{const meter=document.querySelector(".hearts");meter.style.flex="0 0 210px";meter.style.width="210px";}''')
- rows=page.evaluate('''()=>[...new Set([...document.querySelectorAll(".heart")].map(h=>Math.round(h.getBoundingClientRect().top)))]''')
- assert len(rows)==3,f'Hearts should wrap into three rows, got {len(rows)}'
- assert page.evaluate('''()=>{const m=document.querySelector(".hearts");return m.scrollWidth<=m.clientWidth+2}'''),'No horizontal HP scrolling'
- # For very high maximum HP, wheel navigates the wrapped hearts; the HP
- # number remains the intentional +/-1 adjustment target.
- page.evaluate('''()=>{character.hp.max=203;character.hp.current=203;render();
-   const m=document.querySelector(".hearts");m.style.flex="0 0 210px";m.style.width="210px"}''')
- assert page.locator('.hearts .heart').count()==203
- assert page.evaluate('''()=>{const m=document.querySelector(".hearts");return m.scrollHeight>m.clientHeight}''')
- page.locator('.hearts').hover()
- page.mouse.wheel(0,250)
- page.wait_for_function('document.querySelector(".hearts").scrollTop>0')
- assert page.evaluate('character.hp.current')==203,'Scrolling heart rows must not damage or heal the character'
- page.evaluate('character.hp.max=30;character.hp.current=30;render()')
-
+ # Width-based granularity is derived, never written to the vault.
+ page.evaluate("""()=>{const m=document.querySelector('.hearts');m.style.flex='0 0 210px';m.style.width='210px'}""")
+ page.wait_for_function("Number(document.querySelector('.hearts').dataset.capacity)===3")
+ assert page.locator('.hearts .heart').count()==10
+ assert page.evaluate("new Set([...document.querySelectorAll('.heart')].map(h=>Math.round(h.getBoundingClientRect().top))).size===1")
+ page.evaluate("""()=>{character.hp.max=203;character.hp.current=203;render();const m=document.querySelector('.hearts');m.style.flex='0 0 210px';m.style.width='210px'}""")
+ page.wait_for_function("Number(document.querySelector('.hearts').dataset.capacity)===21")
+ assert page.locator('.hearts .heart').count()==10
+ assert page.evaluate("document.querySelector('.hearts').scrollWidth<=document.querySelector('.hearts').clientWidth+2")
+ assert page.evaluate('character.hp.current')==203
+ last=page.locator('.hearts .heart').last
+ assert last.get_attribute('data-heart-capacity')=='14'
+ last.focus()
+ page.locator('#hud-tooltip [data-action=set-hp][data-arg="193"]').click()
+ assert page.evaluate('character.hp.current')==193
+ page.evaluate('character.hp.max=30;character.hp.current=12;render()')
  assert page.evaluate('vaultData.characters[0].character.hp.heart_value')==1,'vault-owned setting'
- page.locator('.hearts .heart').nth(11).click(modifiers=['Alt'])
- assert page.evaluate('character.hp.current')==12,'heart click sets exact HP'
+ assert page.evaluate("resolveRecipient({effect:'damage'},'auto')")=='other'
+ assert page.evaluate("resolveRecipient({effect:'heal'},'auto')")=='self'
+ assert page.evaluate("resolveRecipient({effect:'none'},'auto')")=='other'
+ assert page.locator('.identity-ribbon .recipient-context [data-arg=auto]').get_attribute('aria-pressed')=='true'
  assert page.locator('.vitals-panel [data-action=rest]').count()==0
  # Compact resource chips share the character's existing resource-pip controller.
  page.evaluate('''()=>{character.resources.Ki.current=15;character.resources.Ki.max=19;

@@ -24,7 +24,7 @@ let throwSettings={height:.35,angleDeg:15,spin:0};
 let punchEffect=null,punchCharge=null;
 let queuedEffect=null,pendingHealing=null;
 let pendingDamage=[],selectedTargetId='self',selectedDamageType='untyped',nextResolutionId=0,lastAttackOutcome=null;
-let recipientChoice='self'; // transient self/other intent; never an encounter target or additional vault state
+let recipientChoice='auto'; // transient self/other intent; never an encounter target or additional vault state
 let pointerPosition=null,following=false,hoverDieId=null,lastDiceGesture=null; // stage-local cursor, not a second dice scene
 
 const panelState=new Map();
@@ -71,7 +71,7 @@ function selectLoadedCharacter(){
   character.system_id=character.system_id||'dnd5e';
   character.system_edition=character.system_edition||'unspecified';
   history=character.roll_history;
-  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastAttackOutcome=null;lastResult=null;selectedTargetId='self';recipientChoice='self';
+  queuedEffect=null;pendingHealing=null;pendingDamage=[];lastAttackOutcome=null;lastResult=null;selectedTargetId='self';recipientChoice='auto';
   setView('overview');
  }else{history=[];showWelcome();}
  showVaultCount();
@@ -287,17 +287,40 @@ function hpPerHeart(hp){
  const value=Number(hp.heart_value);
  return Number.isSafeInteger(value)&&value>=1&&value<=99999?value:5;
 }
+// The saved granularity is a minimum; effective capacity is derived from width.
+function heartCapacity(hp,width){
+ const slots=Math.max(1,Math.min(500,Math.floor((width-8)/19)));
+ return Math.max(hpPerHeart(hp),Math.ceil(Math.max(0,Math.floor(num(hp.max)))/slots));
+}
+function heartGraphic(value,capacity){
+ const fraction=capacity?Math.max(0,Math.min(1,value/capacity)):0;
+ const color='hsl('+Math.round(48*(1-fraction))+' 76% '+Math.round(45+18*fraction)+'%)';
+ const path='M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1.9 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z';
+ return '<svg viewBox="0 0 24 24" aria-hidden="true" style="--heart-fill:'+fraction*100+'%;--heart-color:'+color+'"><path class="heart-empty" d="'+path+'"/><path class="heart-full" d="'+path+'"/></svg>';
+}
 function heartMeter(hp){
- const perHeart=hpPerHeart(hp);
- const total=Math.max(1,Math.ceil(hp.max/perHeart));
- const hearts=Array.from({length:Math.min(500,total)},(_,i)=>{
-  const capacity=Math.max(0,Math.min(perHeart,hp.max-i*perHeart));
-  const remaining=Math.max(0,Math.min(capacity,hp.current-i*perHeart));
-  const percent=remaining/perHeart*100;
-  const target=Math.min(hp.max,(i+1)*perHeart);
-  return `<button type="button" class="heart" data-action="set-hp" data-arg="${target}" aria-label="Set health to ${target} of ${hp.max}" data-tip="Set health to ${target} HP · ${perHeart} HP per heart" style="--heart-fill:${percent}%"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-empty" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/><path class="heart-full" d="M12 21 3.1 12.2C-1 8 2 2.8 6.7 3.3c2 0 3.9 1 5.3 2.9 1.4-1.9 3.3-2.9 5.3-2.9C22 2.8 25 8 20.9 12.2L12 21Z"/></svg></button>`;
+ return '<div class="hearts" role="group" aria-label="Health: '+hp.current+' of '+hp.max+'"></div>';
+}
+const heartResize=new ResizeObserver(entries=>{
+ for(const {target} of entries)if(target.isConnected)updateHeartMeter(target);
+});
+function updateHeartMeter(meter){
+ if(!character||!meter.clientWidth)return;
+ const hp=character.hp,max=Math.max(0,Math.floor(num(hp.max))),perHeart=heartCapacity(hp,meter.clientWidth);
+ if(Number(meter.dataset.capacity)===perHeart)return;
+ hideHudTip();
+ meter.dataset.capacity=perHeart;
+ meter.setAttribute('aria-label','Health: '+hp.current+' of '+max+', up to '+perHeart+' HP per heart. Select a heart value for precise HP.');
+ meter.innerHTML=Array.from({length:Math.max(1,Math.ceil(max/perHeart))},(_,i)=>{
+  const start=i*perHeart,capacity=Math.max(0,Math.min(perHeart,max-start));
+  const value=Math.max(0,Math.min(capacity,hp.current-start)),target=start+capacity;
+  return '<button type="button" class="heart" data-action="set-hp" data-arg="'+target+'" data-heart-start="'+start+'" data-heart-capacity="'+capacity+'" data-heart-value="'+value+'" aria-label="Set health to '+target+' of '+max+'; heart '+value+' of '+capacity+' HP" data-tip="Heart '+(i+1)+' · '+value+'/'+capacity+' HP">'+heartGraphic(value,capacity)+'</button>';
  }).join('');
- return `<div class="hearts" role="group" aria-label="Health: ${hp.current} of ${hp.max}, ${perHeart} HP per heart. Scroll to view additional rows; click a heart to set HP">${hearts}</div>`;
+}
+function syncHeartMeter(){
+ heartResize.disconnect();
+ const meter=$('#page .hearts');
+ if(meter){updateHeartMeter(meter);heartResize.observe(meter);}
 }
 function resourcePips(name,v){
  const max=Math.max(0,Math.floor(num(v.max))),current=Math.max(0,Math.min(max,Math.floor(num(v.current))));
@@ -410,9 +433,10 @@ function combatActions(){
 function identityRibbon(){
  const move=(String(character.speed||'').match(/\d+\s*ft/gi)||[]).map(s=>parseInt(s,10)).join(' / ')||character.speed;
  return `<header class="identity-ribbon">
- <div class="sheet-portrait avatar-glyph" aria-hidden="true">✦</div>
- <div class="identity-copy"><small class="sheet-eyebrow">${character.demo_id?'DEMO CHARACTER · SAMPLE VALUES':'CHARACTER SHEET'}</small><h1 class="page-title">${esc(character.name)}</h1><div class="identity-sub">${esc(character.class_level)} · ${esc(character.species)} · ${esc(character.background)}</div></div>
- <div class="header-rest" aria-label="Rest recovery">${button('Short rest','rest','short','button mini subtle')}${button('Long rest','rest','long','button mini subtle')}</div>
+ <div class="identity-group"><div class="sheet-portrait avatar-glyph" aria-hidden="true">✦</div>
+ <div class="identity-copy"><small class="sheet-eyebrow">${character.demo_id?'DEMO CHARACTER · SAMPLE VALUES':'CHARACTER SHEET'}</small><h1 class="page-title">${esc(character.name)}</h1><div class="identity-sub">${esc(character.class_level)} · ${esc(character.species)} · ${esc(character.background)}</div></div></div>
+ ${recipientContext()}
+ <div class="header-controls"><div class="header-rest" aria-label="Rest recovery">${button('Short rest','rest','short','button mini subtle')}${button('Long rest','rest','long','button mini subtle')}</div>
  <div class="status-chips" aria-label="Character statistics">
  ${stat('AC',Action.effectiveAC(character),Action.effectiveAC(character)===num(character.ac)?'Armor class':'Base '+character.ac+' + active buffs')}${stat('INIT',sgn(character.initiative),character.initiative_note||'Initiative')}${stat('PROF',sgn(character.proficiency),'Proficiency bonus')}${stat('MOVE',move,'Walk / fly / climb in feet')}
  </div>
@@ -420,7 +444,7 @@ function identityRibbon(){
  <button type="button" class="button mini subtle edit-mode-button" data-action="edit-mode" aria-pressed="${editMode}">${editMode?'Done editing':'Edit sheet'}</button>
  ${editMode?`<details class="identity-editor"><summary class="edit-details" title="Edit character identity and primary statistics" aria-label="Edit primary character information">✎ <span>Edit</span></summary>
  <div class="identity-fields">${field('Name','name',character.name)}${field('Armor class','ac',character.ac,'number')}${field('Initiative','initiative',character.initiative,'number')}${field('Proficiency','proficiency',character.proficiency,'number')}${field('Movement','speed',character.speed)}${field('Class / level','class_level',character.class_level)}${field('Species','species',character.species)}${field('Background','background',character.background)}</div>
- </details>`:''}</header>`;
+ </details>`:''}</div></header>`;
 }
 function skillRolls(){
  const entries=Object.entries(character.skills||{});
@@ -526,10 +550,18 @@ function requireCombatTarget(){
 // Other means "roll and relay"; only Self can offer changes to this character.
 function recipientContext(){
  return `<div class="recipient-context" role="group" aria-label="Effect recipient">
- <strong>Recipient</strong>
- ${[['self','Self'],['other','Other']].map(([key,label])=>`<button type="button" class="filter-chip ${recipientChoice===key?'selected':''}" data-action="set-recipient" data-arg="${key}" aria-pressed="${recipientChoice===key}">${label}</button>`).join('')}
- <small>${recipientChoice==='self'?'Self: approved effects may be applied to your sheet.':'Other: roll and share the result; no other character or creature is changed.'}</small>
+ <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
+ ${[['auto','Auto'],['self','Self'],['other','Other']].map(([key,label])=>`<button type="button" class="filter-chip ${recipientChoice===key?'selected':''}" data-action="set-recipient" data-arg="${key}" aria-pressed="${recipientChoice===key}" title="${key==='auto'?'Resolve configured effects conservatively; confirm the recipient':key==='self'?'Approve eligible effects on your sheet':'Roll and share; do not apply to your sheet'}">${label}</button>`).join('')}
  </div>`;
+}
+function resolveRecipient(plan,choice=recipientChoice){
+ if(choice!=='auto')return choice;
+ if(plan.effect==='damage'||(plan.targetId&&plan.targetId!=='self'))return 'other';
+ return plan.automatic||['heal','condition','ac_bonus','roll_bonus'].includes(plan.effect)||plan.concentration||plan.durationRounds?'self':'other';
+}
+function recipientNote(resolved){
+ if(resolved==='other')return 'Other: share the result; do not apply this effect to your character';
+ return recipientChoice==='auto'?'Auto → Self: confirm that this effect is intended for your own sheet':'Self: apply eligible effects to your sheet';
 }
 function targetPicker(){
  const selected=currentTargetId(),target=selected==='self'?null:Action.targetById(character,selected);
@@ -628,7 +660,7 @@ function actionWorkspace(){
  ${sequence.kind==='save-condition'&&sequence.status==='await-effect'?button('Apply condition (DM confirmed)','staged-save-effect',sequence.id,'button mini primary'):''}
  ${sequence.status==='optional-followup'?`<button type="button" class="button mini primary" data-action="staged-followup" data-arg="${esc(sequence.id)}" ${Number(character.resources?.[sequence.followup.resource]?.current||0)<sequence.followup.cost?'disabled':''}>${esc(sequence.followup.label)} · ${esc(sequence.followup.cost)} ${esc(sequence.followup.resource)}</button>`:''}
  ${button('Decline / finish','staged-decline',sequence.id,'button mini subtle')}</div>`:'';
- return `${recipientContext()}<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
+ return `<div class="workspace-toolbar"><div class="workspace-filters" aria-label="Filter combat actions">
  ${[['all','All'],['attack','Attacks'],['action','Abilities']].map(([key,label])=>`<button type="button" data-action="action-filter" data-arg="${key}" class="filter-chip ${actionFilter===key?'selected':''}" aria-pressed="${actionFilter===key}">${label}</button>`).join('')}</div>
  ${editMode?`${button('+ Attack','add-attack','','button mini')}${button('+ Custom ability','add-action','','button mini')}<label class="field">Ability template <select class="input" id="ability-template"><option value="">Choose…</option>${templates.map(k=>`<option value="${esc(k)}">${esc(ABILITY_TEMPLATES[k].name)}</option>`).join('')}</select></label>${button('Add template','add-ability-template','','button mini subtle')}`:''}</div>
  ${staged}${attackFilter?`<div class="attack-list">${attackRows()}</div>`:''}
@@ -727,8 +759,7 @@ function overview(){
  const hp=character.hp;
  return identityRibbon()+characterSetup()+
  `<div class="sheet-layout ${editRollModifiers?'editing-rolls':''}" ${editRollModifiers?'data-edit-bonuses="true"':''}>
-  ${abilityStrip()}
-  ${buffBar()}
+  <div class="attribute-status-row">${abilityStrip()}${buffBar()}</div>
   <section class="vitals-panel" aria-label="Hit points">
    <div class="vitals-line">
     <strong class="vital-label">♥ Vitality</strong>
@@ -741,8 +772,8 @@ function overview(){
     <span class="vital-gap" aria-hidden="true"></span>
     <span class="temp-hp">${hp.temp?`+${hp.temp} temporary HP`:'No temporary HP'}</span>
     <span class="vital-gap" aria-hidden="true"></span>
-    <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid">
-     ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('HP per heart','hp.heart_value',hpPerHeart(hp),'number')}
+    <details class="vital-edit"><summary title="Adjust HP totals and temporary HP">Edit HP</summary><div class="form-grid" popover="auto" aria-label="Edit hit points">
+     ${field('Current HP','hp.current',hp.current,'number')}${field('Maximum HP','hp.max',hp.max,'number')}${field('Temporary HP','hp.temp',hp.temp,'number')}${field('Preferred HP per heart (auto fits row)','hp.heart_value',hpPerHeart(hp),'number')}
     </div></details>
    </div>
   </section>
@@ -861,7 +892,7 @@ function spells(){
    if(spellFilter==='available')return sp.available!==false&&!sp.prepared&&!sp.always_prepared&&sp.level!==0;
    return true;
  });
- return `${recipientContext()}<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
+ return `<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
  <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells">${button('+ Spell','add-spell','','button mini')}</div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
@@ -927,6 +958,7 @@ function render(){
  const scrolls=new Map($$('[data-scroll-key]',page).map(el=>[el.dataset.scrollKey,{x:el.scrollLeft,y:el.scrollTop}]));
  page.innerHTML=overview();
  page.dataset.characterId=activeId;
+ syncHeartMeter();
  $$('[data-scroll-key]',page).forEach(el=>{const p=scrolls.get(el.dataset.scrollKey);if(p){el.scrollLeft=p.x;el.scrollTop=p.y;}});
  $$('details[data-action-id]',page).forEach(el=>{const key='action:'+activeId+':'+el.dataset.actionId;if(panelState.has(key))el.open=panelState.get(key);});
  if(view==='reference')filterCatalogEntries();
@@ -1021,7 +1053,7 @@ function handleAction(action,arg){
   case 'undo-last-damage':try{if(Action.undoLastDamage(character)){save();render();toast('Last damage application undone.');}else toast('Nothing to undo.');}catch(e){toast(e.message);}break;
   case 'open-encounter':setView('encounter');break;
   case 'open-my-turn':setView('encounter');break;
-  case 'set-recipient':if(arg==='self'||arg==='other'){recipientChoice=arg;render();}break;
+  case 'set-recipient':if(['auto','self','other'].includes(arg)){recipientChoice=arg;render();}break;
   case 'open-targets':{if(view!=='encounter')setView('encounter');const advanced=$('#page .advanced-encounter');if(advanced){advanced.open=true;panelState.set('Advanced encounter tools',true);}const manager=$('#page .encounter-targets');if(manager){manager.open=true;panelState.set('Encounter targets',true);$('[name=name]',manager)?.focus();}break;}
   case 'target-remove':dialog('Remove encounter target?',`Remove ${Action.targetById(character,arg)?.name||'this target'} from this character's encounter notes?`,()=>{
    Action.removeTarget(character,arg);selectedTargetId='self';pendingDamage=pendingDamage.filter(x=>x.targetId!==arg);save();render();updateTableResults();
@@ -1125,6 +1157,7 @@ function handleAction(action,arg){
   case 'rest':dialog('Complete '+arg+' rest?',`Restore eligible resources${arg==='long'?', hit points, and end tracked effects (manual conditions remain)':''}?`,()=>doRest(arg));break;
   case 'condition':try{Action.setTargetCondition(character,'self',arg,!character.conditions.includes(arg));save();render();}catch(e){toast(e.message);}break;
   case 'set-hp':setCurrentHP(arg);break;
+  case 'set-heart-exact':{const el=$('#heart-exact-value');if(el&&el.reportValidity())setCurrentHP(Number(el.dataset.start)+el.valueAsNumber);break;}
   case 'pin-resource':{
    if(!Object.prototype.hasOwnProperty.call(character.resources||{},arg))break;
    if(pinnedResources.has(arg))pinnedResources.delete(arg);else pinnedResources.add(arg);
@@ -1188,7 +1221,8 @@ function handleAction(action,arg){
    }
    if(p.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,p);}catch(e){toast(e.message);break;}
-   const details=[recipientChoice==='other'?'Other: share the result; do not apply this effect to your character':null,p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
+   const recipient=resolveRecipient(p);
+   const details=[recipientNote(recipient),p.activation,p.economyUnits>1?`spend ${p.economyUnits} ${Action.activationCost(p.activation)} pool units`:null,p.requiresAttack?'requires Attack first':null,p.requiresAttackComplete?'immediately after completing Attack':null,p.grantAttacks?`grant ${p.grantAttacks} ${p.grantAttackScope} bonus strikes`:null,p.grantResource?`restore ${p.grantAmount} ${p.grantResource}`:null,p.grantEconomy?`grant ${p.grantEconomy==='attack'?'attack-only':'unrestricted'} extra action`:null,p.cost?`spend ${p.cost} ${p.resource}`:'no tracked cost',p.roll?`roll ${p.roll.expression}`:'no configured roll',p.effect==='heal'&&recipient==='self'?'offer HP healing after dice settle':'no automated effect',p.concentration?'concentration':null,p.durationRounds?`${p.durationRounds} rounds`:null].filter(Boolean);
    dialog('Use '+p.name+'?',details.join(' · ')+'. Continue only if appropriate under your table rules.',()=>{
     try{
      // Never spend resources while the active dice animation is unresolved.
@@ -1196,10 +1230,10 @@ function handleAction(action,arg){
      // Never charge a resource if the required dice cannot be prepared.
      if(p.roll&&!canPrepareDice(p.roll.count,p.roll.sides))throw Error('Not enough space for this throw. Clear unused dice first.');
      Action.commitUsage(character,p);
-     if(recipientChoice==='self')Action.startEffect(character,p);
+     if(recipient==='self')Action.startEffect(character,p);
      save();render();
      const confirmed=p;
-     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,recipientChoice==='self'&&confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:null);
+     if(confirmed.roll)queueRoll(confirmed.roll.expression,confirmed.name,recipient==='self'&&confirmed.effect==='heal'?{kind:'heal',characterId:activeId,name:confirmed.name}:null);
      else toast(p.name+' used. Apply narrative effects with your DM.');
     }catch(e){toast('Could not use ability: '+e.message);}
    });break;
@@ -1273,16 +1307,17 @@ function handleAction(action,arg){
    if(planned.effect==='heal'&&(pendingHealing?.characterId===activeId||activeRolls.some(g=>g.effect))){toast('Apply or dismiss the previous healing roll first.');break;}
    try{Action.verifyEconomy(character,planned);}catch(e){toast(e.message);break;}
    const activeConcentration=Action.activeEffects(character).find(e=>e.concentration);
-   const info=[recipientChoice==='other'?'Other: share the result; no self-application or automatic external effect':null,planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.bonusDice?`${planned.bonusMode==='sustained'?'While active':planned.charges+' use(s)'} × ${planned.bonusDice} for ${planned.bonusScopes.join(' / ')} (self only)`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
+   const recipient=resolveRecipient(planned);
+   const info=[recipientNote(recipient),planned.slotLevel?`spend level ${planned.slotLevel} slot`:'cantrip · no slot',planned.automatic&&recipient==='self'?'verified 2014 SRD self effect':null,planned.roll?`roll ${planned.roll.expression}`:'no configured dice',planned.acBonus?`AC +${planned.acBonus}`:null,planned.bonusDice?`${planned.bonusMode==='sustained'?'While active':planned.charges+' use(s)'} × ${planned.bonusDice} for ${planned.bonusScopes.join(' / ')} (self only)`:null,planned.concentration?`concentration${activeConcentration?` (replaces ${activeConcentration.name})`:''}`:null,planned.durationRounds?`${planned.durationRounds} rounds`:null].filter(Boolean);
    dialog('Cast '+planned.name+'?',info.join(' · ')+'. Spell effects still require your table’s rulings.',()=>{
     try{
      // Other dice groups can be in flight; a new roll only needs free resting dice.
      const fresh=Action.planSpell(character,sp,planned.slotLevel,ref?.automation);
      if(fresh.roll&&!canPrepareDice(fresh.roll.count,fresh.roll.sides))throw Error('Not enough room for dice.');
      Action.commitUsage(character,fresh);
-     if(recipientChoice==='self')Action.startEffect(character,fresh);
+     if(recipient==='self')Action.startEffect(character,fresh);
      save();render();
-     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,recipientChoice==='self'&&fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:null);
+     if(fresh.roll)queueRoll(fresh.roll.expression,fresh.name,recipient==='self'&&fresh.effect==='heal'?{kind:'heal',characterId:activeId,name:fresh.name}:null);
      else toast('Cast '+fresh.name+'; resolve spell effects with your DM.');
     }catch(e){toast('Could not cast spell: '+e.message);}
    });break;
@@ -2433,8 +2468,11 @@ function drawDie(d){
 // share its immediate hover/focus behavior; only explicit info controls pin.
 const hudTip=document.createElement('div');hudTip.className='hud-tooltip';hudTip.hidden=true;
 hudTip.id='hud-tooltip';hudTip.setAttribute('role','tooltip');document.body.append(hudTip);
-let tipAnchor=null,tipPinned=false;
+let tipAnchor=null,tipPinned=false,tipCloseTimer=0;
 function hideHudTip(){
+ clearTimeout(tipCloseTimer);
+ hudTip.classList.remove('heart-picker');
+ hudTip.setAttribute('role','tooltip');
  if(tipAnchor?.getAttribute('aria-describedby')==='hud-tooltip')tipAnchor.removeAttribute('aria-describedby');
  hudTip.hidden=true;tipAnchor=null;tipPinned=false;
 }
@@ -2456,7 +2494,21 @@ function showHudTip(el,pin=false){
  if(el.dataset.tipDetail){const detail=document.createElement('span');detail.className='hud-tip-detail';detail.textContent=el.dataset.tipDetail;nodes.push(detail);}
  if(el.dataset.tipSource){const source=document.createElement('small');source.className='hud-tip-source';source.textContent=el.dataset.tipSource;nodes.push(source);}
  hudTip.replaceChildren(...nodes);
- hudTip.classList.toggle('has-detail',nodes.length>1);hudTip.classList.toggle('is-pinned',pin);
+ const heart=el.hasAttribute('data-heart-start');
+ hudTip.classList.toggle('heart-picker',heart);
+ hudTip.setAttribute('role',heart?'group':'tooltip');
+ if(heart){
+  const start=Number(el.dataset.heartStart),cap=Number(el.dataset.heartCapacity),value=Number(el.dataset.heartValue);
+  const options=document.createElement('div');options.className='heart-options';
+  if(cap<=20){
+   options.innerHTML=Array.from({length:cap+1},(_,v)=>'<button type="button" data-action="set-hp" data-arg="'+(start+v)+'" aria-pressed="'+(value===v)+'" aria-label="Set heart to '+v+' HP; total '+(start+v)+'">'+heartGraphic(v,cap)+'<span>'+v+'</span></button>').join('');
+  }else{
+   options.classList.add('heart-exact');
+   options.innerHTML='<label>HP in this heart <input id="heart-exact-value" type="number" min="0" max="'+cap+'" step="1" required value="'+value+'" data-start="'+start+'"></label><button type="button" data-action="set-heart-exact">Set HP</button>';
+  }
+  hudTip.append(options);
+ }
+ hudTip.classList.toggle('has-detail',nodes.length>1||heart);hudTip.classList.toggle('is-pinned',pin);
  el.setAttribute('aria-describedby','hud-tooltip');hudTip.hidden=false;
  const r=el.getBoundingClientRect(),width=hudTip.offsetWidth,height=hudTip.offsetHeight;
  hudTip.style.left=Math.max(8,Math.min(innerWidth-width-8,r.left+r.width/2-width/2))+'px';
@@ -2467,14 +2519,20 @@ document.addEventListener('pointerover',e=>{
  const el=tipTarget(e.target);if(el&&el!==tipAnchor)showHudTip(el);
 });
 document.addEventListener('pointerout',e=>{
- if(!tipPinned&&tipAnchor?.contains(e.target)&&!tipAnchor.contains(e.relatedTarget))hideHudTip();
+ if(!tipPinned&&tipAnchor?.contains(e.target)&&!tipAnchor.contains(e.relatedTarget)){
+  if(hudTip.classList.contains('heart-picker')){clearTimeout(tipCloseTimer);tipCloseTimer=setTimeout(()=>{if(!hudTip.matches(':hover')&&!hudTip.contains(document.activeElement))hideHudTip();},220);}
+  else hideHudTip();
+ }
 });
+hudTip.addEventListener('pointerenter',()=>clearTimeout(tipCloseTimer));
+hudTip.addEventListener('pointerleave',e=>{if(hudTip.classList.contains('heart-picker')&&!tipAnchor?.contains(e.relatedTarget)&&!hudTip.contains(document.activeElement))hideHudTip();});
+hudTip.addEventListener('focusout',e=>{if(hudTip.classList.contains('heart-picker')&&!hudTip.contains(e.relatedTarget)&&!tipAnchor?.contains(e.relatedTarget))hideHudTip();});
 document.addEventListener('focusin',e=>{
- if(tipPinned)return;
+ if(tipPinned||hudTip.contains(e.target))return;
  const el=tipTarget(e.target);if(el)showHudTip(el);
 });
 document.addEventListener('focusout',e=>{
- if(!tipPinned&&tipAnchor?.contains(e.target)&&!tipAnchor.contains(e.relatedTarget))hideHudTip();
+ if(!tipPinned&&tipAnchor?.contains(e.target)&&!tipAnchor.contains(e.relatedTarget)&&!hudTip.contains(e.relatedTarget))hideHudTip();
 });
 document.addEventListener('click',e=>{
  const el=e.target.closest?.('[data-tip-pin]');
@@ -2485,11 +2543,17 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&tipAnchor){hideHudTip();return;}
+ if(e.key==='ArrowDown'&&e.target===tipAnchor&&hudTip.classList.contains('heart-picker')){e.preventDefault();hudTip.querySelector('input,button')?.focus();return;}
  if((e.key==='Enter'||e.key===' ')&&e.target.matches?.('[data-tip-pin]')){
   // Native buttons already emit a click from keyboard; no second action.
   return;
  }
 });
+document.addEventListener('toggle',e=>{
+ const el=e.target;
+ if(el.matches?.('.vital-edit')){const form=el.querySelector('[popover]');if(el.open&&!form.matches(':popover-open'))form.showPopover();else if(!el.open&&form.matches(':popover-open'))form.hidePopover();}
+ if(el.matches?.('.vital-edit [popover]')&&e.newState==='closed'&&el.isConnected)el.closest('details').open=false;
+},true);
 document.getElementById('page').addEventListener('scroll',hideHudTip,{passive:true});
 window.addEventListener('resize',hideHudTip,{passive:true});
 
