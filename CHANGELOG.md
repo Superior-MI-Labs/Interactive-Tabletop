@@ -1,3 +1,9 @@
+## v0.66.0 — Compact HUD and adaptive single-row vitality (candidate)
+
+- Center Auto/Self/Other in the identity ribbon and capture the resolved recipient for confirmation.
+- Abilities left, Conditions above Effects on the right; preserve Gameplay and Skills.
+- Derive heart capacity from width without modifying saved HP or preferred granularity; color and exact hover/focus selection, numeric fallback above 20 HP per segment. Put Edit HP in the browser top layer.
+
 ## v0.65.0 — Compact sheet HUD and swept full-tray dice collection (candidate)
 
 - Consolidate saving throws into their respective ability cards, use compact labeled skill buttons in a horizontal strip, and give the existing Gameplay workspace the whole width.

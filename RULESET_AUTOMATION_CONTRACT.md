@@ -2,6 +2,10 @@
 
 Living engine contract. Check `VERSION` and `CHANGELOG.md` for the current shipped version; this document is not a second rules engine.
 
+## v0.66 recipient intent
+
+Auto is the default transient choice; ordinary attacks and damage remain informational. Structured self-effect plans and explicit duration/concentration tracking propose Self, with explicit confirmation; damage and unknown plans default to Other. Explicit overrides are preserved and the resolved choice is captured for confirmation. No new targets, inferred mechanics or automatic external effects.
+
 ## Player-first roll and recipient contract (v0.54)
 
 Normal sheet Attack, Damage, Critical and generic roll buttons are **dice-only**. They never create or require an encounter target, spend an action, infer a hit, emit a hit event, or change HP. Configured ability/spell use remains an explicit confirmed transaction through the existing planner. The Self/Other selector is transient intent only: Other never applies an effect to the current character or changes an external recipient. Any external duration/concentration is player-/DM-managed. Only explicit **Tracked attack/damage** in advanced legacy tools may create target-specific evidence, invoke `requireOffensiveTarget`, or apply an approved creature consequence. The personal turn tracker uses the existing combat ledger and begins in Manual mode.

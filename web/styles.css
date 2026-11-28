@@ -193,13 +193,13 @@ button,select,input,textarea {min-width:0}
 #page .heart{display:block;flex:0 0 17px;width:17px;height:19px;background:none;border:0;padding:0;transition:transform .13s;position:relative}
 #page .heart svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px 1px #000a)}
 #page .heart-empty{fill:#263039;stroke:#8a6f68;stroke-width:1.2px}
-#page .heart-full{fill:#e77a6b;stroke:#f9c49c;stroke-width:.75px;clip-path:inset(0 calc(100% - var(--heart-fill)) 0 0)}
+#page .heart-full{fill:var(--heart-color,#e77a6b);stroke:#f9c49c;stroke-width:.75px;clip-path:inset(0 calc(100% - var(--heart-fill)) 0 0)}
 #page .heart:hover,#page .heart:focus-visible{transform:translateY(-3px);filter:brightness(1.3)}
 #page .temp-hp{color:#aac8d8;font-size:11px;flex:none}
 #page .vital-edit{position:static;flex:none;margin-left:auto}
 #page .vital-edit summary{list-style:none;cursor:pointer;border:1px solid #52626c;border-radius:4px;padding:5px 7px;font-size:11px;color:#d0c7b8;white-space:nowrap}
 #page .vital-edit summary::-webkit-details-marker{display:none}
-#page .vital-edit .form-grid{position:absolute;right:0;top:calc(100% + 4px);width:min(425px,calc(100vw - 45px));margin:0;padding:10px;border:1px solid #ae8855;border-radius:7px;background:#19242efb;box-shadow:0 15px 45px #000d;z-index:14}
+#page .vital-edit .form-grid{position:fixed;inset:0;width:min(425px,calc(100vw - 45px));height:fit-content;max-height:90dvh;overflow:auto;margin:auto;padding:10px;border:1px solid #ae8855;border-radius:7px;background:#19242efb;box-shadow:0 15px 45px #000d}
 @media(max-width:720px){#page .vitals-line{flex-wrap:wrap}#page .hearts{flex:1 1 100px}#page .vital-gap{flex-basis:2px}}
 #page .condition-rail{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;max-width:100%}
 #page .condition-icons{display:flex;align-items:center;flex-wrap:wrap;gap:5px;max-width:100%}
@@ -831,9 +831,8 @@ body.dice-dragging .dice-stage{cursor:grabbing}
 #page .resources-strip .resource-info small{min-width:0;text-align:left}
 #page .resources-strip .pip-track{display:flex;flex-direction:column;gap:3px;max-width:100%;align-items:flex-start}
 #page .resources-strip .pip-row{display:grid;grid-template-columns:repeat(10,14px);gap:4px;min-height:14px}
-/* Avoid endlessly horizontal HP meters; a normal 30-heart character gets
-   three visible rows when only ten hearts fit across the available width. */
-#page .hearts{flex-wrap:wrap;align-content:flex-start;overflow-x:hidden;overflow-y:auto;max-height:132px;scrollbar-width:thin}
+/* Adaptive segment capacity keeps the HP meter on one row. */
+#page .hearts{flex-wrap:nowrap;overflow:hidden;min-width:33px}
 .status-msg{position:absolute;top:0;left:0;right:auto;bottom:auto;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 /* One d20 selector remains available when the dice panel is collapsed. */
 .dice-dock{position:absolute;right:12px;bottom:12px;z-index:9;display:flex;align-items:flex-end;gap:7px;max-width:calc(100% - 20px);pointer-events:none}
@@ -861,3 +860,35 @@ body.dice-dragging .dice-stage{cursor:grabbing}
  .d20-modes button{min-height:28px;padding:3px 6px;font-size:10px}
 }
 /* The old four-column grid has no layout responsibility after v0.65. */
+
+/* v0.66 compact attribute/status HUD and exact heart picker. */
+#page .identity-ribbon{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center}
+#page .identity-group,#page .header-controls{display:flex;align-items:center;gap:9px;min-width:0}
+#page .header-controls{justify-content:flex-end;flex-wrap:wrap}
+#page .identity-group .identity-copy{min-width:0;flex:1}
+#page .recipient-context{justify-content:center;flex-wrap:nowrap;gap:4px;padding:0;border:0;background:none;color:#e7bf86}
+#page .recipient-context .filter-chip{white-space:nowrap}
+#page .attribute-status-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-items:stretch}
+#page .attribute-status-row .abilities-strip{flex-direction:column;align-items:stretch}
+#page .attribute-status-row .ability-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+#page .attribute-status-row .buff-bar{margin:0;align-content:flex-start;min-width:0}
+#page .attribute-status-row .condition-rail{width:100%}
+#page .attribute-status-row .buff-separator{width:100%;height:1px;flex:0 0 100%;margin:2px 0}
+#page .attribute-status-row .buff-token{flex-wrap:wrap;overflow-wrap:anywhere}
+#page .vital-edit .form-grid:not(:popover-open){display:none}
+#page .vital-edit .form-grid:popover-open{display:grid}
+#page .vital-edit .form-grid::backdrop{background:#080b1066}
+.hud-tooltip.heart-picker{pointer-events:auto;white-space:normal;max-width:min(340px,calc(100vw - 20px));padding:9px;z-index:90}
+.heart-options{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-top:6px}
+.heart-options button{display:grid;justify-items:center;gap:2px;min-width:0;padding:3px;border:1px solid #576772;background:#26343f;color:#f2dcb5;border-radius:4px;font:11px system-ui;cursor:pointer}
+.heart-options button[aria-pressed=true],.heart-options button:hover,.heart-options button:focus-visible{border-color:#f0c58a;background:#45515b}
+.heart-options svg{width:22px;height:22px}
+.heart-options .heart-empty{fill:#263039;stroke:#8a6f68;stroke-width:1.2}
+.heart-options .heart-full{fill:var(--heart-color);stroke:#f9c49c;stroke-width:.75;clip-path:inset(0 calc(100% - var(--heart-fill)) 0 0)}
+.heart-options.heart-exact{display:flex;align-items:end;gap:6px}
+.heart-exact label{display:grid;gap:3px}
+.heart-exact input{width:100%;min-width:70px;background:#18242d;color:#f2dcb5;border:1px solid #65737e;border-radius:4px;padding:4px}
+@media(min-width:1650px){#page .attribute-status-row .ability-cards{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media(max-width:1400px){#page .header-controls{grid-column:1/-1;justify-content:flex-end}}
+@media(max-width:760px){#page .attribute-status-row{grid-template-columns:minmax(0,1fr)}#page .identity-ribbon{grid-template-columns:minmax(0,1fr) auto}#page .header-controls{justify-content:flex-start}}
+@media(max-width:420px){#page .identity-ribbon{grid-template-columns:minmax(0,1fr)}#page .recipient-context{justify-self:center}#page .attribute-status-row .ability-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}

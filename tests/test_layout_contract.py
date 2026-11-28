@@ -34,6 +34,6 @@ class LayoutContract(unittest.TestCase):
         self.assertIn('#page .sheet-layout{display:flex',css)
         self.assertIn('#page .skill-chips{display:flex',css)
         self.assertIn('#page .resources-strip .pip-row{display:grid;grid-template-columns:repeat(10,14px)',css)
-        self.assertIn('#page .hearts{flex-wrap:wrap',css)
+        self.assertIn('#page .hearts{flex-wrap:nowrap',css)
         self.assertIn('function loadThemeAssets()',js)
         self.assertIn('surface.table',(WEB/'theme-assets.json').read_text())

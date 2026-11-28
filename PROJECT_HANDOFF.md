@@ -2,6 +2,8 @@
 
 > **Living project checkpoint.** Read this before planning the next patch. Update it after every meaningful code release and whenever priorities change. This is a practical continuity record, not a second architecture specification or a substitute for tests.
 
+**Candidate application release:** `v0.66.0` — centered recipient, compact attribute/status HUD, adaptive single-row hearts and exact picker, top-layer Edit HP. Gameplay/Skills untouched. Local checkout unavailable; full CI and Pages verification required.
+
 **Last verified application release:** `v0.65.0` — qualification, build and Pages deployment passed in run `45522994277`; independent Hex World camera lab also passed main deployment run `45537912951`.  
 **Current Hex World work:** isolated lab extension for rock/earth skirts, raised terrain and pure signed chunk coordinates. The connected-world / region / visibility plan is maintained in `HEX_WORLD_CONTRACT.md`; runtime streaming, portals, fog of war and actors crossing chunks are not built.  
 **Latest wall patch:** `a929702` raised the rim to 52px; its Pages run `45508173347` failed in the separate practice-turn UI test (covered button), not wall physics.  

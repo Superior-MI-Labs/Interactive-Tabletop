@@ -1,4 +1,8 @@
-# Interactive Tabletop architecture — v0.65.0
+# Interactive Tabletop architecture — v0.66.0
+
+## v0.66 — Adaptive HUD projection
+
+The identity ribbon owns transient Auto/Self/Other intent; validated plans determine Auto and confirmation captures the resolved choice. No external target is inferred. The existing HP renderer derives segment capacity from width with a ResizeObserver, using saved `hp.heart_value` as a preferred minimum. Exact heart choices call the existing direct HP setter, not damage/healing transactions. The shared HUD card presents the picker; the native top-layer HP editor avoids resource overlap. No gameplay navigation, physics, vault schema or rules-engine changes.
 
 ## v0.65 — One character source, one hand, responsive horizontal HUD
 
