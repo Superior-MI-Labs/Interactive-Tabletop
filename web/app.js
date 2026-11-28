@@ -892,7 +892,7 @@ function spells(){
    if(spellFilter==='available')return sp.available!==false&&!sp.prepared&&!sp.always_prepared&&sp.level!==0;
    return true;
  });
- return `${recipientContext()}<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
+ return `<div class="workspace-toolbar spell-toolbar"><div class="workspace-filters" aria-label="Filter spells">
  ${[['all','All'],['prepared','Prepared / Ready'],['available','Available to prepare']].map(([key,label])=>`<button type="button" data-action="spell-filter" data-arg="${key}" class="filter-chip ${spellFilter===key?'selected':''}" aria-pressed="${spellFilter===key}">${label}</button>`).join('')}</div>
  <input class="input search" id="filter" placeholder="Find spells…" value="${esc(search)}" aria-label="Search spells">${button('+ Spell','add-spell','','button mini')}</div>
  <div class="spell-summary">${all.length} spell records · ${prepared} manually prepared · ${slots.map(s=>`Lv${s.level} ${s.current}/${s.max}`).join(' · ')||'No slots recorded'}</div>
